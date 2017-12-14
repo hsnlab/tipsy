@@ -7,8 +7,6 @@
 #+TITLE: TIPSY: Telco pIPeline benchmarking SYstem
 #+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
 
-* TIPSY: Telco pIPeline benchmarking SYstem
-
 TIPSY is a benchmark suite to evaluate and compare the performance of
 different programmable data plane technologies and network-function
 virtualization frameworks over a set of standard scenarios rooted in
