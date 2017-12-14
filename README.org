@@ -1,0 +1,245 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\usepackage{tikz}
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+OPTIONS: toc:nil author:t ^:nil
+
+#+TITLE: TIPSY: Telco pIPeline benchmarking SYstem
+#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
+
+* TIPSY: Telco pIPeline benchmarking SYstem
+
+TIPSY is a benchmark suite to evaluate and compare the performance of
+different programmable data plane technologies and network-function
+virtualization frameworks over a set of standard scenarios rooted in
+telecommunications practice. Currently there is a BNG (Broadband Network
+Gateway) and a 5G MGW (Mobile Gateway) defined and implemented in TIPSY.
+
+The aim of TIPSY is to provide the networking community with a set of
+*standardized telco-oriented scenarios* on top of which different
+*programmable data plane technologies can be fairly and comprehensibly be
+evaluated*.  The target audience is network operators who want to test new
+data-plane equipment, network engineers evaluating the scaling properties
+of some programmable switch in terms of a well-defined parameter of a
+well-defined pipeline, or researchers willing to compare a new data plane
+algorithm or data structure with existing and established technology.
+
+TIPSY comprises five elemental parts, each at varying level of maturity:
+
+- a set of telco pipelines with working implementations (currently OpenFlow
+  and BESS are supported, contributions are welcome),
+- a test suite to validate the implementations (ongoing),
+- a configuration system that allows to fine-tune general parameters of the
+  pipelines (supported),
+- a tunable trace generator to generate deterministic traffic traces to
+  support repeatable experiments and reproducible results (supported),
+- a distributed measurement infrastructure to feed the traffic traces to the
+  system-under-test and an evaluation framework that visualizes the results
+  (rudimentary).
+
+** What TIPSY is
+
+- A collection of pipelines that model real telco use cases: the intention
+  for TIPSY is to serve as an elemental data-plane benchmarking suite for
+  practitioners and researchers.
+- A measurement support framework: TIPSY will automatically generate
+  detailed configs, working pipelines, and complete traffic traces to start
+  testing right away.
+- A tool to perform repeatable experiments: TIPSY devotes huge emphasis to
+  support reproducibility, like it automatically generates deterministic
+  traffic traces, and supports multiple traffic-dropping policies to never
+  lose packets, etc.
+
+** What TIPSY is not
+
+- A fully fledged measurement system: TIPSY will not setup the measurement
+  configuration automatically and there are certain steps that need to be
+  done manually by the user, like connecting the SUT and the tester; the
+  intention is to minimize manual intervention as much as possible.
+- A comprehensive collection of telco pipelines (contributions are welcome)
+  or a canonical implementations of the ones supported (of course, there is
+  more that one way to do it).
+- An Internet scale performance measurement framework: TIPSY is best suited
+  to evaluate a single device under test connected back-to-back with a
+  traffic generator.
+
+** If you find TIPSY to not work for you
+
+You can find a comprehensive list of alternative data plane benchmark
+suites and a lot of background on data plane testing in the below paper.
+
+Matthias Holdorf, "How-To Compare Performance of Data Plane Devices",
+Proceedings of the Seminars Future Internet (FI) and Innovative Internet
+Technologies and Mobile Communications (IITM), 2016.
+[[https://www.net.in.tum.de/fileadmin/TUM/NET/NET-2016-07-1/NET-2016-07-1_05.pdf]]
+
+* Architecture
+
+The general TIPSY setup will contain a System Under Test (SUT) that runs
+the data plane to be evaluated, a Tester that feeds the SUT with a traffic
+trace and measures performance, and a Controller that can exercise the
+performance of the SUT under updates.  Drawing from telco practice, TIPSY
+distinguishes between the *uplink* direction (user-to-network direction)
+and the *downlink* direction (user-to-network direction); the downlink port
+is the attachment port for the access network (users) and the uplink port
+connects to the public Internet. In pratice, however, the uplink and
+downlink ports of the SUT are connected back-to-back to the same Tester
+device for supporting versatile evaluation setups.
+
+:                           +---------------------+
+:                           |                     |
+:                           |     Controller      |
+:                           |                     |
+:                           +---------------------+
+:                                      A
+:                                      |
+:                                      V
+:   +---------+             +---------------------+
+:   |         |    Uplink   |                     |
+:   |         |------------>|  System Under Test  |
+:   | Tester  |             |        (SUT)        |
+:   |         |<------------|                     |
+:   |         |   Downlink  |                     |
+:   +---------+             +---------------------+
+
+Input to TIPSY is a high-level description of the intended measurement,
+like the name of the pipeline to be coded into the SUT and the general
+parameters (number of users, number of Internet routes, etc.) and the
+output is a set of configurations/data-plane programs that can be loaded
+into the SUT, plus a set of traffic traces for each config, that can be
+used to do the evaluation. Currently these must be loaded manually into the
+SUT and the Tester; fully automated benchmarks are works in progress at the
+moment.
+
+Apart from the static configuration for the pipelines, aimed for evaluating
+the SUT in steady state, TIPSY also contains an additional set of "update"
+scenarios that can be used to benchmark the SUT under updates initiated by
+the control plane. The implementations that come with TIPSY pipelines
+contain code to feed the updates, via the Controller module, with
+configurable intensity into the SUT.
+
+* Pipelines
+
+The below table provides an overview of the TIPSY pipelines along with the
+features each one uses and the current availability of an implementation in
+the TIPSY code.
+
+#+ATTR_LaTeX: :align |c|c|c|c|c|c|c|c|c|c|
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+|           | L2 fwd | L3 fwd | Encap/ | Parse      | Set     | Rate    | Firewall | NAT | Status |
+|           |        |        | decap  | field      | field   | limiter |          |     |        |
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+| PORTfwd   | -      | -      | -      | -          | -       | -       | -        | -   | TODO   |
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+| L2fwd     | x      | -      | -      | eth_src    | -       | -       | -        | -   | TODO   |
+|           |        |        |        | eth_dst    |         |         |          |     |        |
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+| L3fwd     | x      | x      | -      | eth_src    | eth_src | -       | -        | -   | TODO   |
+|           |        |        |        | eth_dst    | eth_dst |         |          |     |        |
+|           |        |        |        | ether_type | ip_ttl  |         |          |     |        |
+|           |        |        |        | ip_dst     |         |         |          |     |        |
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+| Data      | x      | x      | VXLAN  | eth_src    | eth_src | -       | -        | x   | OK     |
+| Center    |        |        |        | eth_dst    | eth_dst |         |          |     |        |
+| Gateway   |        |        |        | ether_type | ip_ttl  |         |          |     |        |
+| (DCGW)    |        |        |        | ip_dst     |         |         |          |     |        |
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+| Mobile    | x      | x      | GTP    | eth_src    | eth_src | x       | -        | -   | OK     |
+| Gateway   |        |        |        | eth_dst    | eth_dst |         |          |     |        |
+| (MGW)     |        |        |        | ether_type | ip_ttl  |         |          |     |        |
+|           |        |        |        | ip_dst     |         |         |          |     |        |
+|           |        |        |        | ip_proto   |         |         |          |     |        |
+|           |        |        |        | udp_dst    |         |         |          |     |        |
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+| Broadband |        |        |        | eth_src    | eth_src | x       | x        | x   | TODO   |
+| Nerwork   | x      | x      | GRE    | eth_dst    | eth_dst |         |          |     |        |
+| Gateway   |        |        |        | ether_type | ip_ttl  |         |          |     |        |
+| (BNG)     |        |        |        | ip_dst     |         |         |          |     |        |
+|           |        |        |        | ip_proto   |         |         |          |     |        |
+|           |        |        |        | udp_dst    |         |         |          |     |        |
+|-----------+--------+--------+--------+------------+---------+---------+----------+-----+--------|
+
+** Mobile Gateway (MGW)
+
+The mobile gateway pipeline (=mgw=) represents a simplified 5G gateway that
+connects a set of mobile user equipments (UEs), located behind different
+base stations (BSTs), to a set of public servers available on the Internet.
+
+[[./doc/fig/mgw.png]]
+
+*** Static pipeline
+
+In the uplink direction (UE/BST -> server) the MGW receives
+GTP-encapsulated packets from the base stations, where the source IP
+identifies the BST, the source IP address in the encapsulated IP packet
+identifies the user, and the GTP TEID identifies the bearer.  It performs
+various checks, decapsulates the UE's packet from the GTP tunnel,
+identifies the user and polices the UE (rate limiting), and then routes the
+decapculated packer to the Internet.
+
+In the downlink direction (server -> user/bst) the MGW receives normal
+packets from the Internet and the pipeline is basically the reverse of the
+uplink one: identify the UE/bearer based on the packet destination IP
+address (we now assume there is only one bearer per user), rate limit the
+UE flow, and encapsulate and send the packet to the BST behind which the UE
+is currently located.
+
+In particular, the MGW performs the following processing steps per
+uplink/downlink packet:
+
+Uplink:
+
+- L2, L3 and L4 check (gateway MAC/IP and UDP port destination 2152)
+- GTP decap, save TEID
+- rate limit per bearer (TEID)
+- L3 routing towards the Internet + L2 fwd
+
+Downlink:
+- L2 and L3 check (check if destination IP is in the UE range)
+- per user rate limiting
+- GTP encap (set bearer in TEID)
+- set destination IP of the base station of the UE
+- L3 routing towards BSTs + L2 fwd
+
+This roughly maps to the below modules:
+- Ingress:
+  - =l2_fwd=: identify local packets
+  - =ether_type=: identify ARP/IP packets
+  - =dir_selector=: distinguish uplink/downlink packets
+- Egress:
+  - =rate_limiter=: per user traffic policing
+  - =ip_lookup=: route to servers (uplink) and BSTs (downlink)
+  - =group table=: next-hop setting per server and BST
+- Uplink: Ingress -> GTP decap -> Egress
+- Downlink: Ingress -> GTP encap -> Egress
+
+*** Dynamic scenarios
+
+TIPSY defined the below update scenarios for the MGW pipeline.
+
+- Arrival/departure of a user: when a new UE arrives/departs to/from a BST,
+  the pipeline needs to be updated as follows: TODO
+- User mobility (handover): TODO
+- Addition/removal of a server: TODO
+
+*** Parameters
+
+*** OVS Implementation: Caveats and considerations
+
+*** BESS Implementation: Caveats and considerations
+
+** Broadband Nerwork Gateway (BNG)
+
+*** Static pipeline
+
+[[./doc/fig/bng.png]]
+
+*** Dynamic scenarios
+
+*** Parameters
+
+*** OVS Implementation: Caveats and considerations
+
+*** BESS Implementation: Caveats and considerations
+
+* Installation and usage

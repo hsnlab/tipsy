@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+import time
+import BaseHTTPServer
+import thread
+
+class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+  def do_GET(self):
+    if self.path != self.w_url:
+      self.send_response(404)
+      return
+    self.send_response(200)
+    self.send_header("Content-type", "application/json")
+    self.end_headers()
+    self.wfile.write("\"%s\"\n" % self.path)
+
+    def shutdown(server):
+      server.shutdown()
+    thread.start_new_thread(shutdown, (self.httpd,))
+
+def wait_for_request(host_name, port_number, url):
+  server_class = BaseHTTPServer.HTTPServer
+  httpd = server_class((host_name, port_number), MyHandler)
+  httpd.RequestHandlerClass.w_url = url
+  httpd.RequestHandlerClass.httpd = httpd
+  try:
+    httpd.serve_forever()
+  except KeyboardInterrupt:
+    pass
+  httpd.server_close()
+
+
+if __name__ == '__main__':
+  params = ('127.0.0.1', 9000, '/configured')
+  print('Waiting for %s:%s%s' % params)
+  wait_for_request(*params)
+  print('Got it.')
