@@ -16,7 +16,7 @@ and implementations to follow soon.
 
 The aim of TIPSY is to provide the networking community with a set of
 *standardized telco-oriented scenarios* on top of which different
-*programmable data plane technologies can be fairly and comprehensibly be
+*programmable data plane technologies can be fairly and comprehensibly
 evaluated*.  The target audience is network operators who want to test new
 data-plane equipment, network engineers evaluating the scaling properties
 of a programmable switch in terms of increasingly complex configurations of
@@ -65,8 +65,7 @@ TIPSY comprises five elemental parts, at varying levels of maturity:
 ** If you find TIPSY to not work for you
 
 You can find a comprehensive list of alternative data plane benchmark
-suites and a comprehensive background on data plane testing in the below
-paper.
+suites and lots of background on data plane testing in the below paper.
 
 Matthias Holdorf, "How-To Compare Performance of Data Plane Devices",
 Proceedings of the Seminars Future Internet (FI) and Innovative Internet
@@ -96,9 +95,9 @@ device for supporting versatile evaluation setups.
 :                                      V
 :   +---------+             +---------------------+
 :   |         |    Uplink   |                     |
-:   |         |------------>|  System Under Test  |
+:   |         |<----------->|  System Under Test  |
 :   | Tester  |             |        (SUT)        |
-:   |         |<------------|                     |
+:   |         |<----------->|                     |
 :   |         |   Downlink  |                     |
 :   +---------+             +---------------------+
 
@@ -112,11 +111,11 @@ the SUT and the Tester; fully automated benchmarks are works in progress at
 the moment.
 
 Apart from static pipeline configurations, aimed for evaluating the SUT in
-steady state, TIPSY also contains an additional set of "update" scenarios
-that can be used to benchmark the SUT under dynamic updates initiated by
-the control plane. The implementations that come with TIPSY pipelines
-contain code to feed the updates, via the Controller module, into the SUT
-with configurable intensity.
+steady state, TIPSY also contains an additional scenarios that can be used
+to benchmark the SUT under dynamic updates initiated by the control
+plane. The implementations that come with TIPSY pipelines contain code to
+feed the updates, via the Controller module, into the SUT with configurable
+intensity.
 
 * Pipelines
 
@@ -134,11 +133,11 @@ the TIPSY code.
 |-----------------------------+----+----+--------+------------+----------+-----------+----------+-----+--------|
 | L3fwd                       | x  | x  | -      | L2/L3      | L2/L3    | -         | -        | -   | TODO   |
 |-----------------------------+----+----+--------+------------+----------+-----------+----------+-----+--------|
-| Data Center GW (DCGW)       | x  | x  | VXLAN  | L2/L3      | L2/L3    | -         | -        | x   | OK     |
+| Data Center GW (DCGW)       | x  | x  | VXLAN  | L2/L3      | L2/L3    | -         | -        | x   | TODO   |
 |-----------------------------+----+----+--------+------------+----------+-----------+----------+-----+--------|
 | Mobile GW (MGW)             | x  | x  | GTP    | L2/L3/L4   | L2/L3    | x         | -        | -   | OK     |
 |-----------------------------+----+----+--------+------------+----------+-----------+----------+-----+--------|
-| Broadband Network GW  (BNG) | x  | x  | GRE    | L2/L3/L4   | L2/L3    | x         | x        | x   | TODO   |
+| Broadband Network GW  (BNG) | x  | x  | GRE    | L2/L3/L4   | L2/L3    | x         | x        | x   | OK     |
 |-----------------------------+----+----+--------+------------+----------+-----------+----------+-----+--------|
 
 ** Mobile Gateway (MGW)
