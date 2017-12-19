@@ -2,6 +2,7 @@
 import argparse
 import json
 import sys
+from copy import deepcopy
 
 pipeline_args = {}
 def cli_arg(*args, **kw):
@@ -227,8 +228,17 @@ class PL_bng (PL_mgw):
 
 
 def list_pipelines():
-    l = [n[3:] for n in globals() if n.startswith('PL_')]
-    return sorted(l)
+  l = [n[3:] for n in globals() if n.startswith('PL_')]
+  return sorted(l)
+
+def show_per_pipeline_help(args):
+  parser = argparse.ArgumentParser()
+  pl = globals()['PL_%s' % args.pipeline]({})
+  for component in pl.components:
+    for arg_def in pipeline_args.get(component, []):
+      parser.add_argument(*arg_def[0], **arg_def[1])
+  parser.usage = "\n\n%s (%s)"  % (pl.__doc__, args.pipeline)
+  parser.parse_args(['-h'])
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--json', '-j', type=argparse.FileType('r'),
@@ -248,6 +258,9 @@ parser.add_argument('--no-fakedrop', dest='fakedrop',
                     'really droped.',
                     action='store_false')
 parser.set_defaults(fakedrop=True)
+parser.add_argument('--info', action='store_true',
+                    help='Show detailed info of a pipeline and exit')
+parser.set_defaults(info=False)
 
 # Map components to pipelines
 comp2pl = {}
@@ -259,7 +272,7 @@ for pl_name in list_pipelines():
 for component, arg_defs in pipeline_args.items():
   available_in = ','.join(comp2pl[component])
   for arg_def in arg_defs:
-    kw = arg_def[1]
+    kw = deepcopy(arg_def[1])
     kw['help'] = kw.get('help', '') + ' [%s]' % available_in
     parser.add_argument(*arg_def[0], **kw)
 
@@ -270,7 +283,10 @@ if args.json:
   parser.set_defaults(**new_defaults)
   args = parser.parse_args()
 
-pl = globals()['PL_%s' % args.pipeline](args)
-conf = pl.create_conf()
-json.dump(conf, args.output, sort_keys=True, indent=4)
-args.output.write("\n")
+if args.info:
+  show_per_pipeline_help(args)
+else:
+  pl = globals()['PL_%s' % args.pipeline](args)
+  conf = pl.create_conf()
+  json.dump(conf, args.output, sort_keys=True, indent=4)
+  args.output.write("\n")
