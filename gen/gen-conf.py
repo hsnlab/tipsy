@@ -34,7 +34,7 @@ class PL (object):
     self.conf['fakedrop'] = args.fakedrop
 
   @cli_arg('--bst', '-b', type=int, default=1,
-            help='Number of base stations (max: 65536)')
+            help='Number of base stations (max: 64516)')
   def add_bsts (self):
     bsts = []
     for b in range(self.args.bst):
@@ -47,7 +47,7 @@ class PL (object):
     self.conf['bsts'] = bsts
 
   @cli_arg('--server', '-s', type=int, default=1,
-           help='Number of servers (max: 65536)')
+           help='Number of servers (max: 64516)')
   def add_servers (self):
     srvs = []
     for s in range(self.args.server):
@@ -70,7 +70,7 @@ class PL (object):
     self.conf['nhops'] = nhops
 
   @cli_arg('--user', '-u', type=int, default=1,
-           help='Number of users (max: 65536)')
+           help='Number of users (max: 64516)')
   @cli_arg('--rate-limit', '-r', type=int, default=10000,
            help='Rate limiter [bit/s]')
   def add_users (self):
@@ -151,11 +151,11 @@ class PL_mgw (PL):
     }
 
   @cli_arg('--fluct-user', type=int, default=0,
-           help='Number of fluctuating users per second (default: 0)')
+           help='Number of fluctuating users per second')
   @cli_arg('--handover', type=int, default=0,
-           help='Number of handovers per second (default: 0)')
+           help='Number of handovers per second')
   @cli_arg('--fluct-server', type=int, default=0,
-           help='Number of fluctuating servers per second (default: 0)')
+           help='Number of fluctuating servers per second')
   def add_run_time (self):
     # Generate extra users to fluctuate
     extra_users = []
@@ -212,11 +212,11 @@ class PL_vmgw (PL_mgw):
     self.components += ['dcgw', 'fw', 'apps']
 
   @cli_arg('--napps', type=int, default=1,
-           help='Number of apps (default: 1)')
+           help='Number of apps')
   def add_apps (self):
-    if args.napps != 1:
+    if self.args.napps != 1:
       raise NotImplementedError('Currently, one app is supported.')
-    self.conf['napps'] = args.napps
+    self.conf['napps'] = self.args.napps
 
 
 class PL_bng (PL_mgw):
@@ -233,6 +233,7 @@ def list_pipelines():
 
 def show_per_pipeline_help(args):
   parser = argparse.ArgumentParser()
+  parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
   pl = globals()['PL_%s' % args.pipeline]({})
   for component in pl.components:
     for arg_def in pipeline_args.get(component, []):
@@ -269,12 +270,13 @@ for pl_name in list_pipelines():
   for c in pl.components:
     comp2pl[c] = comp2pl.get(c, []) + [pl_name]
 
+group = parser.add_argument_group('pipeline agruments')
 for component, arg_defs in pipeline_args.items():
   available_in = ','.join(comp2pl[component])
   for arg_def in arg_defs:
     kw = deepcopy(arg_def[1])
     kw['help'] = kw.get('help', '') + ' [%s]' % available_in
-    parser.add_argument(*arg_def[0], **kw)
+    group.add_argument(*arg_def[0], **kw)
 
 args = parser.parse_args()
 
