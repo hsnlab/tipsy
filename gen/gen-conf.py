@@ -109,14 +109,29 @@ class PL (object):
       })
 
 
-  @cli_arg('--nat-addresses', '-a', type=int, default=1,
-                    help='Number of NAT rules')
+  @cli_arg('--user-conn', type=int, default=1,
+                    help='Number of connections for each user (max: 65535)')
   def add_nat (self):
-    nat_addrs = []
-    for i in range(self.args.nat_addresses):
-      nat_addrs.append({'ip': '99.99.%d.%d' % (int(i / 254), (i % 254) + 1),
-                        'port': (1000 + i) % 60000 })
-    self.conf['nat_addresses'] = nat_addrs
+    # The 'nat' component depends on the 'users' component
+    # NB: this requirement is not checked.
+    nat = []
+    pub_ip_format_str = '200.1.%d.%d'  # TODO: Make this configurable
+    max_port = 65534
+    for user in self.users:
+      priv_ip = user['ip']
+      for c in range(self.args.user_conn):
+        priv_port = c + 1
+        port_idx = (user['teid']-1) * self.args.user_conn + c
+        pub_port = (port_idx % max_port) + 1
+        incr = int((port_idx / max_port))
+        pub_ip = pub_ip_format_str % (int(incr / 254), (incr % 254) + 1)
+        nat.append({'priv_ip': priv_ip,
+                    'priv_port': priv_port,
+                    'pub_ip': pub_ip,
+                    'pub_port': pub_port,
+                    'proto': 6, # TCP
+        })
+    self.conf['nat_table'] = nat
 
   def add_dcgw (self):
     self.conf['dcgw'] = {
@@ -124,14 +139,6 @@ class PL (object):
       'ip': '211.0.0.1',
       'mac':'ac:dc:AC:DC:ac:dc',
     }
-
-
-class PL_mgw (PL):
-  "Mobile Gateway"
-
-  def __init__ (self, args):
-    super(PL_mgw, self).__init__(args)
-    self.components += ['gw', 'bsts', 'servers', 'nhops', 'users', 'run_time']
 
   @cli_arg('--gw-ip', type=str, default='200.0.0.1',
            help='Gateway IP address')
@@ -149,6 +156,15 @@ class PL_mgw (PL):
                       'mac': self.args.downlink_default_gw_mac,
       },
     }
+
+
+class PL_mgw (PL):
+  "Mobile Gateway"
+
+  def __init__ (self, args):
+    super(PL_mgw, self).__init__(args)
+    self.components += ['gw', 'bsts', 'servers', 'nhops', 'users', 'run_time']
+
 
   @cli_arg('--fluct-user', type=int, default=0,
            help='Number of fluctuating users per second')
@@ -219,13 +235,33 @@ class PL_vmgw (PL_mgw):
     self.conf['napps'] = self.args.napps
 
 
-class PL_bng (PL_mgw):
+class PL_bng (PL):
   "Broadband Network Gateway"
 
   def __init__ (self, args):
     super(PL_bng, self).__init__(args)
-    self.components += ['fw', 'nat']
+    self.components += ['fw', 'cpe', 'gw', 'users', 'nat',
+                        'servers', 'nhops', 'run_time']
 
+
+  @cli_arg('--cpe', type=int, default=1,
+            help='Number of Customer Premises Equipments (max: 64516)')
+  def add_cpe (self):
+    cpe = []
+    for b in range(self.args.cpe):
+      cpe.append({
+        'id': b,
+        'mac': 'aa:cc:dd:cc:%02x:%02x' % (int(b / 254), (b % 254) + 1),
+        'ip': '1.1.%d.%d' % (int(b / 254), (b % 254) + 1),
+        'port': None,
+      })
+    self.conf['cpe'] = cpe
+
+
+  def add_run_time (self):
+    # TODO: add/del_upser
+    # TODO: add/del_server
+    pass
 
 def list_pipelines():
   l = [n[3:] for n in globals() if n.startswith('PL_')]
