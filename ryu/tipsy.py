@@ -62,11 +62,13 @@ import sw_conf_vsctl as sw_conf
 
 TABLES = {
   'ingress'   : 0,
-  'uplink'    : 2,
-  'ul_fw'     : 3,
-  'dl_fw'     : 4,
-  'downlink'  : 5,
-  'l3_lookup' : 6,
+  'dl_nat'    : 1,
+  'dl_fw'     : 2,
+  'downlink'  : 3,
+  'uplink'    : 4,
+  'ul_fw'     : 5,
+  'ul_nat'    : 6,
+  'l3_lookup' : 7,
   'drop'      : 250
 }
 
@@ -191,6 +193,14 @@ class Tipsy(app_manager.RyuApp):
     else:
       sw_conf.add_port(br_name, port_name, type='system', name=iface)
 
+  def add_vxlan_tun (self, prefix, host):
+      sw_conf.add_port(self.dp_id,
+                       prefix + '-%s' % host.id,
+                       type='vxlan',
+                       options={'key': 'flow',
+                                'remote_ip': host.ip})
+
+
   def initialize_datapath(self):
     self.change_status('initialize_datapath')
 
@@ -223,8 +233,9 @@ class Tipsy(app_manager.RyuApp):
         self.logger.error('cmd failed: %s' % cmd)
 
     nets = {}
-    for bst in self.mgw_conf.bsts:
-      net = re.sub(r'[.][0-9]+$', '.0/24', bst.ip)
+    tun_end = self.pl_conf.get('bsts', []) + self.pl_conf.get('cpe', [])
+    for host in tun_end:
+      net = re.sub(r'[.][0-9]+$', '.0/24', host.ip)
       nets[str(net)] = True
     for net in nets.iterkeys():
       ip.add_route_gw(net, self.pl_conf.gw.default_gw.ip)
@@ -305,9 +316,11 @@ class Tipsy(app_manager.RyuApp):
     parser = self.dp.ofproto_parser
     return parser.OFPInstructionGotoTable(TABLES[table_name])
 
-  def get_bst_port(self, bst_id):
-    port_name = 'bst-%s' % bst_id
-    return self.ports[port_name]
+  def get_tun_port(self, tun_end):
+    "Get SUT port to tun_end"
+    if 'bst-%s' % tun_end in self.ports:
+      return self.ports['bst-%s' % tun_end]
+    return self.ports['cpe-%s' % tun_end]
 
   def mod_flow(self, table=0, priority=None, match=None,
                actions=[], inst=[], out_port=None, out_group=None,
@@ -415,6 +428,43 @@ class Tipsy(app_manager.RyuApp):
       self.mod_flow(table_name, match=match, inst=inst)
     self.mod_flow(table_name, priority=1, inst=[self.goto(next_table)])
 
+  @staticmethod
+  def get_proto_name (ip_proto_num):
+    name = {in_proto.IPPROTO_TCP: 'tcp',
+            in_proto.IPPROTO_UDP: 'udp'}.get(ip_proto_num)
+    #TODO: handle None
+    return name
+
+  def add_ul_nat_rules (self, table_name, next_table):
+    parser = self.dp.ofproto_parser
+    for rule in self.pl_conf.nat_table:
+      proto_name = self.get_proto_name(rule.proto)
+      m = {'eth_type': ETH_TYPE_IP,
+           'ipv4_src': (rule.priv_ip, '255.255.255.255'),
+           'ip_proto': rule.proto,
+            proto_name + '_src': rule.priv_port}
+      match = parser.OFPMatch(**m)
+      actions = [{'ipv4_src': rule.pub_ip},
+                 {proto_name + '_src': rule.pub_port}]
+      actions = [parser.OFPActionSetField(**a) for a in actions]
+      self.mod_flow(table_name, match=match, actions=actions,
+                    inst=[self.goto(next_table)])
+
+  def add_dl_nat_rules (self, table_name, next_table):
+    parser = self.dp.ofproto_parser
+    for rule in self.pl_conf.nat_table:
+      proto_name = self.get_proto_name(rule.proto)
+      m = {'eth_type': ETH_TYPE_IP,
+           'ipv4_dst': (rule.pub_ip, '255.255.255.255'),
+           'ip_proto': rule.proto,
+            proto_name + '_dst': rule.pub_port}
+      match = parser.OFPMatch(**m)
+      actions = [{'ipv4_dst': rule.priv_ip},
+                 {proto_name + '_dst': rule.priv_port}]
+      actions = [parser.OFPActionSetField(**a) for a in actions]
+      self.mod_flow(table_name, match=match, actions=actions,
+                    inst=[self.goto(next_table)])
+
   def configure_ingress(self):
     parser = self.dp.ofproto_parser
 
@@ -471,12 +521,10 @@ class Tipsy(app_manager.RyuApp):
     parser = self.dp.ofproto_parser
     self.clear_switch()
 
-    for bst in self.mgw_conf.bsts:
-      sw_conf.add_port(self.dp_id,
-                       'bst-%s' % bst.id,
-                       type='vxlan',
-                       options={'key': 'flow',
-                                'remote_ip': bst.ip})
+    for bst in self.pl_conf.get('bsts', []):
+      self.add_vxlan_tun('bst', bst)
+    for cpe in self.pl_conf.get('cpe', []):
+      self.add_vxlan_tun('cpe', cpe)
 
     self.dp.send_msg(parser.OFPPortDescStatsRequest(self.dp, 0, ofp.OFPP_ANY))
     self.change_status('wait_for_PortDesc')
@@ -505,8 +553,11 @@ class Tipsy(app_manager.RyuApp):
     for user in self.pl_conf.users:
       self.mod_user('add', user)
 
-    self.add_fw_rules('ul_fw', self.mgw_conf.ul_fw_rules, 'l3_lookup')
-    self.add_fw_rules('dl_fw', self.mgw_conf.dl_fw_rules, 'downlink')
+    if self.pl_conf.pipeline in ['bng']:
+      self.add_fw_rules('ul_fw', self.pl_conf.ul_fw_rules, 'ul_nat')
+      self.add_fw_rules('dl_fw', self.pl_conf.dl_fw_rules, 'downlink')
+      self.add_ul_nat_rules('ul_nat', 'l3_lookup')
+      self.add_dl_nat_rules('dl_nat', 'dl_fw')
 
     for i, nhop in enumerate(self.pl_conf.nhops):
       out_port = nhop.port or self.ul_port
