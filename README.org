@@ -278,9 +278,9 @@ each argument.
 For the pipeline specific parameters, see the documentation for each
 pipeline.
 
-** Run TIPSY
+** TODO Run TIPSY
 
-TODO
+Here is how we plan to use TIPSY in the near future.
 
 #+BEGIN_SRC sh
 $ cd tipsy
@@ -289,6 +289,34 @@ $ ./tipsy run
 $ ./tipsy eval
 #+END_SRC
 
-** Evaluate results
+At the moment the high-level =tipsy= benchmark driver executable is still
+work-in-progress so you have to run the config, pcap gen and the evaluation
+phases manually. We hope to get this code ready soon.
 
-TODO
+Two examples of how to use the current software:
+#+BEGIN_SRC sh
+$ ./gen/gen-conf.py --pipeline bng --user 10 > ryu/conf.json
+$ cd ryu
+$ ryu-manager --config-dir .
+#+END_SRC
+
+The above code generates a config for the BNG pipeline with setting the
+number of users to 10 and using the default settings otherwise and then
+runs the =Ryu= controller to set up the pipeline in OpenFlow (note that an
+OpenFlow switch, like Open vSwtich, needs to be started separately).
+
+Another example:
+#+BEGIN_SRC sh
+$ ./gen/gen-conf.py --pipeline mgw --handover 2 > conf.json
+$ ./bess/update-agent.py -d /path/to/bess -c conf.json
+#+END_SRC
+
+This snippet generates an MGW pipeline and runs the pipeline in BESS. Note
+that the code automatically starts BESS.
+
+You can make the output a bit more readable by installing
+=ryu/color_log.py=, read the header of =ryu/color_log.py= for how to do
+that.
+
+** TODO  Evaluate results
+
