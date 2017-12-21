@@ -2,14 +2,15 @@
 #+LaTeX_HEADER:\usepackage{enumitem}
 #+LaTeX_HEADER:\usepackage{tikz}
 #+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
 #+OPTIONS: toc:nil author:t ^:nil num:nil
 
 #+TITLE: Mobile Gateway (MGW)
+#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
 
 The mobile gateway pipeline (name: =mgw=) represents a simplified 5G
 gateway that connects a set of mobile user equipments (UEs), located behind
-different base stations (BSTs), to a set of public servers available on the
-Internet.
+base stations (BSTs), to a set of public servers available on the Internet.
 
 #+ATTR_LATEX: :centering :width 10cm :caption MGW setup 
 [[./fig/mgw.png]]
@@ -17,12 +18,14 @@ Internet.
 * Static pipeline
 
 In the uplink direction (UE/BST -> server) the MGW receives
-GTP-encapsulated packets from the base stations, where the source IP
-identifies the BST, the source IP address in the encapsulated IP packet
-identifies the user, and the GTP TEID identifies the bearer.  The uplink
-pipeline performs various checks, decapsulates the UE's packet from the GTP
-tunnel, identifies the user and polices the UE (rate limiting), and then
-routes the decapculated packet to the Internet.
+GTP-encapsulated packets from the base stations, identified by the source
+IP address in the GTP header, and forwards the decapsulated packets to
+public servers in the Internet.  After decapsulation, the source IP address
+identifies the user and the GTP TEID identifies the bearer, the the
+destination IP designates the public server to forward the packet to.  The
+uplink pipeline performs various checks, decapsulates the UE's packet from
+the GTP tunnel, identifies the user and polices the UE (rate limiting), and
+then routes the decapculated packet to the Internet.
 
 In the downlink direction (server -> user/bst) the MGW receives normal
 packets from the Internet and the pipeline is basically the reverse of the
@@ -55,23 +58,83 @@ This roughly maps to the below modules:
   - =dir_selector=: distinguish uplink/downlink packets
 - Egress:
   - =rate_limiter=: per user traffic policing
-  - =ip_lookup=: route to servers (uplink) and BSTs (downlink)
-  - =group table=: next-hop setting per server and BST
+  - =l3_lookup=: route to servers (uplink) and BSTs (downlink)
+  - =group_table=: next-hop setting per server and BST
 - Uplink: Ingress -> GTP decap -> Egress
-- Downlink: Ingress -> GTP encap -> Egress
+- Downlink: Ingress -> UE selector -> GTP encap -> Egress
+  - =ue_selector=: find the GTP TEID for the user's IP address
+
+#+ATTR_LATEX: :centering :width 14cm :caption MGW pipeline
+[[./fig/mgw_pipeline.png]]
 
 * Dynamic scenarios
 
 TIPSY defines the below update scenarios for the MGW pipeline.
 
-- Arrival/departure of a user: when a new UE arrives/departs to/from a BST,
-  the pipeline needs to be updated as follows: TODO
-- User mobility (handover): TODO
-- Addition/removal of a server: TODO
+- Arrival/departure of a user: a UE arrives/departs to/from a BST,
+  involving the following updates to the pipeline:
+  - an entry needs to be added/removed to/from the =ue_selector= module
+  - the queue for the user in the =rate_limiter= is updated
+- User mobility (handover): a user's attachment point (i.e., BST) changes,
+  with the below changes to the pipeline:
+  - the =ue_selector= table is updated
+- Addition/removal of a server: a destination in the public Internet
+  changes
+  - the =l3_lookup= and the =group_table= are modified accordingly
 
 * Parameters
 
+A sample TIPSY configuration for the MGW pipeline is shown below:
+
+#+BEGIN_SRC javascript
+{
+    "args": {
+         "pipeline": "mgw",
+         "user": [1, 2, 3],
+         "bst": [9, 4, 10],
+         "server": 1,
+         "rate-limit": 10000,
+         "nhop": 4,
+         "fakedrop": false,
+         "fluct-user": [17, 200],
+         "handover": 0,
+         "fluct-server": 4,
+         "pkt-size": 64,
+         "pkt-num": 1000000,
+         "dir": ["uplink", "downlink", "bidir"],
+         "backend": ["ovs", "bess"],
+         "pkt-gen": "moongen",
+    }
+}
+#+END_SRC
+
+The parameters specific to the MGW pipeline are as follows:
+
+- =pipeline=: name of the pipeline, must be set to =mgw= for the MGW
+  pipeline.
+- =user=: number of UEs
+- =bst=: number of BSTs
+- =server=: number of public servers
+- =rate-limit=: rate limit threshold [byte/sec]
+- =nhop=: number of next-hops in the L3 table towards the public Internet
+- =fakedrop=: whether to actually drop unmatched packets (=false=) or send
+  them immediately to the output port (=false=) for correct rate
+  measurements
+- =fluct-user=: number of user arrival/departure events per sec
+- =handover=: number of handover events per sec
+- =fluct-server=: number of server update events per sec
+- =pkt-size=: packet size [byte]
+- =pkt-num=: number of packets 
+- =dir=: 
+  - =uplink=: evaluate the upstream datapath
+  - =downlink=: evaluate the downstream datapath
+  - =bidir=: run test in both directions
+- =backend=: backend to run the benchmark on (=ovs= or =bess=)
+- =pkt-gen=: packet generator for the Tester (=moongen= or =tcpreplay=)
+
 * OVS Implementation: Caveats and considerations
+
+
 
 * BESS Implementation: Caveats and considerations
 

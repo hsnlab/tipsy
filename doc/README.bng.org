@@ -5,6 +5,7 @@
 #+OPTIONS: toc:nil author:t ^:nil num:nil
 
 #+TITLE: Broadband Nerwork Gateway (BNG)
+#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
 
 * Static pipeline
 

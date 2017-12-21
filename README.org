@@ -2,10 +2,13 @@
 #+LaTeX_HEADER:\usepackage{enumitem}
 #+LaTeX_HEADER:\usepackage{tikz}
 #+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
 #+OPTIONS: toc:nil author:t ^:nil num:nil
 
 #+TITLE: TIPSY: Telco pIPeline benchmarking SYstem
 #+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
+
+/Disclaimer: TIPSY is currently heavily work in progress!/
 
 TIPSY is a benchmark suite to evaluate and compare the performance of
 programmable data plane technologies and network-function virtualization
@@ -68,8 +71,8 @@ of maturity:
 You can find a comprehensive list of alternative data plane benchmark
 suites and lots of background on data plane testing in the below paper.
 
-Matthias Holdorf, 
-[[https://www.net.in.tum.de/fileadmin/TUM/NET/NET-2016-07-1/NET-2016-07-1_05.pdf][/How-To Compare Performance of Data Plane Devices/]],
+Matthias Holdorf,
+[[https://www.net.in.tum.de/fileadmin/TUM/NET/NET-2016-07-1/NET-2016-07-1_05.pdf][How-To Compare Performance of Data Plane Devices]],
 Proceedings of the Seminars Future Internet (FI) and Innovative Internet
 Technologies and Mobile Communications (IITM), 2016.
 
@@ -77,39 +80,36 @@ Technologies and Mobile Communications (IITM), 2016.
 
 The general TIPSY setup will contain a System Under Test (SUT) that runs
 the data plane to be evaluated, a Tester that feeds the SUT with a traffic
-trace and measures performance, and a Controller that can exercise the
-performance of the SUT under updates.  Drawing from telco practice, TIPSY
-distinguishes between the *uplink* direction (user-to-network direction)
-and the *downlink* direction (user-to-network direction); the downlink port
-is the attachment port for the access network (users) and the uplink port
-connects to the public Internet. In pratice, however, the uplink and
-downlink ports of the SUT are connected back-to-back to the same Tester
-device for supporting versatile evaluation setups.
+trace and measures performance, and a Controller that sets up the static
+pipeline and, optionally, exercises the performance of the SUT under
+updates.  Drawing from telco practice, TIPSY distinguishes between the
+*uplink* direction (user-to-network direction) and the *downlink* direction
+(user-to-network direction); the downlink port is the attachment port for
+the access network (users) and the uplink port connects to the public
+Internet. In pratice, however, the uplink and downlink ports of the SUT are
+connected back-to-back to the same Tester device for supporting versatile
+evaluation setups.
 
-:                           +---------------------+
-:                           |                     |
-:                           |     Controller      |
-:                           |                     |
-:                           +---------------------+
-:                                      A
-:                                      |
-:                                      V
-:   +---------+             +---------------------+
-:   |         |    Uplink   |                     |
-:   |         |<----------->|  System Under Test  |
-:   | Tester  |             |        (SUT)        |
-:   |         |<----------->|                     |
-:   |         |   Downlink  |                     |
-:   +---------+             +---------------------+
-
-Input to TIPSY is a high-level description of the intended measurement,
-like the name of the pipeline to be coded into the SUT and the general
-parameters (number of users, number of Internet routes, etc.) and the
-output is a set of configurations/data-plane programs that can be loaded
-into the SUT and a set of traffic traces for each config that can be used
-to perform static benchmarks. Currently these must be loaded manually into
-the SUT and the Tester; fully automated benchmarks are works in progress at
-the moment.
+:                                  +---------------------+
+:                                  |                     |
+:                                  |    *Controller*     |
+:                                  |                     |
+:                                  +---------------------+
+:                                             A
+:                                             |
+:                                             V
+:   +----------------+             +---------------------+
+:   |                |             |                     |
+:   |     uplink_port|<----------->|downlink_port        |
+:   |                |             |                     |
+:   |                |             |                     |
+:   |    *Tester*    |             | *System Under Test* |
+:   |                |             |        (SUT)        |
+:   |                |             |                     |
+:   |                |             |                     |
+:   |   downlink_port|<----------->|uplink_port          |
+:   |                |             |                     |
+:   +----------------+             +---------------------+
 
 Apart from static pipeline configurations, aimed for evaluating the SUT in
 steady state, TIPSY also contains an additional scenarios that can be used
@@ -150,3 +150,135 @@ the TIPSY code.
 |--------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
 
 * Installation and usage
+
+** Installation
+
+TIPSY does not require explicit installation, just clone and use right
+away.
+
+#+BEGIN_SRC sh
+$ git clone https://github.com/hsnlab/tipsy
+$ cd tipsy
+<run benchmarks>
+#+END_SRC
+
+** Environment
+
+For TIPSY to run it must have a JSON configuration available that describes
+the SUT and the Tester environment settings, like backends, paths, packet
+generators, etc.
+
+#+BEGIN_SRC javascript
+{
+    "sut": {
+        "tipsy-dir": "/home/user/tipsy",
+        "bess-dir": "/export/netsys/src/bess",
+        "ovs-dir": "",
+        "mgmt": "ssh:root@1.2.3.4"
+        "downlink_port": "dpdk:0",
+        "uplink_port": "dpdk:1"
+    },
+    "tester": {
+        "moongen-dir": "/usr/local/bin/moongen",
+        "tcpreplay-dir": "/usr/bin/tcpreplay",
+        "pktgen-dir": "/opt/dpdk/bin/pktgen",
+        "downlink_port": "eth0",
+        "uplink_port": "eth1"
+    }
+}
+#+END_SRC
+
+For the SUT the following settings must be available (note that any of the
+settings can be omitted in which case TIPSY will use sane defaults):
+- =tipsy-dir=: the directory where TIPSY has been cloned
+- =bess-dir=: BESS root directory
+- =ovs-dir=: OVS root directory
+- =mgmt=: specify a management access to the SUT
+- =downlink_port=: downstream port
+- =uplink_port=: upstream port
+
+The Tester environment is as follows:
+- =moongen-dir=: directory for the =moongen= packet generator executable
+- =tcpreplay-dir=: directory for =tcpreplay=
+- =pktgen-dir=: directory for the DPDK =pktgen= packet generator executable
+- =downlink_port=: downstream port
+- =uplink_port=: upstream port
+
+Note that the =downlink_port= of the SUT is connected to the =uplink_port=
+of the Tester and vice versa.
+
+** High-level configuration
+
+Input to TIPSY is a high-level description of the intended measurement,
+like the name of the pipeline to be coded into the SUT and the general
+parameters (number of users, number of Internet routes, etc.) and the
+output is a set of configurations/data-plane programs that can be loaded
+into the SUT and a set of traffic traces for each config that can be used
+to perform static benchmarks. Currently these must be loaded manually into
+the SUT and the Tester; fully automated benchmarks are works in progress at
+the moment.
+
+#+BEGIN_SRC javascript
+{
+    "benchmark":
+    [
+        {
+            "scale": "outer",
+            "args": {
+                "pipeline": "mgw",
+                "param1": [1,2],
+                "param2": [5,10],
+                "param3": false,
+                <various pipeline specific parameters>
+            }
+        },
+        {
+            "scale": "all",
+            "args": {
+                "pipeline": "bng",
+                "param1": [1,2],
+                "param2": [5,10],
+                "param3": false,
+                <various pipeline specific parameters>
+            }
+        }
+    ]
+}
+#+END_SRC
+
+The high-level configuration defines a set of benchmarks to be evaluated in
+a single JSON file. The parameters describe way the benchmarks are to be
+evaluated.
+
+The =scale= paramter describes the way the individual banchmarks in the
+scalability test are to be executed.
+- =scale=: perform scalability tests by repeating the benchmark multiple
+  times, each time setting one or all parameters as specified in the =args=
+  - =none=: do not perform scalability tests (default)
+  - =outer=: take the outer product of the argument lists and generate a
+    separate benchmark for all combinations
+  - =all=: scale the parameters jointly
+
+In the above example, for instance, the first benchmark sets =scale= to
+=outer=, which means that a separate benchmark will be tun for each
+combination of list of values given for the pipeline specific parameters
+=param1=, =param2=, =param3=, i.e., the first benchmark will have =param1=,
+=param2=, and =param3= set to =[1,5,false]=, the second to =[2,5,false]=,
+the third to =[1,10,false]=, etc. The second benchmark in turn describes an
+=all=-type scalability test, which means that the parameters will be scaled
+jointly by first taking the first setting in the list for each param, then
+the second, etc., i.e., =param1=, =param2=, and =param3= set first to
+=[1,5,false]= and then to =[2,10,false]=. Setting =scale= to =none= ignores
+parameter lists and generates a single benchmark for the first scalar for
+each arguments.
+
+For the pipeline specific parameters, see the documentation for each
+pipeline.
+
+** Run TIPSY
+
+TODO
+
+** Evaluate results
+
+TODO
