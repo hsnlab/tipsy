@@ -1,0 +1,78 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\usepackage{tikz}
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+OPTIONS: toc:nil author:t ^:nil num:nil
+
+#+TITLE: Mobile Gateway (MGW)
+
+The mobile gateway pipeline (name: =mgw=) represents a simplified 5G
+gateway that connects a set of mobile user equipments (UEs), located behind
+different base stations (BSTs), to a set of public servers available on the
+Internet.
+
+#+ATTR_LATEX: :centering :width 10cm :caption MGW setup 
+[[./fig/mgw.png]]
+
+* Static pipeline
+
+In the uplink direction (UE/BST -> server) the MGW receives
+GTP-encapsulated packets from the base stations, where the source IP
+identifies the BST, the source IP address in the encapsulated IP packet
+identifies the user, and the GTP TEID identifies the bearer.  The uplink
+pipeline performs various checks, decapsulates the UE's packet from the GTP
+tunnel, identifies the user and polices the UE (rate limiting), and then
+routes the decapculated packet to the Internet.
+
+In the downlink direction (server -> user/bst) the MGW receives normal
+packets from the Internet and the pipeline is basically the reverse of the
+uplink one: identify the UE/bearer based on the packet destination IP
+address (we now assume there is only one bearer per user), rate limit the
+UE flow, and encapsulate and send the packet to the BST behind which the UE
+is currently located.
+
+In particular, the MGW performs the following processing steps per
+uplink/downlink packet:
+
+Uplink:
+
+- L2, L3 and L4 check (gateway MAC/IP and UDP port destination 2152)
+- GTP decap, save TEID
+- rate limit per bearer (TEID)
+- L3 routing towards the Internet + L2 fwd
+
+Downlink:
+- L2 and L3 check (check if destination IP is in the UE range)
+- per user rate limiting
+- GTP encap (set bearer in TEID)
+- set destination IP of the base station of the UE
+- L3 routing towards BSTs + L2 fwd
+
+This roughly maps to the below modules:
+- Ingress:
+  - =l2_fwd=: identify local packets
+  - =ether_type=: identify ARP/IP packets
+  - =dir_selector=: distinguish uplink/downlink packets
+- Egress:
+  - =rate_limiter=: per user traffic policing
+  - =ip_lookup=: route to servers (uplink) and BSTs (downlink)
+  - =group table=: next-hop setting per server and BST
+- Uplink: Ingress -> GTP decap -> Egress
+- Downlink: Ingress -> GTP encap -> Egress
+
+* Dynamic scenarios
+
+TIPSY defines the below update scenarios for the MGW pipeline.
+
+- Arrival/departure of a user: when a new UE arrives/departs to/from a BST,
+  the pipeline needs to be updated as follows: TODO
+- User mobility (handover): TODO
+- Addition/removal of a server: TODO
+
+* Parameters
+
+* OVS Implementation: Caveats and considerations
+
+* BESS Implementation: Caveats and considerations
+
+
