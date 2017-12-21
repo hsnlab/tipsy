@@ -146,7 +146,7 @@ the TIPSY code.
 |--------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
 | [[././doc/README.mgw.org][Mobile GW (MGW)]]            | GTP         | L2/L3/L4   | L2/L3    | x         | -        | -   | OK     |
 |--------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
-| [[././doc/README.mgw.org][Broadband Network GW (BNG)]] | GRE         | L2/L3/L4   | L2/L3    | x         | x        | x   | OK     |
+| [[././doc/README.bng.org][Broadband Network GW (BNG)]] | GRE         | L2/L3/L4   | L2/L3    | x         | x        | x   | OK     |
 |--------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
 
 * Installation and usage
@@ -250,7 +250,7 @@ The high-level configuration defines a set of benchmarks to be evaluated in
 a single JSON file. The parameters describe way the benchmarks are to be
 evaluated.
 
-The =scale= paramter describes the way the individual banchmarks in the
+The =scale= parameter describes the way the individual benchmarks in the
 scalability test are to be executed.
 - =scale=: perform scalability tests by repeating the benchmark multiple
   times, each time setting one or all parameters as specified in the =args=
