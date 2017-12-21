@@ -206,8 +206,8 @@ class BessUpdaterMgw(BessUpdater):
                 md_name = 'setmd_srv%d_%d' % (ogate, wid)
                 self.bess.pause_worker(wid)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
-                                             'add', 'IPLookupCommandDeleteArg',
-                                             {'prefix': ip, 'prefix_len': 24})  # TODO: pending PR acceptance
+                                             'delete', 'IPLookupCommandDeleteArg',
+                                             {'prefix': ip, 'prefix_len': 24})
                 self.bess.disconnect_modules('ip_lookup_%d' % wid, ogate)
             except BESS.Error:
                 pass
@@ -323,8 +323,8 @@ class BessUpdaterVmgw(BessUpdater):
                 md_name = 'setmd_srv%d_%d' % (ogate, wid)
                 self.bess.pause_worker(wid)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
-                                             'add', 'IPLookupCommandDeleteArg',
-                                             {'prefix': ip, 'prefix_len': 24})  # TODO: pending PR acceptance
+                                             'delete', 'IPLookupCommandDeleteArg',
+                                             {'prefix': ip, 'prefix_len': 24})
                 self.bess.disconnect_modules('ip_lookup_%d' % wid, ogate)
             except BESS.Error:
                 pass
@@ -359,9 +359,6 @@ if __name__ == '__main__':
     parser.add_argument('--bessdir', '-d', type=str,
                         help='BESS root directory',
                         default='~/bess', required=True)
-    parser.add_argument('--pipeline', '-p', type=str,
-                        help='BESS pipeline to run [mgw, vmgw, bess]',
-                        default='~/bess', required=True)
     parser.add_argument('--conf', '-c', type=argparse.FileType('r'),
                         help='Pipeline config JSON file',
                         default='./mgw_conf.json')
@@ -389,9 +386,10 @@ if __name__ == '__main__':
     subprocess.call(bess_start_cmd, shell=True)
 
     options = ('mgw', 'vmgw', 'bng')
-    if args.pipeline.lower() in options:
+    pipeline = args.conf.pipeline.lower()
+    if pipeline in options:
         namespace = sys.modules[__name__]
-        uclass = getattr(namespace, 'BessUpdater%s' % args.pipeline.title())
+        uclass = getattr(namespace, 'BessUpdater%s' % pipeline.title())
         updater = uclass(config)
     else:
         raise
