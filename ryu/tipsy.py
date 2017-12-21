@@ -14,12 +14,12 @@
 # limitations under the License.
 
 """
-MGW: Simplified mobile gateway
+TIPSY: Simplified mobile gateway
 
 Run as:
-    $ ryu-manager --log-config-file path/to/log.cfg path/to/mgw.py
+    $ ryu-manager --log-config-file path/to/log.cfg path/to/tipsy.py
 or:
-    $ cd path/to/mgw.py
+    $ cd path/to/tipsy.py
     $ ryu-manager --config-dir .
 
 The setup is similar to the left side of the figure in
@@ -74,7 +74,7 @@ conf_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                         'conf.json')
 cfg.CONF.register_opts([
   cfg.StrOpt('conf_file', default=conf_file,
-             help='json formatted configuration file of the MGW measurment'),
+             help='json formatted configuration file of the TIPSY measurment'),
 
   # in_port means ofp.OFPP_IN_PORT, i.e., send to where it came from
   # downlink: towards the base-stations and user equipments.
@@ -87,8 +87,8 @@ cfg.CONF.register_opts([
   cfg.StrOpt('webhook_configured', default='http://localhost:8888/configured',
              help='URL to request when the sw is configured'),
 
-], group='mgw')
-CONF = cfg.CONF['mgw']
+], group='tipsy')
+CONF = cfg.CONF['tipsy']
 
 
 ###########################################################################
@@ -101,15 +101,18 @@ class ObjectView(object):
   def __repr__(self):
     return self.__dict__.__repr__()
 
+  def get (self, attr, default=None):
+    return self.__dict__.get(attr, default)
 
-class MGW(app_manager.RyuApp):
+
+class Tipsy(app_manager.RyuApp):
   OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
   _CONTEXTS = { 'wsgi': WSGIApplication }
   _instance = None
 
   def __init__(self, *args, **kwargs):
-    super(MGW, self).__init__(*args, **kwargs)
-    MGW._instance = self
+    super(Tipsy, self).__init__(*args, **kwargs)
+    Tipsy._instance = self
     self.logger.debug(" __init__()")
 
     self.conf_file = CONF['conf_file']
@@ -126,7 +129,7 @@ class MGW(app_manager.RyuApp):
     try:
       with open(self.conf_file, 'r') as f:
         conv_fn = lambda d: ObjectView(**d)
-        self.mgw_conf = json.load(f, object_hook=conv_fn)
+        self.pl_conf = json.load(f, object_hook=conv_fn)
     except IOError as e:
       self.logger.error('Failed to load cfg file (%s): %s' %
                         (self.conf_file, e))
@@ -143,11 +146,11 @@ class MGW(app_manager.RyuApp):
     self.data = {'waiters': self.waiters}
 
     mapper = wsgi.mapper
-    wsgi.registory['MGWController'] = self.data
-    for attr in dir(MGWController):
+    wsgi.registory['TipsyController'] = self.data
+    for attr in dir(TipsyController):
       if attr.startswith('get_'):
-        mapper.connect('mgw', '/mgw/' + attr[len('get_'):],
-                       controller=MGWController, action=attr,
+        mapper.connect('tipsy', '/tipsy/' + attr[len('get_'):],
+                       controller=TipsyController, action=attr,
                        conditions=dict(method=['GET']))
 
     self.initialize_datapath()
@@ -167,7 +170,7 @@ class MGW(app_manager.RyuApp):
       raise Exception('Previous handle_timer is still running')
     self.lock = True
 
-    for cmd in self.mgw_conf.run_time:
+    for cmd in self.pl_conf.run_time:
       attr = getattr(self, 'do_%s' % cmd.action, self.do_unknown)
       attr(cmd)
 
@@ -193,10 +196,10 @@ class MGW(app_manager.RyuApp):
 
     br_name = 'br-phy'
     sw_conf.del_bridge(br_name, can_fail=False)
-    sw_conf.add_bridge(br_name, hwaddr=self.mgw_conf.gw.mac, dp_desc=br_name)
+    sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
     sw_conf.set_datapath_type(br_name, 'netdev')
     self.add_port(br_name, 'dl', CONF['dl_port'])
-    ip.set_up(br_name, self.mgw_conf.gw.ip + '/24')
+    ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
 
     br_name = 'br-int'
     sw_conf.del_bridge(br_name, can_fail=False)
@@ -224,13 +227,13 @@ class MGW(app_manager.RyuApp):
       net = re.sub(r'[.][0-9]+$', '.0/24', bst.ip)
       nets[str(net)] = True
     for net in nets.iterkeys():
-      ip.add_route_gw(net, self.mgw_conf.gw.default_gw.ip)
+      ip.add_route_gw(net, self.pl_conf.gw.default_gw.ip)
     self.set_arp_table()
 
     self.change_status('wait')  # Wait datapath to connect
 
   def set_arp_table(self):
-    def_gw = self.mgw_conf.gw.default_gw
+    def_gw = self.pl_conf.gw.default_gw
     sw_conf.set_arp('br-phy', def_gw.ip, def_gw.mac)
     self.logger.debug('br-phy: Update the ARP table')
     hub.spawn_after(60 * 4, self.set_arp_table)
@@ -357,7 +360,7 @@ class MGW(app_manager.RyuApp):
     self.dp.send_msg(msg)
 
     # Uplink: vxlan_port -> rate-limiter -> (FW->NAT) -> L3 lookup table
-    if self.mgw_conf.ul_fw_rules:
+    if self.pl_conf.pipeline in ['bng']:
       next_tbl = 'ul_fw'
     else:
       next_tbl = 'l3_lookup'
@@ -368,7 +371,7 @@ class MGW(app_manager.RyuApp):
     # Downlink: (NAT->FW) -> rate-limiter -> vxlan_port
     match = parser.OFPMatch(eth_type=ETH_TYPE_IP,
                             ipv4_dst=user.ip)
-    out_port = self.get_bst_port(user.bst)
+    out_port = self.get_tun_port(user.tun_end)
     inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
     actions = [parser.OFPActionSetField(tunnel_id=user.teid),
                parser.OFPActionOutput(out_port)]
@@ -418,8 +421,8 @@ class MGW(app_manager.RyuApp):
     match = parser.OFPMatch(in_port=self.ports['veth-int'])
     self.mod_flow('ingress', 9, match, [], [])
     match = parser.OFPMatch(in_port=self.ul_port,
-                            eth_dst=self.mgw_conf.gw.mac)
-    if self.mgw_conf.dl_fw_rules:
+                            eth_dst=self.pl_conf.gw.mac)
+    if self.pl_conf.pipeline in ['bng']:
       next_table='dl_fw'
     else:
       next_table='downlink'
@@ -490,7 +493,7 @@ class MGW(app_manager.RyuApp):
     for table_name in TABLES.iterkeys():
       if table_name != 'drop':
         self.mod_flow(table_name, 0, inst=[self.goto('drop')])
-    if not self.mgw_conf.fakedrop:
+    if not self.pl_conf.fakedrop:
       self.mod_flow('drop', 0)
     else:
       output = parser.OFPActionOutput
@@ -499,20 +502,20 @@ class MGW(app_manager.RyuApp):
       self.mod_flow('drop', 1, match=match, actions=[output(port)])
       self.mod_flow('drop', 0, actions=[output(self.ul_port)])
 
-    for user in self.mgw_conf.users:
+    for user in self.pl_conf.users:
       self.mod_user('add', user)
 
     self.add_fw_rules('ul_fw', self.mgw_conf.ul_fw_rules, 'l3_lookup')
     self.add_fw_rules('dl_fw', self.mgw_conf.dl_fw_rules, 'downlink')
 
-    for i, nhop in enumerate(self.mgw_conf.nhops):
+    for i, nhop in enumerate(self.pl_conf.nhops):
       out_port = nhop.port or self.ul_port
       set_field = parser.OFPActionSetField
       self.add_group(i, [set_field(eth_dst=nhop.dmac),
                          set_field(eth_src=nhop.smac),
                          parser.OFPActionOutput(out_port)])
 
-    for srv in self.mgw_conf.srvs:
+    for srv in self.pl_conf.srvs:
       self.mod_server('add', srv)
 
     # Finally, send and wait for a barrier
@@ -532,26 +535,26 @@ class MGW(app_manager.RyuApp):
       requests.post(CONF['webhook_configured'], data='')
     except requests.ConnectionError:
       pass
-    if self.mgw_conf.run_time:
+    if self.pl_conf.get('run_time'):
       self._timer.start(1)
     # else:
-    #   hub.spawn_after(1, MGWController.do_exit)
+    #   hub.spawn_after(1, TipsyController.do_exit)
 
   def do_handover(self, action):
     parser = self.dp.ofproto_parser
     log = self.logger.debug
     user_idx= action.args.user_teid - 1
-    user = self.mgw_conf.users[user_idx]
+    user = self.pl_conf.users[user_idx]
     old_bst = user.bst
-    new_bst = (user.bst + action.args.bst_shift) % len(self.mgw_conf.bsts)
+    new_bst = (user.bst + action.args.bst_shift) % len(self.pl_conf.bsts)
     log("handover user.%s: bst.%s -> bst.%s" % (user.teid, old_bst, new_bst))
     user.bst = new_bst
-    self.mgw_conf.users[user_idx] = user
+    self.pl_conf.users[user_idx] = user
 
     # Downlink: rate-limiter -> vxlan_port
     match = parser.OFPMatch(eth_type=ETH_TYPE_IP,
                             ipv4_dst=user.ip)
-    out_port = self.get_bst_port(new_bst)
+    out_port = self.get_tun_port(new_bst)
     actions = [parser.OFPActionSetField(tunnel_id=user.teid),
                parser.OFPActionOutput(out_port)]
     inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
@@ -599,14 +602,14 @@ def rest_command(func):
   return _rest_command
 
 
-class MGWController(ControllerBase):
+class TipsyController(ControllerBase):
 
   def __init__(self, req, link, data, **config):
-    super(MGWController, self).__init__(req, link, data, **config)
+    super(TipsyController, self).__init__(req, link, data, **config)
 
   @rest_command
   def get_status(self, req, **kw):
-    return MGW._instance.get_status()
+    return Tipsy._instance.get_status()
 
   @rest_command
   def get_exit(self, req, **kw):
@@ -615,16 +618,16 @@ class MGWController(ControllerBase):
 
   @rest_command
   def get_clear(self, req, **kw):
-    MGW._instance.clear_switch()
+    Tipsy._instance.clear_switch()
     return "ok"
 
   @staticmethod
   def do_exit():
-    mgw = MGW._instance
-    mgw.change_status('shutdown')
-    mgw.close()
+    tipsy = Tipsy._instance
+    tipsy.change_status('shutdown')
+    tipsy.close()
     m = app_manager.AppManager.get_instance()
-    m.uninstantiate('MGW')
+    m.uninstantiate('Tipsy')
     pid = os.getpid()
     os.kill(pid, signal.SIGTERM)
 
