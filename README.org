@@ -20,10 +20,11 @@ The aim of TIPSY is to provide the networking community with a set of
 evaluated*.  The target audience is network operators who want to test new
 data-plane equipment, network engineers evaluating the scaling properties
 of a programmable switch in terms of increasingly complex configurations of
-a well-defined scenario, or researchers willing to compare a new data plane
-algorithm/data-structure with existing and established technology.
+a well-defined scenario, or researchers who want to compare a new data
+plane algorithm/data-structure with existing and established technology.
 
-TIPSY comprises five elemental parts, at varying levels of maturity:
+TIPSY comprises five elemental parts, currently existing at varying levels
+of maturity:
 
 - a set of telco pipelines with working implementations (currently OpenFlow
   and BESS are supported, contributions are welcome),
@@ -39,7 +40,7 @@ TIPSY comprises five elemental parts, at varying levels of maturity:
 ** What TIPSY is
 
 - A collection of pipelines that model real telco use cases: the intention
-  for TIPSY is to serve as an elemental data-plane benchmarking suite for
+  for TIPSY is to serve as the "de facto" data-plane benchmarking suite for
   practitioners and researchers.
 - A measurement support framework: TIPSY will automatically generate
   detailed configs, working pipelines, and complete traffic traces to start
@@ -67,10 +68,10 @@ TIPSY comprises five elemental parts, at varying levels of maturity:
 You can find a comprehensive list of alternative data plane benchmark
 suites and lots of background on data plane testing in the below paper.
 
-Matthias Holdorf, "How-To Compare Performance of Data Plane Devices",
+Matthias Holdorf, 
+[[/How-To Compare Performance of Data Plane Devices/][https://www.net.in.tum.de/fileadmin/TUM/NET/NET-2016-07-1/NET-2016-07-1_05.pdf]],
 Proceedings of the Seminars Future Internet (FI) and Innovative Internet
 Technologies and Mobile Communications (IITM), 2016.
-[[https://www.net.in.tum.de/fileadmin/TUM/NET/NET-2016-07-1/NET-2016-07-1_05.pdf]]
 
 * Architecture
 
