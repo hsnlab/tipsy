@@ -170,22 +170,25 @@ generators, etc.
 
 #+BEGIN_SRC javascript
 {
-    "sut": {
-        "tipsy-dir": "/home/user/tipsy",
-        "bess-dir": "/export/netsys/src/bess",
-        "ovs-dir": "",
-        "mgmt": "ssh:root@1.2.3.4"
-        "downlink_port": "dpdk:0",
-        "uplink_port": "dpdk:1"
-    },
-    "tester": {
-        "moongen-dir": "/usr/local/bin/moongen",
-        "tcpreplay-dir": "/usr/bin/tcpreplay",
-        "pktgen-dir": "/opt/dpdk/bin/pktgen",
-        "downlink_port": "eth0",
-        "uplink_port": "eth1"
+    "environment":
+    {
+        "sut": {
+            "tipsy-dir": "/home/user/tipsy",
+            "bess-dir": "/export/netsys/src/bess",
+            "ovs-dir": "",
+            "mgmt": "ssh:root@1.2.3.4"
+            "downlink_port": "eth0",
+            "uplink_port": "eth1"
+        },
+        "tester": {
+            "moongen-dir": "/usr/local/bin/moongen",
+            "tcpreplay-dir": "/usr/bin/tcpreplay",
+            "pktgen-dir": "/opt/dpdk/bin/pktgen",
+            "downlink_port": "eth0",
+            "uplink_port": "eth1"
+        }
     }
-}
+}    
 #+END_SRC
 
 For the SUT the following settings must be available (note that any of the
@@ -251,7 +254,7 @@ a single JSON file. The parameters describe way the benchmarks are to be
 evaluated.
 
 The =scale= parameter describes the way the individual benchmarks in the
-scalability test are to be executed.
+scalability test to be executed.
 - =scale=: perform scalability tests by repeating the benchmark multiple
   times, each time setting one or all parameters as specified in the =args=
   - =none=: do not perform scalability tests (default)
@@ -270,7 +273,7 @@ jointly by first taking the first setting in the list for each param, then
 the second, etc., i.e., =param1=, =param2=, and =param3= set first to
 =[1,5,false]= and then to =[2,10,false]=. Setting =scale= to =none= ignores
 parameter lists and generates a single benchmark for the first scalar for
-each arguments.
+each argument.
 
 For the pipeline specific parameters, see the documentation for each
 pipeline.
@@ -278,6 +281,13 @@ pipeline.
 ** Run TIPSY
 
 TODO
+
+#+BEGIN_SRC sh
+$ cd tipsy
+$ ./tipsy config config/benchmark.json config/env.json
+$ ./tipsy run
+$ ./tipsy eval
+#+END_SRC
 
 ** Evaluate results
 
