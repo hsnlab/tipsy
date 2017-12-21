@@ -47,7 +47,7 @@ class BessUpdater(object):
                     teid = task.args.user_teid
                     shift = task.args.bst_shift
                     user = [u for u in self.conf.users if u.teid == teid][0]
-                    new_bst = self._calc_new_bst_id(user.bst, shift)
+                    new_bst = self._calc_new_bst_id(user.tun_end, shift)
                     self.handover(user, new_bst)
                 elif task.action in tasks:
                     getattr(self, task.action)(task.args)
@@ -79,7 +79,7 @@ class BessUpdater(object):
     def _config_handover(self, user, new_bst):
         for i, usr in enumerate(self.conf.users):
             if usr.teid == user.teid:
-                usr.bst = new_bst
+                usr.tun_end = new_bst
                 self.conf.users[i] = usr
 
     def add_user(self, user):
@@ -113,7 +113,7 @@ class BessUpdaterMgw(BessUpdater):
                                               'gate': user.teid})
                 self.bess.resume_worker(wid)
                 md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
-                tun_ip_dst = self.conf.bsts[user.bst].ip
+                tun_ip_dst = self.conf.bsts[user.tun_end].ip
                 self.bess.create_module('SetMetadata', md_name,
                                         {'attrs': [{'name': 'tun_id', 'size': 4,
                                                     'value_int': user.teid},
@@ -156,7 +156,7 @@ class BessUpdaterMgw(BessUpdater):
         for wid in range(self.workers_num):
             try:
                 md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
-                tun_ip_dst = self.conf.bsts[user.bst].ip
+                tun_ip_dst = self.conf.bsts[user.tun_end].ip
                 self.bess.destroy_module(md_name)
                 self.bess.create_module('SetMetadata', md_name,
                                         {'attrs': [{'name': 'tun_id', 'size': 4,
@@ -230,7 +230,7 @@ class BessUpdaterVmgw(BessUpdater):
                                               'gate': user.teid})
                 self.bess.resume_worker(wid)
                 md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
-                tun_ip_dst = self.conf.bsts[user.bst].ip
+                tun_ip_dst = self.conf.bsts[user.tun_end].ip
                 self.bess.create_module('SetMetadata', md_name,
                                         {'attrs': [{'name': 'tun_id', 'size': 4,
                                                     'value_int': user.teid},
@@ -273,7 +273,7 @@ class BessUpdaterVmgw(BessUpdater):
         for wid in range(self.workers_num):
             try:
                 md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
-                tun_ip_dst = self.conf.bsts[user.bst].ip
+                tun_ip_dst = self.conf.bsts[user.tun_end].ip
                 self.bess.destroy_module(md_name)
                 self.bess.create_module('SetMetadata', md_name,
                                         {'attrs': [{'name': 'tun_id', 'size': 4,

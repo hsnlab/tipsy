@@ -166,7 +166,7 @@ class PL (object):
     for u in range(self.args.fluct_user):
         extra_users.append({
             'ip': '4.4.%d.%d' % (int(u / 254), (u % 254) + 1),
-            'bst': u % self.args.bst,
+            'tun_end': u % self.args.bst,
             'teid': u + self.args.user + 1,
             'rate_limit': self.args.rate_limit,
         })

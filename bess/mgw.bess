@@ -141,7 +141,7 @@ for wid in range(bess_workers):
   for user in conf.users:
     ue_selector.add(fields=[{'value_bin': aton(user.ip)}],
                              gate=user.teid)
-    tun_ip_dst = conf.bsts[user.bst].ip
+    tun_ip_dst = conf.bsts[user.tun_end].ip
     vxlan_md = SetMetadata(name='setmd_dl_%d_%d' % (user.teid, wid),
                            attrs=[{'name': 'tun_id', 'size': 4,
                                    'value_int': user.teid},
