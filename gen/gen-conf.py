@@ -32,6 +32,7 @@ class PL (object):
   def add_base (self):
     self.conf['pipeline'] = args.pipeline
     self.conf['fakedrop'] = args.fakedrop
+    self.conf['run_time'] = [] # Commands to be executed in every second
 
   @cli_arg('--bst', '-b', type=int, default=1,
             help='Number of base stations (max: 64516)')
@@ -78,7 +79,7 @@ class PL (object):
     for u in range(self.args.user):
       users.append({
         'ip': '3.3.%d.%d' % (int(u / 254), (u % 254) + 1),
-        'bst': u % self.args.bst,
+        'tun_end': u % self.args.bst,
         'teid': u + 1,
         'rate_limit': self.args.rate_limit,
       })
@@ -157,32 +158,30 @@ class PL (object):
       },
     }
 
-
-class PL_mgw (PL):
-  "Mobile Gateway"
-
-  def __init__ (self, args):
-    super(PL_mgw, self).__init__(args)
-    self.components += ['gw', 'bsts', 'servers', 'nhops', 'users', 'run_time']
-
-
   @cli_arg('--fluct-user', type=int, default=0,
            help='Number of fluctuating users per second')
-  @cli_arg('--handover', type=int, default=0,
-           help='Number of handovers per second')
-  @cli_arg('--fluct-server', type=int, default=0,
-           help='Number of fluctuating servers per second')
-  def add_run_time (self):
+  def add_fluct_user (self):
     # Generate extra users to fluctuate
     extra_users = []
     for u in range(self.args.fluct_user):
         extra_users.append({
             'ip': '4.4.%d.%d' % (int(u / 254), (u % 254) + 1),
             'bst': u % self.args.bst,
-            'teid': u + self.args.users + 1,
+            'teid': u + self.args.user + 1,
             'rate_limit': self.args.rate_limit,
         })
+    fl_u_add = []
+    fl_u_del = []
+    for i in range(self.args.fluct_user):
+        user = extra_users[i]
+        fl_u_add = fl_u_add + [{'action': 'add_user', 'args': user}]
+        fl_u_del = [{'action': 'del_user', 'args': user}] + fl_u_del
 
+    self.conf['run_time'] = fl_u_add + self.conf['run_time'] + fl_u_del
+
+  @cli_arg('--fluct-server', type=int, default=0,
+           help='Number of fluctuating servers per second')
+  def add_fluct_server (self):
     # Generate extra servers to fluctuate
     extra_servers = []
     for s in range(self.args.fluct_server):
@@ -190,8 +189,28 @@ class PL_mgw (PL):
             'ip': '5.%d.%d.2' % (int(s / 254), (s % 254) + 1),
             'nhop': s % self.args.nhop
         })
+    fl_s_add = []
+    fl_s_del = []
+    for i in range(self.args.fluct_server):
+        server = extra_servers[i]
+        fl_s_add = fl_s_add + [{'action': 'add_server', 'args': server}]
+        fl_s_del = [{'action': 'del_server', 'args': server}] + fl_s_del
 
-    # Commands that should be executed in every second
+    self.conf['run_time'] = fl_s_add + self.conf['run_time'] + fl_s_del
+
+
+class PL_mgw (PL):
+  "Mobile Gateway"
+
+  def __init__ (self, args):
+    super(PL_mgw, self).__init__(args)
+    self.components += ['gw', 'bsts', 'servers', 'nhops', 'users',
+                        'handover', 'fluct_server', 'fluct_user']
+
+
+  @cli_arg('--handover', type=int, default=0,
+           help='Number of handovers per second')
+  def add_handover (self):
     run_time = []
     for i in range(self.args.handover):
       # new_bst_id = (old_bst_id + bst_shift) % args.bst
@@ -201,23 +220,8 @@ class PL_mgw (PL):
                          'user_teid': user['teid'],
                          'bst_shift': i + 1,
                        }})
-    fl_u_add = []
-    fl_u_del = []
-    for i in range(self.args.fluct_user):
-        user = extra_users[i]
-        fl_u_add = fl_u_add + [{'action': 'add_user', 'args': user}]
-        fl_u_del = [{'action': 'del_user', 'args': user}] + fl_u_del
-    run_time = fl_u_add + run_time + fl_u_del
 
-    fl_s_add = []
-    fl_s_del = []
-    for i in range(self.args.fluct_server):
-        server = extra_servers[i]
-        fl_s_add = fl_s_add + [{'action': 'add_server', 'args': server}]
-        fl_s_del = [{'action': 'del_server', 'args': server}] + fl_s_del
-    run_time = fl_s_add + run_time + fl_s_del
-
-    self.conf['run_time'] = run_time
+    self.conf['run_time'].append(run_time)
 
 
 class PL_vmgw (PL_mgw):
@@ -241,7 +245,7 @@ class PL_bng (PL):
   def __init__ (self, args):
     super(PL_bng, self).__init__(args)
     self.components += ['fw', 'cpe', 'gw', 'users', 'nat',
-                        'servers', 'nhops', 'run_time']
+                        'servers', 'nhops', 'fluct_server', 'fluct_user']
 
 
   @cli_arg('--cpe', type=int, default=1,
@@ -257,11 +261,18 @@ class PL_bng (PL):
       })
     self.conf['cpe'] = cpe
 
+  def add_users (self):
+    users = []
+    for u in range(self.args.user):
+      users.append({
+        'ip': '3.3.%d.%d' % (int(u / 254), (u % 254) + 1),
+        'tun_end': u % self.args.cpe,
+        'teid': u + 1,
+        'rate_limit': self.args.rate_limit,
+      })
+    self.users = users
+    self.conf['users'] = users
 
-  def add_run_time (self):
-    # TODO: add/del_upser
-    # TODO: add/del_server
-    pass
 
 def list_pipelines():
   l = [n[3:] for n in globals() if n.startswith('PL_')]
