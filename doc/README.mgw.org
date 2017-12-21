@@ -64,7 +64,7 @@ This roughly maps to the below modules:
 - Downlink: Ingress -> UE selector -> GTP encap -> Egress
   - =ue_selector=: find the GTP TEID for the user's IP address
 
-#+ATTR_LATEX: :centering :width 14cm :caption MGW pipeline
+#+ATTR_LATEX: :centering :width 10cm :caption MGW pipeline
 [[./fig/mgw_pipeline.png]]
 
 * Dynamic scenarios
