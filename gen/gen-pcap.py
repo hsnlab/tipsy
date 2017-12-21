@@ -36,7 +36,7 @@ def gen_packets(params_tuple):
     (dir, pkt_num, pkt_size, conf) = params_tuple
     pl = conf.pipeline
     pkts = []
-    if dir[0] == b:
+    if dir[0] == 'b':
         dir = ('dl', 'ul')
     else:
         dir = (dir, dir)
@@ -85,6 +85,7 @@ def _gen_ul_pkt_mgw(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
     proto = random.choice([TCP(), UDP()])
+    bst = conf.bsts[user.bst]
     p = (
         Ether(src=bst.mac, dst=conf.gw.mac, type=0x0800) /
         IP(src=bst.ip, dst=conf.gw.ip) /
