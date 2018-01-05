@@ -221,7 +221,7 @@ class PL_mgw (PL):
                          'bst_shift': i + 1,
                        }})
 
-    self.conf['run_time'].append(run_time)
+    self.conf['run_time'] += run_time
 
 
 class PL_vmgw (PL_mgw):
