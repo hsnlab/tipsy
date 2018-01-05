@@ -1,0 +1,10 @@
+#!/bin/sh
+br=br-int
+cmd="sudo ovs-ofctl --protocols=OpenFlow13 --color=always --stats --names"
+sort=""
+filter="sed -e s/cookie.*table=/tbl=/ -e s/n_bytes[^,]*,.//"
+
+$cmd dump-flows $sort $br | $filter
+$cmd dump-groups $br
+$cmd dump-meters $br
+$cmd dump-flows $sort br-phy | $filter
