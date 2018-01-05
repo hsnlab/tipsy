@@ -208,7 +208,7 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
     sw_conf.set_datapath_type(br_name, 'netdev')
-    self.add_port(br_name, 'dl', CONF['dl_port'])
+    self.add_port(br_name, 'dl_port', CONF['dl_port'])
     ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
 
     br_name = 'br-int'
@@ -217,7 +217,7 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.set_datapath_type(br_name, 'netdev')
     sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
     sw_conf.set_fail_mode(br_name, 'secure')
-    self.add_port(br_name, 'ul', CONF['ul_port'])
+    self.add_port(br_name, 'ul_port', CONF['ul_port'])
 
     ip.add_veth('veth-phy', 'veth-int')
     ip.set_up('veth-int')
@@ -226,7 +226,9 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.add_port('br-phy', 'veth-phy', type='system')
     # Don't use a controller for the following static rules
     cmd = 'sudo ovs-ofctl --protocol OpenFlow13 add-flow br-phy priority=1,'
-    in_out = [('veth-phy', 'dl'), ('dl', 'br-phy'), ('br-phy', 'dl')]
+    in_out = [('veth-phy', 'dl_port'),
+              ('dl_port', 'br-phy'),
+              ('br-phy', 'dl_port')]
     for in_port, out_port in in_out:
       cmd_tail = 'in_port=%s,actions=output:%s' % (in_port, out_port)
       if subprocess.call(cmd + cmd_tail, shell=True):
@@ -290,7 +292,13 @@ class Tipsy(app_manager.RyuApp):
     for port_type in ['ul_port']:
       port_name = CONF[port_type]
       if self.ports.get(port_name):
+        # kernel interface -> OF returns the interface name as port_name
         port_no = self.ports[port_name]
+        self.__dict__[port_type] = port_no
+        self.logger.info('%s (%s): %s' % (port_type, port_name, port_no))
+      elif self.ports.get(port_type):
+        # dpdk interface -> OF returns the "logical" br name as port_name
+        port_no = self.ports[port_type]
         self.__dict__[port_type] = port_no
         self.logger.info('%s (%s): %s' % (port_type, port_name, port_no))
       else:
