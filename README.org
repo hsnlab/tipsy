@@ -22,7 +22,7 @@ The aim of TIPSY is to provide the networking community a set of
 *programmable data plane technologies can be fairly and comprehensibly
 evaluated*.  The target audience is network operators who want to test new
 data-plane equipment, network engineers evaluating the scalability of a
-programmable switch in terms of increasingly complex configurations, and
+programmable switch in terms of increasingly complex configurations, or
 researchers who want to compare a new data plane algorithm with existing
 and established technology.
 
@@ -56,20 +56,22 @@ maturity:
   packets, etc.
 - A tool to present benchmark results in a comprehensible form, like
   diagrams, charts, and tables, and a flexible way to configure and
-  fine-tune these visualizations.
+  fine-tune these visualizations (TODO).
 
 ** What TIPSY is not
 
-- A fully fledged measurement system: TIPSY will not setup the measurement
-  configuration automatically and there are certain steps that need to be
-  done manually by the user, like connecting the SUT and the tester; the
-  intention is to minimize manual intervention as much as possible.
+- A standalone automatic measurement system: TIPSY will never be able to
+  setup the measurement completely unattended and there are certain steps,
+  like connecting the SUT and the tester, that will need to be done
+  manually anyway; the intention is to minimize manual intervention as much
+  as possible.
 - An exhaustive collection of telco pipelines (contributions are welcome)
   or canonical implementations of the ones supported (of course, there is
   more that one way to do it).
 - An Internet scale performance measurement framework: the TIPSY reference
-  configuration is a single device-under-test connected back-to-back with a
-  traffic generator.
+  configuration is a single device-under-test connected back-to-back to a
+  traffic generator/measurement device; benchmarking multi-hop setups or
+  complex network topologies are out of scope for TIPSY.
 
 ** If you find TIPSY to not work for you
 
@@ -92,8 +94,7 @@ updates.  Drawing from telco practice, TIPSY distinguishes between the
 (network-to-user direction); the downlink port is the attachment port for
 the access network (users) and the uplink port connects to the public
 Internet. In pratice, however, the uplink and downlink ports of the SUT are
-connected back-to-back to the same Tester device for supporting versatile
-evaluation setups.
+connected back-to-back to the same Tester device.
 
 :                                  +---------------------+
 :                                  |                     |
@@ -166,18 +167,20 @@ tipsy root directory to the PATH.
 $ git clone https://github.com/hsnlab/tipsy
 $ cd tipsy
 $ export PATH=$PWD:$PATH
-<run benchmarks>
 #+END_SRC
 
-** High-level configuration
+** Main TIPSY benchmark configuration
 
 Input to TIPSY is a high-level description of the intended measurement,
 like the name of the pipeline to be coded into the SUT and the general
 parameters (number of users, number of Internet routes, etc.) and the
 output is a set of configurations/data-plane programs that can be loaded
-into the SUT and a set of traffic traces for each config.  Currently these
-must be loaded manually into the SUT and the Tester; fully automated
-benchmarking is a work-in-progress at the moment.
+into the SUT and a set of traffic traces for each config.  
+
+Below is a sample configuration defines a benchmark on the
+[[././doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=) pipeline, with
+pipeline specific settings =user= (number of users) and =bst= (number of
+base stations) set in the =pipeline= section.
 
 #+BEGIN_SRC javascript
 {
@@ -188,41 +191,39 @@ benchmarking is a work-in-progress at the moment.
             "scale": "joint",
             "pipeline": {
                 "name": "mgw",
-                "param1": [1,2],
-                "param2": [5,10],
-                "param3": false,
-                <various pipeline specific parameters>
+                "user": [1,2],
+                "bst": [5,10],
             }
         },
     ]
 }
 #+END_SRC
 
-The high-level configuration defines a set of benchmarks to be evaluated in
-a single JSON file. The parameters describe way the benchmarks are to be
-evaluated.
+The =id= parameter sets a name for the benchmark and =scale= describes the
+way the individual benchmark instances in the scalability benchmark are to
+be executed. TIPSY allows to easily request and perform scalability tests
+by repeating the benchmark multiple times, each time setting one or all
+parameters as controller by the =scale= setting:
+- =none=: do not perform scalability tests (default),
+- =outer=: take the outer product of all settings specified for the
+  benchmark and generate a separate test case for all,
+- =joint=: scale the parameters jointly.
 
-The =scale= parameter describes the way the individual benchmarks in the
-scalability test to be executed.
-- =scale=: perform scalability tests by repeating the benchmark multiple
-  times, each time setting one or all parameters as specified in the =args=
-  - =none=: do not perform scalability tests (default)
-  - =outer=: take the outer product of the argument lists and generate a
-    separate benchmark for all combinations
-  - =joint=: scale the parameters jointly
+In the above example =scale= is set to =joint=, which tells TIPSY to scale
+the parameters specified as _lists_ in the config (=user= and =bst=)
+jointly, that is, take the first setting in the list for each parameter,
+then the second, etc., and generate a test for each such tuple.  In the
+above example, this will result in two tests to be run, one when =user= is
+set to 1 and =bst= is set to 5 (the first elements of the lists), and one
+when =user= is set to 2 and =bst= is 10 (the second elements of the lists).
 
-In the above example, for instance, the benchmark sets =scale= to =outer=,
-which means that a separate benchmark will be tun for each combination of
-list of values given for the pipeline specific parameters =param1=,
-=param2=, =param3=.  Correspondingly, the first benchmark will have
-=param1=, =param2=, and =param3= set to =[1,5,false]=, the second to
-=[2,5,false]=, the third to =[1,10,false]=, etc.  If =scale= is set to
-=jointall=, on the other hand, then the parameters will be scaled jointly
-by first taking the first setting in the list for each param, then the
-second, etc., i.e., =param1=, =param2=, and =param3= set first to
-=[1,5,false]= and then to =[2,10,false]=. Setting =scale= to =none= ignores
-parameter lists and generates a single benchmark for the first scalar for
-each argument.
+If, on the other hand, =scale= is set to =outer=, then a separate test will
+be run for each combination of the multi-valued settings (=user= and
+=bst=), i.e., we get 4 test, first setting the (=user=, =bst=) tuple to
+(1,5), then to (1,10), then to (2,5), and finally to (2,10).
+
+Setting =scale= to =none= ignores parameter lists and generates a single
+benchmark for the first scalar for each argument.
 
 For the pipeline specific parameters, see the documentation for each
 pipeline.
@@ -230,12 +231,12 @@ pipeline.
 ** TODO Run TIPSY
 
 The first step to run each benchmark is to create a new benchmark root
-directory, which will contain all files (configuration, traffic trace, data
-plane config, results, etc.) associated with the benchmark, and creating a
-high-level JSON configuration for the benchmark.  Then, to actually run the
-benchmark simply issue the necessary TIPSY commands through running the
-benchmark driver executable =tipsy= in the benchmark root directory with
-different command line arguments.
+directory, which will contain all files (configurations, traffic traces,
+data plane configs, results, etc.) associated with the benchmark, and
+creating the main JSON configuration for the benchmark.  Then, to actually
+run the benchmark simply issue the necessary TIPSY commands executing the
+benchmark driver =tipsy= in the benchmark root directory with different
+command line arguments.
 
 #+BEGIN_SRC sh
 mkdir my_bng_benchmark
@@ -302,10 +303,10 @@ The basic workflow is as follows.
    setting each parameter that was not explicitly specified there to a sane
    default value.
 
-   You may also omit the JSON files from the command line in which case
+   You may also omit the file argument from =tipsy config= in which case
    TIPSY will take the first JSON file it finds in the current directory as
-   a configuration for the benchmark (the same applies to the subsequent
-   =tipsy= invocations).
+   a configuration for the benchmark.  The same applies to all =tipsy=
+   invocations.
 
    #+BEGIN_SRC sh
    tipsy config
@@ -324,13 +325,16 @@ The basic workflow is as follows.
    tipsy run
    #+END_SRC
 
+   Currently, the remote configuration system is fairly rudimentary, like
+   you must specify SSH passwords as clear text in the JSON config, etc. 
+
 6. Evaluate, and visualize: these features have not been implemented yet so
    you must do these manually by now.
 
 There is a TIPSY design document available
 [[./doc/README.vision.org][here]] that describes how we imagine an ideal
 TIPSY workload when all missing pieces will eventually have fallen into
-place.
+their place.
 
 ** Until we get there
 
