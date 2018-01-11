@@ -250,93 +250,93 @@ tipsy clean
 
 The basic workflow is as follows.
 
-- Create the benchmark root directory as above.
+1. Create the benchmark root directory as above.
 
-#+BEGIN_SRC sh
-mkdir my_bng_benchmark
-cd my_bng_benchmark
-#+END_SRC
+   #+BEGIN_SRC sh
+   mkdir my_bng_benchmark
+   cd my_bng_benchmark
+   #+END_SRC
 
-- Place a main TIPSY configuration file =my_benchmark.json= into the root
-  directory and edit it according to your needs. The below configuration
-  will set up the [[././doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=)
-  pipeline and benchmark the OVS and the BESS backends, while scaling the
-  number of users from 10 to 1000.
+2. Place a main TIPSY configuration file =my_benchmark.json= into the root
+   directory and edit it according to your needs. The below configuration
+   will set up the [[././doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=)
+   pipeline and benchmark the OVS and the BESS backends, while scaling the
+   number of users from 10 to 1000.
 
-#+BEGIN_SRC javascript
-  {
-      "benchmark": {
-          "id": "my_benchmark"
-          "pipeline": {
-              "name": "mgw",
-              "user": [10, 100, 1000, 1000],
-          }
-      },
-      "traffic": {
-          "pkt-size": 64,
-      },
-      "sut": {
-          "type": ["ovs", "bess"]
-      },
-      "visualize":
-      [
-          {
-              "x_axis": "mgw.user", 
-              "y_axis": "packet_rate",
-              "curve": ["ovs", "bess"]
-          }
-      ]
-  }
-#+END_SRC
+   #+BEGIN_SRC javascript
+     {
+         "benchmark": {
+             "id": "my_benchmark"
+             "pipeline": {
+                 "name": "mgw",
+                 "user": [10, 100, 1000, 1000],
+             }
+         },
+         "traffic": {
+             "pkt-size": 64,
+         },
+         "sut": {
+             "type": ["ovs", "bess"]
+         },
+         "visualize":
+         [
+             {
+                 "x_axis": "mgw.user", 
+                 "y_axis": "packet_rate",
+                 "curve": ["ovs", "bess"]
+             }
+         ]
+     }
+   #+END_SRC
 
-- Generate the configuration for the individual test cases that make up
-  the benchmark, that is, a separate test for all settings of the =user=
-  and =backend= parameters, with each test case configuration placed into
-  a separate directory.
+3. Generate the configuration for the individual test cases that make up
+   the benchmark, that is, a separate test for all settings of the =user=
+   and =backend= parameters, with each test case configuration placed into
+   a separate directory.
 
-#+BEGIN_SRC sh
-tipsy config my_benchmark.json
-#+END_SRC
+   #+BEGIN_SRC sh
+   tipsy config my_benchmark.json
+   #+END_SRC
 
-  This call will set the benchmark configuration from =my_benchmark.json=,
-  setting each parameter that was not explicitly specified there to a sane
-  default value.
+   This call will set the benchmark configuration from =my_benchmark.json=,
+   setting each parameter that was not explicitly specified there to a sane
+   default value.
 
-  You may also omit the file argument from =tipsy config= in which case
-  TIPSY will take the first JSON file it finds in the current directory as
-  a configuration for the benchmark.  The same applies to all =tipsy=
-  invocations.
+   You may also omit the file argument from =tipsy config= in which case
+   TIPSY will take the first JSON file it finds in the current directory as
+   a configuration for the benchmark.  The same applies to all =tipsy=
+   invocations.
 
-  #+BEGIN_SRC sh
-  tipsy config
-  #+END_SRC
+   #+BEGIN_SRC sh
+   tipsy config
+   #+END_SRC
 
-- Generate the sample traffic traces that will be fed to the SUT during
-  the benchmark (this may take a while).
+4. Generate the sample traffic traces that will be fed to the SUT during
+   the benchmark (this may take a while).
 
-#+BEGIN_SRC sh
-tipsy traffic-gen
-#+END_SRC
+   #+BEGIN_SRC sh
+   tipsy traffic-gen
+   #+END_SRC
 
-- Run the benchmark (this may take an even longer while).
+5. Run the benchmark (this may take an even longer while).
 
-#+BEGIN_SRC sh
-tipsy run
-#+END_SRC
+   #+BEGIN_SRC sh
+   tipsy run
+   #+END_SRC
 
-  Currently, the remote configuration system is fairly rudimentary, like
-  you must specify SSH passwords as clear text in the JSON config, etc., we
-  finalizing this step is currently a main TODO item for TIPSY.
+   Currently, the remote configuration system is fairly rudimentary, like
+   you must specify SSH passwords as clear text in the JSON config, etc., we
+   finalizing this step is currently a main TODO item for TIPSY.
 
-- Evaluate, and visualize: these features have not been implemented yet so
-  you must do these manually by now.
+6. Evaluate, and visualize: these features have not been implemented yet so
+   you must do these manually by now.
 
-- Clean up the benchmark directory by removing all temporary files (pcaps,
-  logs, etc.) but leave the results untouched.
+7. Clean up the benchmark directory by removing all temporary files (pcaps,
+   logs, etc.) but leave the results untouched.
 
-#+BEGIN_SRC sh
-tipsy clean
-#+END_SRC
+   #+BEGIN_SRC sh
+   tipsy clean
+   #+END_SRC
 
 There is a TIPSY design document available
 [[./doc/README.vision.org][here]] that describes how we imagine an ideal
