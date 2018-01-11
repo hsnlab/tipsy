@@ -161,7 +161,7 @@ the TIPSY code.
 
 TIPSY does not require explicit installation but the =tipsy= executable
 must always be available and executable; the easiest setup is to add the
-tipsy root directory to the PATH.
+TIPSY main directory to the PATH.
 
 #+BEGIN_SRC sh
 $ git clone https://github.com/hsnlab/tipsy
@@ -177,10 +177,10 @@ parameters (number of users, number of Internet routes, etc.) and the
 output is a set of configurations/data-plane programs that can be loaded
 into the SUT and a set of traffic traces for each config.  
 
-Below is a sample configuration defines a benchmark on the
+Below is a sample configuration that defines a benchmark on the
 [[././doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=) pipeline, with
-pipeline specific settings =user= (number of users) and =bst= (number of
-base stations) set in the =pipeline= section.
+pipeline-specific settings =user= (number of users) and =bst= (number of
+base stations) as set in the =pipeline= section.
 
 #+BEGIN_SRC javascript
 {
@@ -203,24 +203,24 @@ The =id= parameter sets a name for the benchmark and =scale= describes the
 way the individual benchmark instances in the scalability benchmark are to
 be executed. TIPSY allows to easily request and perform scalability tests
 by repeating the benchmark multiple times, each time setting one or all
-parameters as controller by the =scale= setting:
+parameters as controlled by the =scale= setting:
 - =none=: do not perform scalability tests (default),
 - =outer=: take the outer product of all settings specified for the
   benchmark and generate a separate test case for all,
 - =joint=: scale the parameters jointly.
 
 In the above example =scale= is set to =joint=, which tells TIPSY to scale
-the parameters specified as _lists_ in the config (=user= and =bst=)
+the parameters specified as /lists/ in the config (=user= and =bst=)
 jointly, that is, take the first setting in the list for each parameter,
 then the second, etc., and generate a test for each such tuple.  In the
 above example, this will result in two tests to be run, one when =user= is
 set to 1 and =bst= is set to 5 (the first elements of the lists), and one
 when =user= is set to 2 and =bst= is 10 (the second elements of the lists).
 
-If, on the other hand, =scale= is set to =outer=, then a separate test will
-be run for each combination of the multi-valued settings (=user= and
-=bst=), i.e., we get 4 test, first setting the (=user=, =bst=) tuple to
-(1,5), then to (1,10), then to (2,5), and finally to (2,10).
+If =scale= is set to =outer=, then a separate test will be run for each
+combination of the multi-valued settings (=user= and =bst=), i.e., we get 4
+tests, first setting the (=user=, =bst=) tuple to (1,5), then to (1,10),
+then to (2,5), and finally to (2,10).
 
 Setting =scale= to =none= ignores parameter lists and generates a single
 benchmark for the first scalar for each argument.
@@ -230,13 +230,12 @@ pipeline.
 
 ** TODO Run TIPSY
 
-The first step to run each benchmark is to create a new benchmark root
-directory, which will contain all files (configurations, traffic traces,
-data plane configs, results, etc.) associated with the benchmark, and
-creating the main JSON configuration for the benchmark.  Then, to actually
-run the benchmark simply issue the necessary TIPSY commands executing the
-benchmark driver =tipsy= in the benchmark root directory with different
-command line arguments.
+The first step to run a benchmark is to create a root directory that will
+contain all files (configurations, traffic traces, data plane configs,
+results, etc.) associated with the benchmark and to write the main JSON
+configuration.  Then, to actually run the benchmark, simply issue the
+necessary TIPSY commands executing the benchmark driver =tipsy= in the
+benchmark root directory with different command line arguments.
 
 #+BEGIN_SRC sh
 mkdir my_bng_benchmark
@@ -251,85 +250,93 @@ tipsy clean
 
 The basic workflow is as follows.
 
-1. Create the benchmark root directory as above.
+- Create the benchmark root directory as above.
 
-   #+BEGIN_SRC sh
-   mkdir my_bng_benchmark
-   cd my_bng_benchmark
-   #+END_SRC
+#+BEGIN_SRC sh
+mkdir my_bng_benchmark
+cd my_bng_benchmark
+#+END_SRC
 
-2. Place a main TIPSY configuration file =my_benchmark.json= into the root
-   directory and edit it according to your needs. The below configuration
-   will set up the =MGW= pipeline and benchmark the OVS and the BESS
-   backends, while scaling the number of users from 10 to 1000.
+- Place a main TIPSY configuration file =my_benchmark.json= into the root
+  directory and edit it according to your needs. The below configuration
+  will set up the [[././doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=)
+  pipeline and benchmark the OVS and the BESS backends, while scaling the
+  number of users from 10 to 1000.
 
-   #+BEGIN_SRC javascript
-     {
-         "benchmark": {
-             "id": "test1"
-             "scale": "outer",
-             "pipeline": {
-                 "name": "mgw",
-                 "user": [10, 100, 1000, 1000],
-             }
-         },
-         "traffic": {
-             "pkt-size": 64,
-         },
-         "sut": {
-             "type": ["ovs", "bess"]
-         },
-         "visualize":
-         [
-             {
-                 "x_axis": "mgw.user", 
-                 "y_axis": "packet_rate",
-                 "curve": ["ovs", "bess"]
-             }
-         ]
-     }
-   #+END_SRC
+#+BEGIN_SRC javascript
+  {
+      "benchmark": {
+          "id": "my_benchmark"
+          "pipeline": {
+              "name": "mgw",
+              "user": [10, 100, 1000, 1000],
+          }
+      },
+      "traffic": {
+          "pkt-size": 64,
+      },
+      "sut": {
+          "type": ["ovs", "bess"]
+      },
+      "visualize":
+      [
+          {
+              "x_axis": "mgw.user", 
+              "y_axis": "packet_rate",
+              "curve": ["ovs", "bess"]
+          }
+      ]
+  }
+#+END_SRC
 
-3. Generate the configuration for the individual test cases that make up
-   the benchmark, that is, a separate test for all settings of the =user=
-   and =backend= parameters, with each test case configuration placed into
-   a separate directory.
+- Generate the configuration for the individual test cases that make up
+  the benchmark, that is, a separate test for all settings of the =user=
+  and =backend= parameters, with each test case configuration placed into
+  a separate directory.
 
-   #+BEGIN_SRC sh
-   tipsy config my_benchmark.json
-   #+END_SRC
+#+BEGIN_SRC sh
+tipsy config my_benchmark.json
+#+END_SRC
 
-   This call will set the benchmark configuration from =my_benchmark.json=,
-   setting each parameter that was not explicitly specified there to a sane
-   default value.
+  This call will set the benchmark configuration from =my_benchmark.json=,
+  setting each parameter that was not explicitly specified there to a sane
+  default value.
 
-   You may also omit the file argument from =tipsy config= in which case
-   TIPSY will take the first JSON file it finds in the current directory as
-   a configuration for the benchmark.  The same applies to all =tipsy=
-   invocations.
+  You may also omit the file argument from =tipsy config= in which case
+  TIPSY will take the first JSON file it finds in the current directory as
+  a configuration for the benchmark.  The same applies to all =tipsy=
+  invocations.
 
-   #+BEGIN_SRC sh
-   tipsy config
-   #+END_SRC
+  #+BEGIN_SRC sh
+  tipsy config
+  #+END_SRC
 
-4. Generate the sample traffic traces that will be fed to the SUT during
-   the benchmark (this may take a while).
+- Generate the sample traffic traces that will be fed to the SUT during
+  the benchmark (this may take a while).
 
-   #+BEGIN_SRC sh
-   tipsy traffic-gen
-   #+END_SRC
+#+BEGIN_SRC sh
+tipsy traffic-gen
+#+END_SRC
 
-5. Run the benchmark (this may take an even longer while).
+- Run the benchmark (this may take an even longer while).
 
-   #+BEGIN_SRC sh
-   tipsy run
-   #+END_SRC
+#+BEGIN_SRC sh
+tipsy run
+#+END_SRC
 
-   Currently, the remote configuration system is fairly rudimentary, like
-   you must specify SSH passwords as clear text in the JSON config, etc. 
+  Currently, the remote configuration system is fairly rudimentary, like
+  you must specify SSH passwords as clear text in the JSON config, etc., we
+  finalizing this step is currently a main TODO item for TIPSY.
 
-6. Evaluate, and visualize: these features have not been implemented yet so
-   you must do these manually by now.
+- Evaluate, and visualize: these features have not been implemented yet so
+  you must do these manually by now.
+
+- Clean up the benchmark directory by removing all temporary files (pcaps,
+  logs, etc.) but leave the results untouched.
+
+#+BEGIN_SRC sh
+tipsy clean
+#+END_SRC
 
 There is a TIPSY design document available
 [[./doc/README.vision.org][here]] that describes how we imagine an ideal
