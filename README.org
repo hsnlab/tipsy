@@ -164,9 +164,9 @@ must always be available and executable; the easiest setup is to add the
 TIPSY main directory to the PATH.
 
 #+BEGIN_SRC sh
-$ git clone https://github.com/hsnlab/tipsy
-$ cd tipsy
-$ export PATH=$PWD:$PATH
+git clone https://github.com/hsnlab/tipsy
+cd tipsy
+export PATH=$PWD:$PATH
 #+END_SRC
 
 ** Main TIPSY benchmark configuration
