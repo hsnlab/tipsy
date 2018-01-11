@@ -351,9 +351,10 @@ below examples will help you leveraging the valuable and finished parts of
 TIPSY until it gets into a production-ready state.
 
 #+BEGIN_SRC sh
-$ ./gen/gen-conf.py --pipeline bng --user 10 > ryu/conf.json
-$ cd ryu
-$ ryu-manager --config-dir .
+cd <TIPSY_DIR>
+./gen/gen-conf.py --pipeline bng --user 10 > ryu/conf.json
+cd ryu
+ryu-manager --config-dir .
 #+END_SRC
 
 The above code generates a config for the BNG pipeline with setting the
@@ -363,13 +364,13 @@ OpenFlow switch, like Open vSwtich, needs to be started separately).
 
 Another example:
 #+BEGIN_SRC sh
-$ ./gen/gen-conf.py --pipeline mgw --handover 2 > conf.json
-$ ./bess/update-agent.py -d /path/to/bess -c conf.json
+cd <TIPSY_DIR>
+./gen/gen-conf.py --pipeline mgw --handover 2 > conf.json
+./bess/update-agent.py -d /path/to/bess -c conf.json
 #+END_SRC
 
 This snippet generates an MGW pipeline and runs the pipeline in BESS. Note
 that the code automatically starts BESS.
-
 
 * Miscellaneous
 
