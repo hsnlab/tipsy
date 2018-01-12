@@ -240,8 +240,8 @@ necessary TIPSY commands executing the benchmark driver =tipsy= in the
 benchmark root directory with different command line arguments.
 
 #+BEGIN_SRC sh
-mkdir my_bng_benchmark
-cd my_bng_benchmark
+mkdir my_mgw_benchmark
+cd my_mgw_benchmark
 <store a TIPSY benchnmark configuration into a JSON file>
 tipsy config 
 tipsy traffic-gen
@@ -255,8 +255,8 @@ The basic workflow is as follows.
 1. Create the benchmark root directory as above.
 
    #+BEGIN_SRC sh
-   mkdir my_bng_benchmark
-   cd my_bng_benchmark
+   mkdir my_mgw_benchmark
+   cd my_mgw_benchmark
    #+END_SRC
 
 2. Place a main TIPSY configuration file =my_benchmark.json= into the root
@@ -282,6 +282,9 @@ The basic workflow is as follows.
          },
      }
    #+END_SRC
+
+   See the detailed TIPSY configuration guide
+   [[./doc/README.config.org][here]].
 
 3. Generate the configuration for the individual test cases that make up
    the benchmark, that is, a separate test for all settings of the =user=
