@@ -13,9 +13,10 @@
 TIPSY is a benchmark suite to evaluate and compare the performance of
 programmable data plane technologies and network-function virtualization
 frameworks over a set of standard scenarios rooted in telecommunications
-practice. Currently there is a BNG (Broadband Network Gateway) and a 5G MGW
-(Mobile Gateway) defined and implemented in TIPSY, with further pipelines
-and implementations to follow soon.
+practice. Apart from simple L2 and L3 pipelines, currently there is a
+rather complex BNG (Broadband Network Gateway) and 5G MGW (Mobile Gateway)
+pipeline defined and implemented in TIPSY, with further pipelines and
+implementations to follow soon.
 
 The aim of TIPSY is to provide the networking community a set of
 *standardized telco-oriented scenarios* on top of which different
