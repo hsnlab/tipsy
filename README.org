@@ -317,7 +317,7 @@ The basic workflow is as follows.
    #+END_SRC
 
    Currently, the remote configuration system is fairly rudimentary, like
-   you must specify SSH passwords as clear text in the JSON config, etc., we
+   you must specify SSH passwords as clear text in the JSON config, etc.,
    finalizing this step is currently a main TODO item for TIPSY.
 
 6. Evaluate, and visualize: these features have not been implemented yet so
@@ -331,9 +331,9 @@ The basic workflow is as follows.
    #+END_SRC
 
 There is a TIPSY design document available
-[[./doc/README.vision.org][here]] that describes how we imagine an ideal
-TIPSY workload when all missing pieces will eventually have fallen into
-their place.
+[[./doc/README.vision.org][here]] that summarizes a hypothetical TIPSY
+session once all missing pieces will eventually have fallen into their
+place.
 
 ** Until we get there
 
