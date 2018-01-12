@@ -10,7 +10,7 @@
 
 The L2 Packet Forwarding pipeline (name: =L2fwd=) models a simple Ethernet
 switch using a static MAC lookup table.  Note that this pipeline is rather
-basic and it will *not* perform MAC learning or L3 routing. (Contributions
+basic and it will /not/ perform MAC learning or L3 routing. (Contributions
 are welcome!)
 
 * Static pipeline
@@ -28,7 +28,7 @@ MAC tables.
 The L2fwd pipeline defines a single dynamic scenario:
 
 - =table-update=: models a L2 MAC table update, whereby a MAC table entry
-is added to/removed from the upstream and downstream MAC tables
+  is added to/removed from the upstream and downstream MAC tables
 
 * Pipeline configuration
 

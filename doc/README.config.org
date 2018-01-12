@@ -5,10 +5,8 @@
 #+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
 #+OPTIONS: toc:nil author:t ^:nil num:nil
 
-#+TITLE: TIPSY configuration 
+#+TITLE: TIPSY configuration guide
 #+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
-
-* TIPSY configuration
 
 TIPSY relies on a high-level main configuration file to perform reliable
 and reproducible benchmarks. The key to the flexibility of TIPSY is that

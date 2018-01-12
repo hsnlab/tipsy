@@ -139,7 +139,7 @@ the TIPSY code.
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
 | [[./doc/README.L2fwd.org][L2 forward (L2fwd)]]       | -           | L2         | -        | -         | -        | -   | TODO   |
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
-| [[./doc/README.L2fwd.org][L3 forward (L3fwd)]]       | -           | L2/L3      | L2/L3    | -         | -        | -   | TODO   |
+| [[./doc/README.L3fwd.org][L3 forward (L3fwd)]]       | -           | L2/L3      | L2/L3    | -         | -        | -   | TODO   |
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
 | Encap/Decap                                          | VXLAN       | -          | L2/L3    | -         | -        | -   | TODO   |
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
@@ -240,8 +240,8 @@ necessary TIPSY commands executing the benchmark driver =tipsy= in the
 benchmark root directory with different command line arguments.
 
 #+BEGIN_SRC sh
-mkdir my_mgw_benchmark
-cd my_mgw_benchmark
+mkdir my_benchmark
+cd my_benchmark
 <store a TIPSY benchnmark configuration into a JSON file>
 tipsy config 
 tipsy traffic-gen
@@ -255,8 +255,8 @@ The basic workflow is as follows.
 1. Create the benchmark root directory as above.
 
    #+BEGIN_SRC sh
-   mkdir my_mgw_benchmark
-   cd my_mgw_benchmark
+   mkdir my_benchmark
+   cd my_benchmark
    #+END_SRC
 
 2. Place a main TIPSY configuration file =my_benchmark.json= into the root
@@ -295,9 +295,9 @@ The basic workflow is as follows.
    tipsy config my_benchmark.json
    #+END_SRC
 
-   This call will set the benchmark configuration from =my_benchmark.json=,
-   setting each parameter that was not explicitly specified there to a sane
-   default value.
+   This call will create the benchmark configuration from
+   =my_benchmark.json=, setting each parameter that was not explicitly
+   specified there to a sane default value.
 
    You may also omit the file argument from =tipsy config= in which case
    TIPSY will take the first JSON file it finds in the current directory as
