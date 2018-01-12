@@ -178,7 +178,7 @@ output is a set of configurations/data-plane programs that can be loaded
 into the SUT and a set of traffic traces for each config.  
 
 Below is a sample configuration that defines a benchmark on the
-[[././doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=) pipeline, with
+[[./doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=) pipeline, with
 pipeline-specific settings =user= (number of users) and =bst= (number of
 base stations) as set in the =pipeline= section.
 
@@ -225,8 +225,9 @@ then to (2,5), and finally to (2,10).
 Setting =scale= to =none= ignores parameter lists and generates a single
 benchmark for the first scalar for each argument.
 
-For the pipeline specific parameters, see the documentation for each
-pipeline.
+A detailed TIPSY configuration guide can be found
+[[./doc/README.config.org][here]].  For the pipeline specific parameters,
+see the documentation for each pipeline.
 
 ** TODO Run TIPSY
 
