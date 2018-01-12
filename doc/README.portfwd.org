@@ -1,0 +1,65 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\usepackage{tikz}
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
+#+OPTIONS: toc:nil author:t ^:nil num:nil
+
+#+TITLE: L2 Port Forwarding (PORTfwd)
+#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
+
+The port-forwarder pipeline (name: =portfwd=) is a basic L2 setup that
+allows to exercise the raw speed of the underlying data plane
+technology. The port forwarding use case passes L2 packets between the
+uplink and the downlink port, optionally swapping MAC source addresses
+along the way.
+
+* Static pipeline
+
+In the upstream direction the pipeline will receive L2 packets from the
+downlink port of the SUT and forward them to the uplink port. Meanwhile, it
+may optionally rewrite the source MAC address in the L2 frame to the MAC
+address of the uplink port (must be specified by the pipeline config).  The
+downstream direction is the same, but packets are received from the uplink
+port and forwarded to the donlink port after an optional MAC rewrite.
+
+* Dynamic scenarios
+
+The port forwarding pipeline does not define dynamic scenarios.
+
+* Pipeline configuration
+
+A sample TIPSY configuration for the PORTfwd pipeline is shown below:
+
+#+BEGIN_SRC javascript
+{
+    "pipeline": {
+         "name": "portfwd",
+         "mac-swap-upstream": "none", 
+         "mac-swap-downstream": "aa:bb:bb:bb:bb:aa", 
+         "fakedrop": false
+    }
+}
+#+END_SRC
+
+The parameters specific to the MGW pipeline are as follows:
+
+- =name=: name of the pipeline, must be set to =portfwd= for the Port
+  Forward pipeline
+- =mac-swap-upstream=: either swap the source MAC address in the packets
+  received from the downlink port and forwarded to the uplink port to the
+  MAC address specified, or do not perform MAC swapping in the upstream
+  direction (=none=)
+- =mac-swap-downstream=: either swap the source MAC address in the packets
+  received from the uplink port and forwarded to the downlink port to the
+  MAC address specified, or do not perform MAC swapping in the downlink
+  direction (=none=)
+- =fakedrop=: whether to actually drop unmatched packets (=false=) or send
+  them immediately to the output port (=false=) for correct rate
+  measurements
+
+* OVS Implementation: Caveats and considerations
+
+* BESS Implementation: Caveats and considerations
+
+

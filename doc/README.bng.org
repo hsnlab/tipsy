@@ -14,7 +14,7 @@
 
 * Dynamic scenarios
 
-* Parameters
+* Pipeline configuration
 
 * OVS Implementation: Caveats and considerations
 

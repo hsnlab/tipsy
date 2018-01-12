@@ -1,0 +1,65 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\usepackage{tikz}
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
+#+OPTIONS: toc:nil author:t ^:nil num:nil
+
+#+TITLE: L2 Packet Forwarding (L2fwd)
+#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
+
+The L2 Packet Forwarding pipeline (name: =L2fwd=) models a simple Ethernet
+switch using a static MAC lookup table.  Note that this pipeline is rather
+basic and it will *not* perform MAC learning or L3 routing. (Contributions
+are welcome!)
+
+* Static pipeline
+
+Upstream the L2fwd pipeline will receive packets from the downlink port,
+perform a lookup for the destination MAC address in a static MAC table, and
+if a match is found the packet will be forwarded to the uplink port or
+otherwise dropped (or likewise forwarded upstream if the =fakedrop=
+parameter is set to =true=).  The downstream pipeline is just the other way
+around, but note that the upstream and downstream pipelines use separate
+MAC tables.
+
+* Dynamic scenarios
+
+The L2fwd pipeline defines a single dynamic scenario:
+
+- =table-update=: models a L2 MAC table update, whereby a MAC table entry
+is added to/removed from the upstream and downstream MAC tables
+
+* Pipeline configuration
+
+A sample TIPSY configuration for the L2fwd pipeline is shown below:
+
+#+BEGIN_SRC javascript
+{
+    "pipeline": {
+         "name": "L2fwd",
+         "upstream-table-size": 100000,
+         "downstream-table-size": 20, 
+         "fluct-table": 30,
+         "fakedrop": false
+    }
+}
+#+END_SRC
+
+The parameters specific to the L2fwd pipeline are as follows:
+
+- =name=: name of the pipeline, must be set to =l2fwd= for the L2fwd
+  pipeline
+- =upstream-table-size=: number of entries in the upstream MAC table
+- =downstream-table-size=: number of entries in the downstream MAC table
+- =fluct-table=: number of MAC table entry update events (=table-update=)
+  per sec
+- =fakedrop=: whether to actually drop unmatched packets (=false=) or send
+  them immediately to the output port (=false=) for correct rate
+  measurements
+
+* OVS Implementation: Caveats and considerations
+
+* BESS Implementation: Caveats and considerations
+
+

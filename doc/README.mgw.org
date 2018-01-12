@@ -71,25 +71,26 @@ This roughly maps to the below modules:
 
 TIPSY defines the below update scenarios for the MGW pipeline.
 
-- Arrival/departure of a user: a UE arrives/departs to/from a BST,
-  involving the following updates to the pipeline:
-  - an entry needs to be added/removed to/from the =ue_selector= module
+- =user-update=: model the arrival/departure of a user; a UE
+  arrives/departs to/from a BST, involving the following updates to the
+  pipeline:
+  - an entry is added/removed to/from the =ue_selector= module
   - the queue for the user in the =rate_limiter= is updated
-- User mobility (handover): a user's attachment point (i.e., BST) changes,
-  with the below changes to the pipeline:
+- =handover=: models user mobility (handover); a user's attachment point
+  (i.e., BST) changes, with the below changes to the pipeline:
   - the =ue_selector= table is updated
-- Addition/removal of a server: a destination in the public Internet
-  changes
+- =server-update=: addition/removal of a server: a destination in the
+  public Internet changes
   - the =l3_lookup= and the =group_table= are modified accordingly
 
-* Parameters
+* Pipeline configuration
 
 A sample TIPSY configuration for the MGW pipeline is shown below:
 
 #+BEGIN_SRC javascript
 {
-    "args": {
-         "pipeline": "mgw",
+    "pipeline": {
+         "name": "mgw",
          "user": [1, 2, 3],
          "bst": [9, 4, 10],
          "server": 1,
@@ -99,19 +100,13 @@ A sample TIPSY configuration for the MGW pipeline is shown below:
          "fluct-user": [17, 200],
          "handover": 0,
          "fluct-server": 4,
-         "pkt-size": 64,
-         "pkt-num": 1000000,
-         "dir": ["uplink", "downlink", "bidir"],
-         "backend": ["ovs", "bess"],
-         "pkt-gen": "moongen",
     }
 }
 #+END_SRC
 
 The parameters specific to the MGW pipeline are as follows:
 
-- =pipeline=: name of the pipeline, must be set to =mgw= for the MGW
-  pipeline.
+- =name=: name of the pipeline, must be set to =mgw= for the MGW pipeline
 - =user=: number of UEs
 - =bst=: number of BSTs
 - =server=: number of public servers
@@ -120,21 +115,15 @@ The parameters specific to the MGW pipeline are as follows:
 - =fakedrop=: whether to actually drop unmatched packets (=false=) or send
   them immediately to the output port (=true=) for correct rate
   measurements
-- =fluct-user=: number of user arrival/departure events per sec
-- =handover=: number of handover events per sec
-- =fluct-server=: number of server update events per sec
-- =pkt-size=: packet size [byte]
-- =pkt-num=: number of packets 
-- =dir=: 
-  - =uplink=: evaluate the upstream datapath
-  - =downlink=: evaluate the downstream datapath
-  - =bidir=: run test in both directions
-- =backend=: backend to run the benchmark on (=ovs= or =bess=)
-- =pkt-gen=: packet generator for the Tester (=moongen= or =tcpreplay=)
+- =fluct-user=: number of user arrival/departure events (=user-update=) per
+  sec
+- =handover=: number of handover events (=handover=) per sec
+- =fluct-server=: number of server update events (=server-update=) per sec
+- =fakedrop=: whether to actually drop unmatched packets (=false=) or send
+  them immediately to the output port (=false=) for correct rate
+  measurements
 
 * OVS Implementation: Caveats and considerations
-
-
 
 * BESS Implementation: Caveats and considerations
 

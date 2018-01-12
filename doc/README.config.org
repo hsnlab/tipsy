@@ -1,0 +1,104 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\usepackage{tikz}
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
+#+OPTIONS: toc:nil author:t ^:nil num:nil
+
+#+TITLE: TIPSY configuration 
+#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
+
+* TIPSY configuration
+
+TIPSY relies on a high-level main configuration file to perform reliable
+and reproducible benchmarks. The key to the flexibility of TIPSY is that
+this configuration allows to define a wide range of different tests, from
+stability tests to scalability and robustness measurements, using minimal
+configuration on the side of the user
+
+A sample configuration for TIPSY is given below.
+
+#+BEGIN_SRC javascript
+{
+    "benchmark":
+    [
+        {
+	    "id": "test1"
+            "scale": "outer",
+	    "pipeline": {
+		"name": "mgw",
+                "user": [4,8],
+                "bst": 1,
+                "server": 2,
+                "rate-limit": 10000,
+                "nhop": 4,
+                "fakedrop": false,
+                "fluct-user": 0,
+                "handover": 0,
+                "fluct-server": 4
+	    },
+	    "traffic": {
+                "pkt-size": 64,
+                "pkt-num": 1000000,
+                "dir": ["uplink", "downlink", "bidir"]
+            },
+	    "sut": {
+		"type": "bess"
+	    },
+	    "tester": {
+		"backend": "moongen"
+	    }
+        }
+    ]
+}
+#+END_SRC
+
+The general rule is that when a configuration parameter is omitted, TIPSY
+chooses a sane built-in default. Exposing these defaults to the user is
+TODO at the moment.
+
+* The =benchmark= section
+
+The configuration defines a main =benchmark= section that defines a list of
+benchmarks to be run. This allows to request multiple TIPSY benchmarks in a
+single configuration.
+
+Each benchmark in turn defines the following subsections:
+
+- an unnamed "general" section that gives the overall settings for the
+  benchmark, like name, scaling mode, etc.
+- =pipeline=: pipeline-specific settings
+- =traffic=: traffic generator settings
+- =sut=: settings for the SUT
+- =tester=: settings for the tester
+
+* The =pipeline= section
+
+Pipeline specific settings. The =pipeline= section has a mandatory =name=
+parameter that defines the name for the pipeline to be configured for the
+benchmark.  Refer to the docs for the individual pipelines for the specific
+settings.
+
+* The =traffic= section
+
+Parameters for the traffic trace that will be fed to the pipeline by the
+Tester. This section might contain the below parameters.
+
+- =pkt-size=: packet size [byte]
+- =pkt-num=: number of packets 
+- =dir=: 
+  - =uplink=: evaluate the upstream datapath
+  - =downlink=: evaluate the downstream datapath
+  - =bidir=: run test in both directions
+
+* The =tester= section
+
+Parameters for the Tester, among others, the traffic generator backend to
+be used for insert the traffic trace into the SUT and other Tester specific
+settings.
+
+- =backend=: packet generator for the Tester (=moongen= or =scapy=)
+
+* The =sut= section
+
+Settings for the System-Under-Test (SUT).
