@@ -278,14 +278,6 @@ The basic workflow is as follows.
          "sut": {
              "type": ["ovs", "bess"]
          },
-         "visualize":
-         [
-             {
-                 "x_axis": "mgw.user", 
-                 "y_axis": "packet_rate",
-                 "curve": ["ovs", "bess"]
-             }
-         ]
      }
    #+END_SRC
 
