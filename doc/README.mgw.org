@@ -118,7 +118,7 @@ The parameters specific to the MGW pipeline are as follows:
 - =rate-limit=: rate limit threshold [byte/sec]
 - =nhop=: number of next-hops in the L3 table towards the public Internet
 - =fakedrop=: whether to actually drop unmatched packets (=false=) or send
-  them immediately to the output port (=false=) for correct rate
+  them immediately to the output port (=true=) for correct rate
   measurements
 - =fluct-user=: number of user arrival/departure events per sec
 - =handover=: number of handover events per sec
