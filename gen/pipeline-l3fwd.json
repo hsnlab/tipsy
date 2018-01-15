@@ -1,0 +1,49 @@
+{
+  "title": "Configuration of an L3 Packet Forwarding pipeline",
+  "type": "object",
+  "properties": {
+    "pipeline": {
+      "type": "string",
+      "enum": ["l3fwd"],
+      "description":
+        "name of the pipeline, must be set to l2fwd"
+    },
+    "fakedrop": {
+      "type": "boolean",
+      "description":
+        "whether to actually drop unmatched packets (False) or send them immediately to the output port (True) for correct rate measurements",
+      "default": true
+    },
+    "upstream-l3-table-size": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 10,
+      "description": "Number of destination entries (prefixes) in the L3FIB lookup table, upstream direction"
+    },
+    "upstream-group-table-size": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 2,
+      "description": "number of group table entries (next-hops), upstream direction"
+    },
+    "downstream-l3-table-size": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 2,
+      "description": "Number of destination entries (prefixes) in the L3FIB lookup table, upstream direction"
+    },
+    "downstream-group-table-size": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 1,
+      "description": "number of group table entries (next-hops), upstream direction"
+    },
+    "fluct-l3-table": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 0,
+      "description": "number of l3-table-update events in the L3FIB per sec"
+    },
+    "fluct-group-table": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 0,
+      "description": "number of group-table-update events in the Group Table per sec"
+    }
+  },
+  "required": ["pipeline"]
+}

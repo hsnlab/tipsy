@@ -1,0 +1,86 @@
+{
+  "title": "Configuration of a Mobile Gateway pipeline",
+  "type": "object",
+  "properties": {
+    "pipeline": {
+      "type": "string",
+      "enum": ["bng"],
+      "description":
+        "name of the pipeline, must be set to bng for the BNG pipeline."
+    },
+    "user": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "number of UEs",
+      "default": 1
+    },
+    "cpe": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "number of Customer Premises Equipments (max: 64516)",
+      "default": 1
+    },
+    "server": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "number of public servers",
+      "default": 1
+    },
+    "rate-limit": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "rate limit threshold [byte/sec]",
+      "default": 10000
+    },
+    "nhop": {
+      "$ref": "definitions.json#/positive-integer",
+      "description":
+        "number of next-hops in the L3 table towards the public Internet",
+      "default": 2
+    },
+    "user-conn": {
+      "$ref": "definitions.json#/positive-integer",
+      "description":
+        "number of connections for each user (max: 65535)",
+      "default": 1
+    },
+    "fakedrop": {
+      "type": "boolean",
+      "description":
+        "whether to actually drop unmatched packets (False) or send them immediately to the output port (True) for correct rate measurements",
+      "default": true
+    },
+    "fw-rules": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "description": "number of firewall rules",
+      "default": 1
+    },
+    "fluct-user": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "description": "number of user arrival/departure events per sec",
+      "default": 0
+    },
+    "fluct-server": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "description": "number of server update events per sec",
+      "default": 0
+    },
+    "gw-ip": {
+      "$ref": "definitions.json#/ip-address",
+      "description": "Gateway IP address",
+      "default": "200.0.0.1"
+    },
+    "gw-mac": {
+      "$ref": "definitions.json#/mac-address",
+      "description": "Gateway MAC address",
+      "default": "aa:22:bb:44:cc:66"
+    },
+    "downlink-default-gw-ip": {
+      "$ref": "definitions.json#/ip-address",
+      "description": "Default gateway IP address, downlink direction",
+      "default": "200.0.0.222"
+    },
+    "downlink-default-gw-mac": {
+      "$ref": "definitions.json#/mac-address",
+      "description": "Default gateway MAC address, downlink direction",
+      "default": "aa:22:bb:44:cc:67"
+    }
+  },
+  "required": ["pipeline"]
+}

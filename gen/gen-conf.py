@@ -1,19 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
+import re
 import sys
-from copy import deepcopy
-
-pipeline_args = {}
-def cli_arg(*args, **kw):
-  def decorator(method):
-    def wrap(self):
-      return method(self)
-    component = method.__name__[len('add_'):]
-    pipeline_args[component] = pipeline_args.get(component, []) + [(args, kw)]
-    wrap.__name__ = method.__name__
-    return wrap
-  return decorator
 
 def byte_seq (template, seq):
   return template % (int(seq / 254), (seq % 254) + 1)
@@ -36,8 +26,6 @@ class PL (object):
     self.conf['fakedrop'] = args.fakedrop
     self.conf['run_time'] = [] # Commands to be executed in every second
 
-  @cli_arg('--bst', '-b', type=int, default=1,
-            help='Number of base stations (max: 64516)')
   def add_bsts (self):
     bsts = []
     for b in range(self.args.bst):
@@ -49,8 +37,6 @@ class PL (object):
       })
     self.conf['bsts'] = bsts
 
-  @cli_arg('--server', '-s', type=int, default=1,
-           help='Number of servers (max: 64516)')
   def add_servers (self):
     srvs = []
     for s in range(self.args.server):
@@ -60,8 +46,6 @@ class PL (object):
       })
     self.conf['srvs'] = srvs
 
-  @cli_arg('--nhop', '-n', type=int, default=2,
-           help='Number of next-hops towards the servers')
   def add_nhops (self):
     nhops = []
     for n in range(self.args.nhop):
@@ -72,10 +56,6 @@ class PL (object):
       })
     self.conf['nhops'] = nhops
 
-  @cli_arg('--user', '-u', type=int, default=1,
-           help='Number of users (max: 64516)')
-  @cli_arg('--rate-limit', '-r', type=int, default=10000,
-           help='Rate limiter [bit/s]')
   def add_users (self):
     users = []
     for u in range(self.args.user):
@@ -88,8 +68,6 @@ class PL (object):
     self.users = users
     self.conf['users'] = users
 
-  @cli_arg('--fw-rules', '-f', type=int, default=1,
-           help='Number of firewall rules')
   def add_fw (self):
     ul_fw_rules = []
     dl_fw_rules = []
@@ -111,9 +89,6 @@ class PL (object):
        'dl_fw_rules': dl_fw_rules,
       })
 
-
-  @cli_arg('--user-conn', type=int, default=1,
-                    help='Number of connections for each user (max: 65535)')
   def add_nat (self):
     # The 'nat' component depends on the 'users' component
     # NB: this requirement is not checked.
@@ -142,14 +117,6 @@ class PL (object):
       'mac':'ac:dc:AC:DC:ac:dc',
     }
 
-  @cli_arg('--gw-ip', type=str, default='200.0.0.1',
-           help='Gateway IP address')
-  @cli_arg('--gw-mac', type=str, default='aa:22:bb:44:cc:66',
-           help='Gateway MAC address')
-  @cli_arg('--downlink-default-gw-ip', type=str, default='200.0.0.222',
-           help='Default gateway IP address, downlink direction')
-  @cli_arg('--downlink-default-gw-mac', type=str, default='aa:22:bb:44:cc:67',
-           help='Default gateway MAC address, downlink direction')
   def add_gw (self):
     self.conf['gw'] = {
       'ip': self.args.gw_ip,
@@ -159,8 +126,6 @@ class PL (object):
       },
     }
 
-  @cli_arg('--fluct-user', type=int, default=0,
-           help='Number of fluctuating users per second')
   def add_fluct_user (self):
     # Generate extra users to fluctuate
     extra_users = []
@@ -180,8 +145,6 @@ class PL (object):
 
     self.conf['run_time'] = fl_u_add + self.conf['run_time'] + fl_u_del
 
-  @cli_arg('--fluct-server', type=int, default=0,
-           help='Number of fluctuating servers per second')
   def add_fluct_server (self):
     # Generate extra servers to fluctuate
     extra_servers = []
@@ -207,23 +170,6 @@ class PL_l3fwd (PL):
     super(PL_l3fwd, self).__init__(args)
     self.components += ['l3']
 
-  @cli_arg('--upstream-l3-table-size', type=int, default=10,
-           help='Number of destination entries (prefixes) in the'
-                'L3FIB lookup table, upstream direction')
-  @cli_arg('--upstream-group-table-size', type=int, default=2,
-           help='number of group table entries (next-hops), '
-                'upstream direction')
-  @cli_arg('--downstream-l3-table-size', type=int, default=2,
-           help='Number of destination entries (prefixes) in the'
-                'L3FIB lookup table, upstream direction')
-  @cli_arg('--downstream-group-table-size', type=int, default=1,
-           help='number of group table entries (next-hops), '
-                'upstream direction')
-  @cli_arg('--fluct-l3-table', type=int, default=0,
-           help='number of l3-table-update events in the L3FIB per sec')
-  @cli_arg('--fluct-group-table', type=int, default=0,
-           help='number of group-table-update events in the Group '
-           'Table per sec')
   def add_l3 (self):
     for i, d in enumerate(['upstream', 'downstream']):
       table = []
@@ -302,8 +248,6 @@ class PL_mgw (PL):
     self.components += ['gw', 'bsts', 'servers', 'nhops', 'users',
                         'handover', 'fluct_server', 'fluct_user']
 
-  @cli_arg('--handover', type=int, default=0,
-           help='Number of handovers per second')
   def add_handover (self):
     run_time = []
     for i in range(self.args.handover):
@@ -325,8 +269,6 @@ class PL_vmgw (PL_mgw):
     super(PL_vmgw, self).__init__(args)
     self.components += ['dcgw', 'fw', 'apps']
 
-  @cli_arg('--napps', type=int, default=1,
-           help='Number of apps')
   def add_apps (self):
     if self.args.napps != 1:
       raise NotImplementedError('Currently, one app is supported.')
@@ -342,8 +284,6 @@ class PL_bng (PL):
                         'servers', 'nhops', 'fluct_server', 'fluct_user']
 
 
-  @cli_arg('--cpe', type=int, default=1,
-            help='Number of Customer Premises Equipments (max: 64516)')
   def add_cpe (self):
     cpe = []
     for b in range(self.args.cpe):
@@ -368,66 +308,120 @@ class PL_bng (PL):
     self.conf['users'] = users
 
 
-def list_pipelines():
+def list_pipelines ():
   l = [n[3:] for n in globals() if n.startswith('PL_')]
   return sorted(l)
 
-def show_per_pipeline_help(args):
-  parser = argparse.ArgumentParser()
-  parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
-  pl = globals()['PL_%s' % args.pipeline]({})
-  for component in pl.components:
-    for arg_def in pipeline_args.get(component, []):
-      parser.add_argument(*arg_def[0], **arg_def[1])
-  parser.usage = "\n\n%s (%s)"  % (pl.__doc__, args.pipeline)
-  parser.parse_args(['-h'])
+def check_type_positive_integer (string):
+  msg = "'%s' is not a positive integer" % string
+  try:
+    i = int(string)
+  except ValueError:
+    raise argparse.ArgumentTypeError(msg)
+  if i <= 0:
+    raise argparse.ArgumentTypeError(msg)
+  return i
+
+def check_type_non_negative_integer (string):
+  msg = "'%s' is not non-negative integer" % string
+  try:
+    i = int(string)
+  except ValueError:
+    raise argparse.ArgumentTypeError(msg)
+  if i < 0:
+    raise argparse.ArgumentTypeError(msg)
+  return i
+
+def check_type_ip_address (string):
+  msg = "'%s' is not an ip address" % string
+  l = string.split('.')
+  if len(l) != 4:
+    raise argparse.ArgumentTypeError(msg)
+  for i in l:
+    if int(i) > 255 or int(i) < 0:
+      raise argparse.ArgumentTypeError(msg)
+  return string
+
+def check_type_mac_address (string):
+  if re.match(r'^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$', string):
+    return string
+  msg = "'%s' is not a mac address" % string
+  raise argparse.ArgumentTypeError(msg)
+
+def add_args_from_schema(parser, pipeline_name):
+  "Add per pipeline CLI args from the schema definition"
+  type_map = {
+    'string': str,
+    'boolean': bool,
+  }
+
+  group = parser.add_argument_group('pipeline specific agruments')
+  script_dir = os.path.dirname(os.path.realpath(__file__))
+  fname = 'pipeline-%s.json' % pipeline_name
+  with open(os.path.join(script_dir, fname)) as f:
+    schema = json.load(f)
+
+  name = schema['properties']['pipeline']['enum'][0]
+  for prop, val in sorted(schema['properties'].items()):
+    #print(prop, val)
+    if val.get('$ref'):
+      m = re.search(r'#\/(.*)$', val['$ref'])
+      fn = re.sub(r'-', '_', m.group(1))
+      type_check_fn = globals()['check_type_%s' % fn]
+    else:
+      type_check_fn = type_map[val['type']]
+    a = {'type': type_check_fn,
+         'help': val['description'],
+    }
+    if 'default' in val:
+      a['default'] = val['default']
+    #print(a)
+    if prop != 'pipeline':
+      parser.add_argument('--%s' % prop, **a)
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--json', '-j', type=argparse.FileType('r'),
-                    help='Override default settings from config file')
-parser.add_argument('--output', '-o', type=argparse.FileType('w'),
-                    help='Output file',
-                    default='/dev/stdout')
-parser.add_argument('--pipeline', '-p', type=str, choices=list_pipelines(),
-                    help='Name of the pipeline', default='mgw')
-parser.add_argument('--fakedrop', dest='fakedrop',
-                    help='If enabled, packages to drop are '
-                    'forwarded to outport instead of drop. '
-                    '(default)',
-                    action='store_true')
-parser.add_argument('--no-fakedrop', dest='fakedrop',
-                    help='If disabled, packages to drop are '
-                    'really droped.',
-                    action='store_false')
-parser.set_defaults(fakedrop=True)
-parser.add_argument('--info', action='store_true',
-                    help='Show detailed info of a pipeline and exit')
+parser2 = argparse.ArgumentParser()
+for args, kw in [
+    (['--json', '-j'], {
+      'type': argparse.FileType('r'),
+      'help': 'Override default settings from config file'}),
+    (['--output', '-o'], {
+      'type': argparse.FileType('w'),
+      'help': 'Output file',
+      'default': '/dev/stdout'}),
+    (['--pipeline', '-p'], {
+      'type': str,
+      'choices': list_pipelines(),
+      'help': 'Name of the pipeline',
+      'default': 'mgw'}),
+    (['--info', '-i'], {
+      'action': 'store_true',
+      'help': 'Show detailed info of a pipeline and exit'}),
+]:
+  parser.add_argument(*args, **kw)
+  parser2.add_argument(*args, **kw)
+
 parser.set_defaults(info=False)
+parser2.add_argument('dummy', metavar='pipeline specific args ...',
+                    nargs='?', type=str, help='see -i for details')
 
-# Map components to pipelines
-comp2pl = {}
-for pl_name in list_pipelines():
-  pl = globals()['PL_%s' % pl_name]({})
-  for c in pl.components:
-    comp2pl[c] = comp2pl.get(c, []) + [pl_name]
-
-group = parser.add_argument_group('pipeline agruments')
-for component, arg_defs in pipeline_args.items():
-  available_in = ','.join(comp2pl[component])
-  for arg_def in arg_defs:
-    kw = deepcopy(arg_def[1])
-    kw['help'] = kw.get('help', '') + ' [%s]' % available_in
-    group.add_argument(*arg_def[0], **kw)
-
-args = parser.parse_args()
-
+(args, _) = parser2.parse_known_args()
 if args.json:
   new_defaults = json.load(args.json)
   parser.set_defaults(**new_defaults)
-  args = parser.parse_args()
+  (args, _) = parser.parse_known_args()
+
+add_args_from_schema(parser, args.pipeline)
+args = parser.parse_args()
 
 if args.info:
-  show_per_pipeline_help(args)
+  parser = argparse.ArgumentParser()
+  parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
+  pl = globals()['PL_%s' % args.pipeline]({})
+  parser.usage = "\n\n%s (%s)"  % (pl.__doc__, args.pipeline)
+  add_args_from_schema(parser, args.pipeline)
+  parser.parse_args(['-h'])
 else:
   pl = globals()['PL_%s' % args.pipeline](args)
   conf = pl.create_conf()
