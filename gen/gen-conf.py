@@ -15,6 +15,8 @@ def cli_arg(*args, **kw):
     return wrap
   return decorator
 
+def byte_seq (template, seq):
+  return template % (int(seq / 254), (seq % 254) + 1)
 
 class PL (object):
 
@@ -41,8 +43,8 @@ class PL (object):
     for b in range(self.args.bst):
       bsts.append({
         'id': b,
-        'mac': 'aa:cc:dd:cc:%02x:%02x' % (int(b / 254), (b % 254) + 1),
-        'ip': '1.1.%d.%d' % (int(b / 254), (b % 254) + 1),
+        'mac': byte_seq('aa:cc:dd:cc:%02x:%02x', b),
+        'ip': byte_seq('1.1.%d.%d', b),
         'port': None,
       })
     self.conf['bsts'] = bsts
@@ -53,7 +55,7 @@ class PL (object):
     srvs = []
     for s in range(self.args.server):
       srvs.append({
-        'ip': '2.%d.%d.2' % (int(s / 254), (s % 254) + 1),
+        'ip': byte_seq('2.%d.%d.2', s),
         'nhop': s % self.args.nhop
       })
     self.conf['srvs'] = srvs
@@ -64,8 +66,8 @@ class PL (object):
     nhops = []
     for n in range(self.args.nhop):
       nhops.append({
-        'dmac': 'aa:bb:bb:aa:%02x:%02x' % (int(n / 254), (n % 254) + 1),
-        'smac': 'ee:dd:dd:aa:%02x:%02x' % (int(n / 254), (n % 254) + 1),
+        'dmac': byte_seq('aa:bb:bb:aa:%02x:%02x', n),
+        'smac': byte_seq('ee:dd:dd:aa:%02x:%02x', n),
         'port': None,
       })
     self.conf['nhops'] = nhops
@@ -78,7 +80,7 @@ class PL (object):
     users = []
     for u in range(self.args.user):
       users.append({
-        'ip': '3.3.%d.%d' % (int(u / 254), (u % 254) + 1),
+        'ip': byte_seq('3.3.%d.%d', u),
         'tun_end': u % self.args.bst,
         'teid': u + 1,
         'rate_limit': self.args.rate_limit,
@@ -125,10 +127,9 @@ class PL (object):
         port_idx = (user['teid']-1) * self.args.user_conn + c
         pub_port = (port_idx % max_port) + 1
         incr = int((port_idx / max_port))
-        pub_ip = pub_ip_format_str % (int(incr / 254), (incr % 254) + 1)
         nat.append({'priv_ip': priv_ip,
                     'priv_port': priv_port,
-                    'pub_ip': pub_ip,
+                    'pub_ip': byte_seq(pub_ip_format_str, incr),
                     'pub_port': pub_port,
                     'proto': 6, # TCP
         })
@@ -165,7 +166,7 @@ class PL (object):
     extra_users = []
     for u in range(self.args.fluct_user):
         extra_users.append({
-            'ip': '4.4.%d.%d' % (int(u / 254), (u % 254) + 1),
+            'ip': byte_seq('4.4.%d.%d', u),
             'tun_end': u % self.args.bst,
             'teid': u + self.args.user + 1,
             'rate_limit': self.args.rate_limit,
@@ -186,7 +187,7 @@ class PL (object):
     extra_servers = []
     for s in range(self.args.fluct_server):
         extra_servers.append({
-            'ip': '5.%d.%d.2' % (int(s / 254), (s % 254) + 1),
+            'ip': byte_seq('5.%d.%d.2', s),
             'nhop': s % self.args.nhop
         })
     fl_s_add = []
@@ -206,7 +207,6 @@ class PL_mgw (PL):
     super(PL_mgw, self).__init__(args)
     self.components += ['gw', 'bsts', 'servers', 'nhops', 'users',
                         'handover', 'fluct_server', 'fluct_user']
-
 
   @cli_arg('--handover', type=int, default=0,
            help='Number of handovers per second')
@@ -255,8 +255,8 @@ class PL_bng (PL):
     for b in range(self.args.cpe):
       cpe.append({
         'id': b,
-        'mac': 'aa:cc:dd:cc:%02x:%02x' % (int(b / 254), (b % 254) + 1),
-        'ip': '1.1.%d.%d' % (int(b / 254), (b % 254) + 1),
+        'mac': byte_seq('aa:cc:dd:cc:%02x:%02x', b),
+        'ip': byte_seq('1.1.%d.%d', b),
         'port': None,
       })
     self.conf['cpe'] = cpe
@@ -265,7 +265,7 @@ class PL_bng (PL):
     users = []
     for u in range(self.args.user):
       users.append({
-        'ip': '3.3.%d.%d' % (int(u / 254), (u % 254) + 1),
+        'ip': byte_seq('3.3.%d.%d', u),
         'tun_end': u % self.args.cpe,
         'teid': u + 1,
         'rate_limit': self.args.rate_limit,
