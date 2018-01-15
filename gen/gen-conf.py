@@ -200,6 +200,100 @@ class PL (object):
     self.conf['run_time'] = fl_s_add + self.conf['run_time'] + fl_s_del
 
 
+class PL_l3fwd (PL):
+  "L3 Packet Forwarding pipeline"
+
+  def __init__ (self, args):
+    super(PL_l3fwd, self).__init__(args)
+    self.components += ['l3']
+
+  @cli_arg('--upstream-l3-table-size', type=int, default=10,
+           help='Number of destination entries (prefixes) in the'
+                'L3FIB lookup table, upstream direction')
+  @cli_arg('--upstream-group-table-size', type=int, default=2,
+           help='number of group table entries (next-hops), '
+                'upstream direction')
+  @cli_arg('--downstream-l3-table-size', type=int, default=2,
+           help='Number of destination entries (prefixes) in the'
+                'L3FIB lookup table, upstream direction')
+  @cli_arg('--downstream-group-table-size', type=int, default=1,
+           help='number of group table entries (next-hops), '
+                'upstream direction')
+  @cli_arg('--fluct-l3-table', type=int, default=0,
+           help='number of l3-table-update events in the L3FIB per sec')
+  @cli_arg('--fluct-group-table', type=int, default=0,
+           help='number of group-table-update events in the Group '
+           'Table per sec')
+  def add_l3 (self):
+    for i, d in enumerate(['upstream', 'downstream']):
+      table = []
+      for s in range(self.args.__dict__['%s_l3_table_size' % d]):
+        table.append({
+          'ip': byte_seq('%d.%%d.%%d.2' % (2 + i), s),
+          'nhop': s % self.args.__dict__['%s_group_table_size' % d]
+        })
+      self.conf['%s-l3-table' % d] = table
+
+    for d in ['upstream', 'downstream']:
+      table = []
+      for n in range(self.args.__dict__['%s_group_table_size' %d]):
+        dprefix = {'upstream': 'aa:bb:bb:aa',
+                   'downstream': 'ab:ba:ab:ba'}[d]
+        sprefix = {'upstream': 'ee:dd:dd:aa',
+                   'downstream': 'ed:da:ed:da'}[d]
+        table.append({
+          'dmac': byte_seq('%s:%%02x:%%02x' % dprefix, n),
+          'smac': byte_seq('%s:%%02x:%%02x' % sprefix, n),
+          'port': None,
+        })
+      self.conf['%s-group-table' % d] = table
+
+    add_rules = []
+    del_rules = []
+    for i, d in enumerate(['upstream', 'downstream']):
+      extra_servers = []
+      uts = self.args.upstream_l3_table_size
+      dts = self.args.downstream_l3_table_size
+      fluct = self.args.fluct_l3_table
+      u_servers = int(fluct * uts / (uts + dts))
+      servers = {'upstream': u_servers,
+                 'downstream': (fluct - u_servers)}[d]
+      for s in range(servers):
+        extra_servers.append({
+          'ip': byte_seq('%d.%%d.%%d.2' % (5 + i), s),
+          'nhop': s % self.args.__dict__['%s_group_table_size' % d]
+        })
+      for server in extra_servers:
+        add_rules = add_rules + [{'action': 'add_server', 'args': server}]
+        del_rules = [{'action': 'del_server', 'args': server}] + del_rules
+    self.conf['run_time'] = add_rules + self.conf['run_time'] + del_rules
+
+    add_rules = []
+    del_rules = []
+    for i, d in enumerate(['upstream', 'downstream']):
+      extra_nhops = []
+      uts = self.args.upstream_group_table_size
+      dts = self.args.downstream_group_table_size
+      fluct = self.args.fluct_group_table
+      u_nhops = int(fluct * uts / (uts + dts))
+      nhops = {'upstream': u_nhops,
+               'downstream': (fluct - u_nhops)}[d]
+      for n in range(nhops):
+        dprefix = {'upstream': 'aa:bb:bb:ff',
+                   'downstream': 'ab:ba:ab:ff'}[d]
+        sprefix = {'upstream': 'ee:dd:dd:ff',
+                   'downstream': 'ed:da:ed:ff'}[d]
+        extra_nhops.append({
+          'dmac': byte_seq('%s:%%02x:%%02x' % dprefix, n),
+          'smac': byte_seq('%s:%%02x:%%02x' % sprefix, n),
+          'port': None,
+        })
+      for server in extra_nhops:
+        add_rules = add_rules + [{'action': 'add_server', 'args': server}]
+        del_rules = [{'action': 'del_server', 'args': server}] + del_rules
+    self.conf['run_time'] = add_rules + self.conf['run_time'] + del_rules
+
+
 class PL_mgw (PL):
   "Mobile Gateway"
 
