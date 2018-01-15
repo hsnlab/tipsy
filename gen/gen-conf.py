@@ -408,11 +408,15 @@ parser2.add_argument('dummy', metavar='pipeline specific args ...',
 
 (args, _) = parser2.parse_known_args()
 if args.json:
+  # Set the default pipeline from the json file
   new_defaults = json.load(args.json)
   parser.set_defaults(**new_defaults)
   (args, _) = parser.parse_known_args()
 
 add_args_from_schema(parser, args.pipeline)
+if args.json:
+  # Override the defaults for the given pipeline
+  parser.set_defaults(**new_defaults)
 args = parser.parse_args()
 
 if args.info:
