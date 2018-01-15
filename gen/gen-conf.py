@@ -363,7 +363,6 @@ def add_args_from_schema(parser, pipeline_name):
 
   name = schema['properties']['pipeline']['enum'][0]
   for prop, val in sorted(schema['properties'].items()):
-    #print(prop, val)
     if val.get('$ref'):
       m = re.search(r'#\/(.*)$', val['$ref'])
       fn = re.sub(r'-', '_', m.group(1))
@@ -375,7 +374,6 @@ def add_args_from_schema(parser, pipeline_name):
     }
     if 'default' in val:
       a['default'] = val['default']
-    #print(a)
     if prop != 'pipeline':
       parser.add_argument('--%s' % prop, **a)
 
