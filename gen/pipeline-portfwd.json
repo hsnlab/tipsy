@@ -1,0 +1,23 @@
+{
+  "title": "Configuration of a L2 Port Forwarding pipeline",
+  "type": "object",
+  "properties": {
+    "pipeline": {
+      "type": "string",
+      "enum": ["portfwd"],
+      "description":
+        "name of the pipeline, must be set to portfwd"
+    },
+    "mac-swap-upstream": {
+      "$ref": "definitions.json#/mac-address-or-null",
+      "default": null,
+      "description": "if set, swap the source MAC address in the packets received from the downlink port before forwarding to the uplink port"
+    },
+    "mac-swap-downstream": {
+      "$ref": "definitions.json#/mac-address-or-null",
+      "default": null,
+      "description": "if set, swap the source MAC address in the packets received from the uplink port before forwarding to the downlink port"
+    }
+  },
+  "required": ["pipeline"]
+}

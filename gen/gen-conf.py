@@ -166,6 +166,19 @@ class PL (object):
       })
     return nhops
 
+class PL_portfwd (PL):
+  "L2 Port Forwarding pipeline"
+  def __init__ (self, args):
+    super().__init__(args)
+    self.components = ['portfwd']
+
+  def add_portfwd (self):
+    self.conf['pipeline'] = args.pipeline
+    self.conf['run_time'] = []
+    for arg in ['pipeline', 'mac_swap_upstream', 'mac_swap_downstream']:
+      self.conf[arg] = self.get_arg(arg)
+
+
 class PL_l2fwd (PL):
   "L2 Packet Forwarding pipeline"
 
@@ -373,6 +386,14 @@ def check_type_ip_address (string):
   return string
 
 def check_type_mac_address (string):
+  if re.match(r'^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$', string):
+    return string
+  msg = "'%s' is not a mac address" % string
+  raise argparse.ArgumentTypeError(msg)
+
+def check_type_mac_address_or_null (string):
+  if string.lower() in ['null', 'none']:
+    return None
   if re.match(r'^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$', string):
     return string
   msg = "'%s' is not a mac address" % string

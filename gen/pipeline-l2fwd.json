@@ -1,0 +1,34 @@
+{
+  "title": "Configuration of an L2 Packet Forwarding pipeline",
+  "type": "object",
+  "properties": {
+    "pipeline": {
+      "type": "string",
+      "enum": ["l2fwd"],
+      "description":
+        "name of the pipeline, must be set to l2fwd"
+    },
+    "fakedrop": {
+      "type": "boolean",
+      "description":
+        "whether to actually drop unmatched packets (False) or send them immediately to the output port (True) for correct rate measurements",
+      "default": true
+    },
+    "upstream-table-size": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 2,
+      "description": "number of entries in the upstream MAC table"
+    },
+    "downstream-table-size": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 2,
+      "description": "number of entries in the downstream MAC table"
+    },
+    "fluct-table": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 0,
+      "description": "number of MAC table entry update events (table-update) per sec"
+    }
+  },
+  "required": ["pipeline"]
+}
