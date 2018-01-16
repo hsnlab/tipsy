@@ -228,7 +228,15 @@ benchmark for the first scalar for each argument.
 
 A detailed TIPSY configuration guide can be found
 [[./doc/README.config.org][here]].  For the pipeline specific parameters,
-see the documentation for each pipeline.
+see the documentation for each pipeline. For generating an empty
+configuration with the default setting for each configurable parameter,
+use:
+
+#+BEGIN_SRC sh
+tipsy default-config <pipeline>
+#+END_SRC
+
+You may then start to edit the resultant JSON configuration accordingly.
 
 ** TODO Run TIPSY
 

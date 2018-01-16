@@ -74,7 +74,7 @@ Each benchmark in turn defines the following subsections:
 
 Pipeline specific settings. The =pipeline= section has a mandatory =name=
 parameter that defines the name for the pipeline to be configured for the
-benchmark.  Refer to the docs for the individual pipelines for the specific
+benchmark.  Refer to the docs of the individual pipelines for the specific
 settings.
 
 * The =traffic= section
