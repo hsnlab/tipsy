@@ -85,7 +85,7 @@ def _gen_ul_pkt_mgw(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
     proto = random.choice([TCP(), UDP()])
-    bst = conf.bsts[user.bst]
+    bst = conf.bsts[user.tun_end]
     p = (
         Ether(src=bst.mac, dst=conf.gw.mac, type=0x0800) /
         IP(src=bst.ip, dst=conf.gw.ip) /
