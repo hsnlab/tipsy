@@ -171,7 +171,7 @@ class PL_l3fwd (PL):
   "L3 Packet Forwarding pipeline"
 
   def __init__ (self, args):
-    super(PL_l3fwd, self).__init__(args)
+    super().__init__(args)
     self.components += ['l3']
 
   def add_l3 (self):
@@ -236,7 +236,7 @@ class PL_mgw (PL):
   "Mobile Gateway"
 
   def __init__ (self, args):
-    super(PL_mgw, self).__init__(args)
+    super().__init__(args)
     self.components += ['gw', 'bsts', 'servers', 'nhops', 'users',
                         'handover', 'fluct_server', 'fluct_user']
 
@@ -258,7 +258,7 @@ class PL_vmgw (PL_mgw):
   "Virtual Mobile Gateway"
 
   def __init__ (self, args):
-    super(PL_vmgw, self).__init__(args)
+    super().__init__(args)
     self.components += ['dcgw', 'fw', 'apps']
 
   def add_apps (self):
@@ -271,7 +271,7 @@ class PL_bng (PL):
   "Broadband Network Gateway"
 
   def __init__ (self, args):
-    super(PL_bng, self).__init__(args)
+    super().__init__(args)
     self.components += ['fw', 'cpe', 'gw', 'users', 'nat',
                         'servers', 'nhops', 'fluct_server', 'fluct_user']
 
