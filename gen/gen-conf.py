@@ -26,7 +26,7 @@ class PL (object):
     return self.conf
 
   def add_base (self):
-    self.conf['pipeline'] = args.pipeline
+    self.conf['name'] = args.name
     self.conf['fakedrop'] = args.fakedrop
     self.conf['run_time'] = [] # Commands to be executed in every second
 
@@ -173,9 +173,9 @@ class PL_portfwd (PL):
     self.components = ['portfwd']
 
   def add_portfwd (self):
-    self.conf['pipeline'] = args.pipeline
+    self.conf['name'] = args.name
     self.conf['run_time'] = []
-    for arg in ['pipeline', 'mac_swap_upstream', 'mac_swap_downstream']:
+    for arg in ['name', 'mac_swap_upstream', 'mac_swap_downstream']:
       self.conf[arg] = self.get_arg(arg)
 
 
@@ -414,7 +414,7 @@ def add_args_from_schema(parser, pipeline_name):
   with open(os.path.join(script_dir, fname)) as f:
     schema = json.load(f)
 
-  name = schema['properties']['pipeline']['enum'][0]
+  name = schema['properties']['name']['enum'][0]
   for prop, val in sorted(schema['properties'].items()):
     if val.get('$ref'):
       m = re.search(r'#\/(.*)$', val['$ref'])
@@ -427,7 +427,7 @@ def add_args_from_schema(parser, pipeline_name):
     }
     if 'default' in val:
       a['default'] = val['default']
-    if prop != 'pipeline':
+    if prop != 'name':
       parser.add_argument('--%s' % prop, **a)
 
 
@@ -442,9 +442,16 @@ for args, kw in [
       'help': 'Output file',
       'default': '/dev/stdout'}),
     (['--pipeline', '-p'], {
+      'dest': 'name',
       'type': str,
       'choices': list_pipelines(),
       'help': 'Name of the pipeline',
+      'default': 'mgw'}),
+    (['--name'], {
+      'dest': 'name',
+      'type': str,
+      'choices': list_pipelines(),
+      'help': argparse.SUPPRESS,
       'default': 'mgw'}),
     (['--info', '-i'], {
       'action': 'store_true',
@@ -464,7 +471,7 @@ if args.json:
   parser.set_defaults(**new_defaults)
   (args, _) = parser.parse_known_args()
 
-add_args_from_schema(parser, args.pipeline)
+add_args_from_schema(parser, args.name)
 if args.json:
   # Override the defaults for the given pipeline
   parser.set_defaults(**new_defaults)
@@ -473,12 +480,12 @@ args = parser.parse_args()
 if args.info:
   parser = argparse.ArgumentParser()
   parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
-  pl = globals()['PL_%s' % args.pipeline]({})
-  parser.usage = "\n\n%s (%s)"  % (pl.__doc__, args.pipeline)
-  add_args_from_schema(parser, args.pipeline)
+  pl = globals()['PL_%s' % args.name]({})
+  parser.usage = "\n\n%s (%s)"  % (pl.__doc__, args.name)
+  add_args_from_schema(parser, args.name)
   parser.parse_args(['-h'])
 else:
-  pl = globals()['PL_%s' % args.pipeline](args)
+  pl = globals()['PL_%s' % args.name](args)
   conf = pl.create_conf()
   json.dump(conf, args.output, sort_keys=True, indent=4)
   args.output.write("\n")

@@ -2,7 +2,7 @@
   "title": "Configuration of a L2 Port Forwarding pipeline",
   "type": "object",
   "properties": {
-    "pipeline": {
+    "name": {
       "type": "string",
       "enum": ["portfwd"],
       "description":

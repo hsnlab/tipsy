@@ -381,12 +381,12 @@ if __name__ == '__main__':
         raise
 
     bess_start_cmd = "%s daemon start -- run file ./%s.bess \"config='%s'\"" % (
-        bessctl, args.pipeline, args.conf.name)
+        bessctl, args.name, args.conf.name)
     print(bess_start_cmd)
     subprocess.call(bess_start_cmd, shell=True)
 
     options = ('mgw', 'vmgw', 'bng')
-    pipeline = args.conf.pipeline.lower()
+    pipeline = args.conf.name.lower()
     if pipeline in options:
         namespace = sys.modules[__name__]
         uclass = getattr(namespace, 'BessUpdater%s' % pipeline.title())

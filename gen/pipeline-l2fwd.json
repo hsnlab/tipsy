@@ -2,7 +2,7 @@
   "title": "Configuration of an L2 Packet Forwarding pipeline",
   "type": "object",
   "properties": {
-    "pipeline": {
+    "name": {
       "type": "string",
       "enum": ["l2fwd"],
       "description":

@@ -1,8 +1,8 @@
 {
-  "title": "Configuration of a Mobile Gateway pipeline",
+  "title": "Configuration of a Virtual Mobile Gateway pipeline",
   "type": "object",
   "properties": {
-    "pipeline": {
+    "name": {
       "type": "string",
       "enum": ["mgw"],
       "description":

@@ -34,7 +34,7 @@ class ObjectView(object):
 
 def gen_packets(params_tuple):
     (dir, pkt_num, pkt_size, conf) = params_tuple
-    pl = conf.pipeline
+    pl = conf.name
     pkts = []
     if dir[0] == 'b':
         dir = ('dl', 'ul')

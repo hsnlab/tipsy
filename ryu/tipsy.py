@@ -381,7 +381,7 @@ class Tipsy(app_manager.RyuApp):
     self.dp.send_msg(msg)
 
     # Uplink: vxlan_port -> rate-limiter -> (FW->NAT) -> L3 lookup table
-    if self.pl_conf.pipeline in ['bng']:
+    if self.pl_conf.name in ['bng']:
       next_tbl = 'ul_fw'
     else:
       next_tbl = 'l3_lookup'
@@ -480,7 +480,7 @@ class Tipsy(app_manager.RyuApp):
     self.mod_flow('ingress', 9, match, [], [])
     match = parser.OFPMatch(in_port=self.ul_port,
                             eth_dst=self.pl_conf.gw.mac)
-    if self.pl_conf.pipeline in ['bng']:
+    if self.pl_conf.name in ['bng']:
       next_table='dl_fw'
     else:
       next_table='downlink'
@@ -561,7 +561,7 @@ class Tipsy(app_manager.RyuApp):
     for user in self.pl_conf.users:
       self.mod_user('add', user)
 
-    if self.pl_conf.pipeline in ['bng']:
+    if self.pl_conf.name in ['bng']:
       self.add_fw_rules('ul_fw', self.pl_conf.ul_fw_rules, 'ul_nat')
       self.add_fw_rules('dl_fw', self.pl_conf.dl_fw_rules, 'downlink')
       self.add_ul_nat_rules('ul_nat', 'l3_lookup')
