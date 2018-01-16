@@ -166,6 +166,44 @@ class PL (object):
       })
     return nhops
 
+class PL_l2fwd (PL):
+  "L2 Packet Forwarding pipeline"
+
+  def __init__ (self, args):
+    super().__init__(args)
+    self.components += ['l2']
+
+  def add_l2 (self):
+    def make_tbl (size, template):
+      table = []
+      for i in range(size):
+        table.append({'mac':  byte_seq(template, i), 'out_port': None})
+      return table
+
+    usize = self.args.upstream_table_size
+    dsize = self.args.downstream_table_size
+    self.conf['upstream-table'] = make_tbl(usize, 'aa:cc:dd:cc:%02x:%02x')
+    self.conf['downstream-table'] = make_tbl(dsize, 'ac:dc:ac:dc:%02x:%02x')
+
+    # Run-time behaviour, distribute dynamic entries proportionally
+    fluct = self.args.fluct_table
+    u_entries = int(fluct * usize / (usize + dsize))
+    d_entries = fluct - u_entries
+
+    def make_rule (op, entry, tbl):
+      return [{
+        'action': 'mod_table',
+        'operation': op,
+        'entry': entry,
+        'table': tbl,
+      }]
+    rules = []
+    directions = ['upstream'] * u_entries + ['downstream'] * d_entries
+    entries = make_tbl(fluct, 'aa:bb:bb:aa:%02x:%02x')
+    for entry, d in zip(entries, directions):
+      rules = make_rule('add', entry, d) + rules + make_rule('del', entry, d)
+    self.conf['run_time'] += rules
+
 
 class PL_l3fwd (PL):
   "L3 Packet Forwarding pipeline"

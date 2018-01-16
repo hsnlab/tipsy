@@ -6,7 +6,7 @@
       "type": "string",
       "enum": ["l3fwd"],
       "description":
-        "name of the pipeline, must be set to l2fwd"
+        "name of the pipeline, must be set to l3fwd"
     },
     "fakedrop": {
       "type": "boolean",
