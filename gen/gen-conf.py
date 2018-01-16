@@ -61,8 +61,7 @@ class PL (object):
     self.conf['users'] = users
 
   def add_fw (self):
-    ul_fw_rules = []
-    dl_fw_rules = []
+    ul_fw_rules, dl_fw_rules = [], []
     for i in range(self.args.fw_rules):
       ul_fw_rules.append({
         'src_ip': '25.%d.1.1' % i,
@@ -119,7 +118,7 @@ class PL (object):
     }
 
   def add_fluct_user (self):
-    # Generate ephemeral users to fluctuate
+    # Generate ephemeral users
     extra_users = []
     for u in range(self.args.fluct_user):
         extra_users.append({
@@ -128,8 +127,7 @@ class PL (object):
             'teid': u + self.args.user + 1,
             'rate_limit': self.args.rate_limit,
         })
-    fl_u_add = []
-    fl_u_del = []
+    fl_u_add, fl_u_del = [], []
     for i in range(self.args.fluct_user):
         user = extra_users[i]
         fl_u_add = fl_u_add + [{'action': 'add_user', 'args': user}]
@@ -141,8 +139,7 @@ class PL (object):
     # Generate ephemeral servers
     extra_servers = self.create_l3_table(
       self.args.fluct_server, self.args.nhop, '5.%d.%d.2')
-    fl_s_add = []
-    fl_s_del = []
+    fl_s_add, fl_s_del = [], []
     for server in extra_servers:
         fl_s_add = fl_s_add + [{'action': 'add_server', 'args': server}]
         fl_s_del = [{'action': 'del_server', 'args': server}] + fl_s_del
@@ -193,27 +190,29 @@ class PL_l3fwd (PL):
         smac_template='%s:%%02x:%%02x' % sprefix
       )
 
-    add_rules = []
-    del_rules = []
+    # Define the run-time behaviour
+    def make_rule(op, entry, tbl):
+      return {'action': action, 'operation': op, 'entry': entry, 'table': tbl}
+    action = 'mod_l3_table'
+    add_rules, del_rules  = [], []
     for i, d in enumerate(['upstream', 'downstream']):
-      extra_servers = []
       uts = self.args.upstream_l3_table_size
       dts = self.args.downstream_l3_table_size
       fluct = self.args.fluct_l3_table
       u_servers = int(fluct * uts / (uts + dts))
       size = {'upstream': u_servers, 'downstream': (fluct - u_servers)}[d]
-      temp = self.create_l3_table(
+      temp_table = self.create_l3_table(
         size=size,
         nhops=self.get_arg('%s_group_table_size' % d),
         addr_template='%d.%%d.%%d.2' % (5 + i)
       )
-      for server in temp:
-        add_rules = add_rules + [{'action': 'add_server', 'args': server}]
-        del_rules = [{'action': 'del_server', 'args': server}] + del_rules
+      for entry in temp_table:
+        add_rules = add_rules + [make_rule('add', entry, d)]
+        del_rules = [make_rule('del', entry, d)] + del_rules
     self.conf['run_time'] = add_rules + self.conf['run_time'] + del_rules
 
-    add_rules = []
-    del_rules = []
+    action = 'mod_group_table'
+    add_rules, del_rules = [], []
     for d in ['upstream', 'downstream']:
       uts = self.args.upstream_group_table_size
       dts = self.args.downstream_group_table_size
@@ -226,9 +225,9 @@ class PL_l3fwd (PL):
         dmac_template='%s:%%02x:%%02x' % dprefix,
         smac_template='%s:%%02x:%%02x' % sprefix
       )
-      for server in extra_nhops:
-        add_rules = add_rules + [{'action': 'add_server', 'args': server}]
-        del_rules = [{'action': 'del_server', 'args': server}] + del_rules
+      for entry in extra_nhops:
+        add_rules = add_rules + [make_rule('add', entry, d)]
+        del_rules = [make_rule('del', entry, d)] + del_rules
     self.conf['run_time'] = add_rules + self.conf['run_time'] + del_rules
 
 
