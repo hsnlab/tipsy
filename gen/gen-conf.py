@@ -15,6 +15,9 @@ class PL (object):
     self.components = ['base']
     self.conf = {}
 
+  def get_arg (self, arg_name, default=None):
+    return self.args.__dict__.get(arg_name, default)
+
   def create_conf (self):
     for c in self.components:
       method = getattr(self, 'add_%s' % c)
@@ -38,23 +41,12 @@ class PL (object):
     self.conf['bsts'] = bsts
 
   def add_servers (self):
-    srvs = []
-    for s in range(self.args.server):
-      srvs.append({
-        'ip': byte_seq('2.%d.%d.2', s),
-        'nhop': s % self.args.nhop
-      })
-    self.conf['srvs'] = srvs
+    self.conf['srvs'] = self.create_l3_table(
+      self.args.server, self.args.nhop, '2.%d.%d.2')
 
   def add_nhops (self):
-    nhops = []
-    for n in range(self.args.nhop):
-      nhops.append({
-        'dmac': byte_seq('aa:bb:bb:aa:%02x:%02x', n),
-        'smac': byte_seq('ee:dd:dd:aa:%02x:%02x', n),
-        'port': None,
-      })
-    self.conf['nhops'] = nhops
+    self.conf['nhops'] = self.create_l2_table(
+      self.args.nhop, 'aa:bb:bb:aa:%02x:%02x', 'ee:dd:dd:aa:%02x:%02x')
 
   def add_users (self):
     users = []
@@ -127,7 +119,7 @@ class PL (object):
     }
 
   def add_fluct_user (self):
-    # Generate extra users to fluctuate
+    # Generate ephemeral users to fluctuate
     extra_users = []
     for u in range(self.args.fluct_user):
         extra_users.append({
@@ -146,21 +138,35 @@ class PL (object):
     self.conf['run_time'] = fl_u_add + self.conf['run_time'] + fl_u_del
 
   def add_fluct_server (self):
-    # Generate extra servers to fluctuate
-    extra_servers = []
-    for s in range(self.args.fluct_server):
-        extra_servers.append({
-            'ip': byte_seq('5.%d.%d.2', s),
-            'nhop': s % self.args.nhop
-        })
+    # Generate ephemeral servers
+    extra_servers = self.create_l3_table(
+      self.args.fluct_server, self.args.nhop, '5.%d.%d.2')
     fl_s_add = []
     fl_s_del = []
-    for i in range(self.args.fluct_server):
-        server = extra_servers[i]
+    for server in extra_servers:
         fl_s_add = fl_s_add + [{'action': 'add_server', 'args': server}]
         fl_s_del = [{'action': 'del_server', 'args': server}] + fl_s_del
 
     self.conf['run_time'] = fl_s_add + self.conf['run_time'] + fl_s_del
+
+  def create_l3_table (self, size, nhops, addr_template):
+    table = []
+    for i in range(size):
+      table.append({
+        'ip': byte_seq(addr_template, i),
+        'nhop': i % nhops
+      })
+    return table
+
+  def create_l2_table (self, size, dmac_template, smac_template):
+    nhops = []
+    for n in range(size):
+      nhops.append({
+        'dmac': byte_seq(dmac_template, n),
+        'smac': byte_seq(smac_template, n),
+        'port': None,
+      })
+    return nhops
 
 
 class PL_l3fwd (PL):
@@ -172,27 +178,20 @@ class PL_l3fwd (PL):
 
   def add_l3 (self):
     for i, d in enumerate(['upstream', 'downstream']):
-      table = []
-      for s in range(self.args.__dict__['%s_l3_table_size' % d]):
-        table.append({
-          'ip': byte_seq('%d.%%d.%%d.2' % (2 + i), s),
-          'nhop': s % self.args.__dict__['%s_group_table_size' % d]
-        })
-      self.conf['%s-l3-table' % d] = table
+      self.conf['%s-l3-table' % d] = self.create_l3_table(
+        size=self.get_arg('%s_l3_table_size' % d),
+        nhops=self.get_arg('%s_group_table_size' % d),
+        addr_template='%d.%%d.%%d.2' % (2 + i)
+      )
 
     for d in ['upstream', 'downstream']:
-      table = []
-      for n in range(self.args.__dict__['%s_group_table_size' %d]):
-        dprefix = {'upstream': 'aa:bb:bb:aa',
-                   'downstream': 'ab:ba:ab:ba'}[d]
-        sprefix = {'upstream': 'ee:dd:dd:aa',
-                   'downstream': 'ed:da:ed:da'}[d]
-        table.append({
-          'dmac': byte_seq('%s:%%02x:%%02x' % dprefix, n),
-          'smac': byte_seq('%s:%%02x:%%02x' % sprefix, n),
-          'port': None,
-        })
-      self.conf['%s-group-table' % d] = table
+      dprefix = {'upstream': 'aa:bb:bb:aa', 'downstream': 'ab:ba:ab:ba'}[d]
+      sprefix = {'upstream': 'ee:dd:dd:aa', 'downstream': 'ed:da:ed:da'}[d]
+      self.conf['%s-group-table' % d] = self.create_l2_table(
+        size=self.get_arg('%s_group_table_size' %d),
+        dmac_template='%s:%%02x:%%02x' % dprefix,
+        smac_template='%s:%%02x:%%02x' % sprefix
+      )
 
     add_rules = []
     del_rules = []
@@ -202,38 +201,31 @@ class PL_l3fwd (PL):
       dts = self.args.downstream_l3_table_size
       fluct = self.args.fluct_l3_table
       u_servers = int(fluct * uts / (uts + dts))
-      servers = {'upstream': u_servers,
-                 'downstream': (fluct - u_servers)}[d]
-      for s in range(servers):
-        extra_servers.append({
-          'ip': byte_seq('%d.%%d.%%d.2' % (5 + i), s),
-          'nhop': s % self.args.__dict__['%s_group_table_size' % d]
-        })
-      for server in extra_servers:
+      size = {'upstream': u_servers, 'downstream': (fluct - u_servers)}[d]
+      temp = self.create_l3_table(
+        size=size,
+        nhops=self.get_arg('%s_group_table_size' % d),
+        addr_template='%d.%%d.%%d.2' % (5 + i)
+      )
+      for server in temp:
         add_rules = add_rules + [{'action': 'add_server', 'args': server}]
         del_rules = [{'action': 'del_server', 'args': server}] + del_rules
     self.conf['run_time'] = add_rules + self.conf['run_time'] + del_rules
 
     add_rules = []
     del_rules = []
-    for i, d in enumerate(['upstream', 'downstream']):
-      extra_nhops = []
+    for d in ['upstream', 'downstream']:
       uts = self.args.upstream_group_table_size
       dts = self.args.downstream_group_table_size
       fluct = self.args.fluct_group_table
       u_nhops = int(fluct * uts / (uts + dts))
-      nhops = {'upstream': u_nhops,
-               'downstream': (fluct - u_nhops)}[d]
-      for n in range(nhops):
-        dprefix = {'upstream': 'aa:bb:bb:ff',
-                   'downstream': 'ab:ba:ab:ff'}[d]
-        sprefix = {'upstream': 'ee:dd:dd:ff',
-                   'downstream': 'ed:da:ed:ff'}[d]
-        extra_nhops.append({
-          'dmac': byte_seq('%s:%%02x:%%02x' % dprefix, n),
-          'smac': byte_seq('%s:%%02x:%%02x' % sprefix, n),
-          'port': None,
-        })
+      dprefix = {'upstream': 'aa:bb:bb:ff', 'downstream': 'ab:ba:ab:ff'}[d]
+      sprefix = {'upstream': 'ee:dd:dd:ff', 'downstream': 'ed:da:ed:ff'}[d]
+      extra_nhops = self.create_l2_table(
+        size={'upstream': u_nhops, 'downstream': (fluct - u_nhops)}[d],
+        dmac_template='%s:%%02x:%%02x' % dprefix,
+        smac_template='%s:%%02x:%%02x' % sprefix
+      )
       for server in extra_nhops:
         add_rules = add_rules + [{'action': 'add_server', 'args': server}]
         del_rules = [{'action': 'del_server', 'args': server}] + del_rules
