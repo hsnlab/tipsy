@@ -1,0 +1,48 @@
+# Tipsy workflow / dataflow
+#
+# Box with dotted border: commands
+# Box with solid border:  data files
+# line label:  additonal data required as input
+#
+# Generate the output graph easily with graph-easy:
+#
+# $ graph-easy --dot | dot -Grankdir=TB -Tsvg
+#
+
+node.cmd { border: dotted; }
+
+[gen-conf]  {class: cmd; label: tipsy config (gen-conf)}
+[gen-pcap]  {class: cmd; label: tipsy traffic-gen (gen-pcap)}
+[meas]      {class: cmd; label: tipsy run}
+[meas-moon] {class: cmd; label: moongen-script}
+[eval]      {class: cmd; label: tispy evaulate}
+[show]      {class: cmd; label: tipsy visualize}
+[ryu]       {class: cmd; label: ryu/tipsy}
+[bess]      {class: cmd; label: bess/update-agent}
+
+[main]{label: main.json}
+-- main/pipeline --> [gen-conf]
+
+[gen-conf]
+--> [pipeline.json]
+--  main/traffic --> [gen-pcap]
+--> [trace.pcap]
+--> [meas]
+
+[pipeline.json] --> [ryu]
+[pipeline.json] --> [bess]
+
+
+[meas]
+-- main/sut/type --> [pipeline-type]{shape: point;}
+
+[meas]
+-- main/tester/backend --> [meas-moon]
+--> [result.json]
+--> [eval]
+--> [statistics.json]
+--> [show]
+--> [*.png]
+
+[pipeline-type] --> [ryu]
+[pipeline-type] --> [bess]
