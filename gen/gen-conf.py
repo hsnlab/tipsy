@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sys
+from distutils.util import strtobool
 
 def byte_seq (template, seq):
   return template % (int(seq / 254), (seq % 254) + 1)
@@ -339,12 +340,14 @@ def check_type_mac_address (string):
   msg = "'%s' is not a mac address" % string
   raise argparse.ArgumentTypeError(msg)
 
+def check_type_string (string):
+  return string
+
+def check_type_boolean (string):
+  return bool(strtobool(string))
+
 def add_args_from_schema(parser, pipeline_name):
   "Add per pipeline CLI args from the schema definition"
-  type_map = {
-    'string': str,
-    'boolean': bool,
-  }
 
   group = parser.add_argument_group('pipeline specific agruments')
   script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -356,12 +359,12 @@ def add_args_from_schema(parser, pipeline_name):
   for prop, val in sorted(schema['properties'].items()):
     if val.get('$ref'):
       m = re.search(r'#\/(.*)$', val['$ref'])
-      fn = re.sub(r'-', '_', m.group(1))
-      type_check_fn = globals()['check_type_%s' % fn]
+      type_name = re.sub(r'-', '_', m.group(1))
     else:
-      type_check_fn = type_map[val['type']]
-    a = {'type': type_check_fn,
+      type_name = val['type']
+    a = {'type': globals()['check_type_%s' % type_name],
          'help': val['description'],
+         'metavar': type_name.upper(),
     }
     if 'default' in val:
       a['default'] = val['default']
