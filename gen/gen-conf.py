@@ -464,19 +464,29 @@ parser.set_defaults(info=False)
 parser2.add_argument('dummy', metavar='pipeline specific args ...',
                     nargs='?', type=str, help='see -i for details')
 
-(args, _) = parser2.parse_known_args()
+try:
+  argv = re.split(r'\s+', os.environ["COMP_LINE"])[1:]
+except KeyError:
+  argv = sys.argv
+(args, _) = parser2.parse_known_args(argv)
 if args.json:
   # Set the default pipeline from the json file
   new_defaults = json.load(args.json)
   parser.set_defaults(**new_defaults)
-  (args, _) = parser.parse_known_args()
+  (args, _) = parser.parse_known_args(argv)
 
 add_args_from_schema(parser, args.name)
 if args.json:
   # Override the defaults for the given pipeline
   parser.set_defaults(**new_defaults)
-args = parser.parse_args()
 
+try:
+  import argcomplete
+  argcomplete.autocomplete(parser)
+except ImportError:
+  pass
+
+args = parser.parse_args()
 if args.info:
   parser = argparse.ArgumentParser()
   parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
