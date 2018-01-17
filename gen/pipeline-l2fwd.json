@@ -25,7 +25,7 @@
       "description": "number of entries in the downstream MAC table"
     },
     "fluct-table": {
-      "$ref": "definitions.json#/positive-integer",
+      "$ref": "definitions.json#/non-negative-integer",
       "default": 0,
       "description": "number of MAC table entry update events (table-update) per sec"
     }

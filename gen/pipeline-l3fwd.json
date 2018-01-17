@@ -35,12 +35,12 @@
       "description": "number of group table entries (next-hops), upstream direction"
     },
     "fluct-l3-table": {
-      "$ref": "definitions.json#/positive-integer",
+      "$ref": "definitions.json#/non-negative-integer",
       "default": 0,
       "description": "number of l3-table-update events in the L3FIB per sec"
     },
     "fluct-group-table": {
-      "$ref": "definitions.json#/positive-integer",
+      "$ref": "definitions.json#/non-negative-integer",
       "default": 0,
       "description": "number of group-table-update events in the Group Table per sec"
     }
