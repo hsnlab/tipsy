@@ -209,6 +209,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='TIPSY: Telco pIPeline benchmarking SYstem')
     subparsers = parser.add_subparsers(dest='command')
+    subparsers.required = True
     init = subparsers.add_parser('init',
                                  help='Init tipsy in current directory')
     init.add_argument('configs', type=str,
@@ -227,6 +228,12 @@ if __name__ == '__main__':
     visu = subparsers.add_parser('visualize', help='Visualize results')
     make = subparsers.add_parser('make', help='Do everything')
     clean = subparsers.add_parser('clean', help='Clean up pcaps, logs, etc.')
+
+    try:
+        import argcomplete
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass
     args = parser.parse_args()
 
     tipsy = TipsyManager(args)
