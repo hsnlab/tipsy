@@ -6,8 +6,21 @@ import re
 import sys
 from distutils.util import strtobool
 
+__all__ = ["gen_conf"]
+
+def gen_conf (args):
+  parser = argparse.ArgumentParser()
+  add_args_from_schema(parser, args.get('name', 'mgw'))
+  parser.set_defaults(**args)
+  args = parser.parse_args([])
+
+  pl = globals()['PL_%s' % args.name](args)
+  conf = pl.create_conf()
+  return conf
+
 def byte_seq (template, seq):
   return template % (int(seq / 254), (seq % 254) + 1)
+
 
 class PL (object):
 
@@ -26,8 +39,8 @@ class PL (object):
     return self.conf
 
   def add_base (self):
-    self.conf['name'] = args.name
-    self.conf['fakedrop'] = args.fakedrop
+    self.conf['name'] = self.args.name
+    self.conf['fakedrop'] = self.args.fakedrop
     self.conf['run_time'] = [] # Commands to be executed in every second
 
   def add_bsts (self):
@@ -431,9 +444,10 @@ def add_args_from_schema(parser, pipeline_name):
       parser.add_argument('--%s' % prop, **a)
 
 
-parser = argparse.ArgumentParser()
-parser2 = argparse.ArgumentParser()
-for args, kw in [
+def parse_cli_args ():
+  parser = argparse.ArgumentParser()
+  parser2 = argparse.ArgumentParser()
+  for args, kw in [
     (['--json', '-j'], {
       'type': argparse.FileType('r'),
       'help': 'Override default settings from config file'}),
@@ -456,36 +470,37 @@ for args, kw in [
     (['--info', '-i'], {
       'action': 'store_true',
       'help': 'Show detailed info of a pipeline and exit'}),
-]:
-  parser.add_argument(*args, **kw)
-  parser2.add_argument(*args, **kw)
+  ]:
+    parser.add_argument(*args, **kw)
+    parser2.add_argument(*args, **kw)
 
-parser.set_defaults(info=False)
-parser2.add_argument('dummy', metavar='pipeline specific args ...',
-                    nargs='?', type=str, help='see -i for details')
+  parser.set_defaults(info=False)
+  parser2.add_argument('dummy', metavar='pipeline specific args ...',
+                       nargs='?', type=str, help='see -i for details')
 
-args, _ = parser2.parse_known_args()
-if args.json:
-  # Set the default pipeline from the json file
-  new_defaults = json.load(args.json)
-  parser.set_defaults(**new_defaults)
-  (args, _) = parser.parse_known_args()
+  args, _ = parser2.parse_known_args()
+  if args.json:
+    # Set the default pipeline from the json file
+    new_defaults = json.load(args.json)
+    parser.set_defaults(**new_defaults)
+    (args, _) = parser.parse_known_args()
 
-add_args_from_schema(parser, args.name)
-if args.json:
-  # Override the defaults for the given pipeline
-  parser.set_defaults(**new_defaults)
-
-args = parser.parse_args()
-if args.info:
-  parser = argparse.ArgumentParser()
-  parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
-  pl = globals()['PL_%s' % args.name]({})
-  parser.usage = "\n\n%s (%s)"  % (pl.__doc__, args.name)
   add_args_from_schema(parser, args.name)
-  parser.parse_args(['-h'])
-else:
-  pl = globals()['PL_%s' % args.name](args)
-  conf = pl.create_conf()
+  if args.json:
+    # Override the defaults for the given pipeline
+    parser.set_defaults(**new_defaults)
+
+  args = parser.parse_args()
+  if args.info:
+    parser = argparse.ArgumentParser()
+    parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
+    pl = globals()['PL_%s' % args.name]({})
+    parser.usage = "\n\n%s (%s)"  % (pl.__doc__, args.name)
+    add_args_from_schema(parser, args.name)
+    parser.parse_args(['-h'])
+  return args
+
+if __name__ == "__main__":
+  conf = gen_conf(parse_cli_args())
   json.dump(conf, args.output, sort_keys=True, indent=4)
   args.output.write("\n")
