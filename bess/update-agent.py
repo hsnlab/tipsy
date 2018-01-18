@@ -172,12 +172,15 @@ class BessUpdaterMgw(BessUpdater):
             except BESS.Error:
                 pass
 
+    def __get_id_from_ip(self, ip):
+        return sum([int(x[0]) * x[1] for x in zip(ip.split('.')[1:3], (255, 1))])
+
     def add_server(self, server):
         self._config_add_server(server)
         for wid in range(self.workers_num):
             try:
                 ip = re.sub(r'\.[^.]+$', '.0', server.ip)
-                id = sum(map(lambda x: int(x[0])*x[1], zip(ip.split('.')[1:3],(255,1))))
+                id = self.__get_id_from_ip(ip)
                 ogate = len(self.conf.srvs) + id
                 self.bess.pause_worker(wid)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
@@ -201,9 +204,8 @@ class BessUpdaterMgw(BessUpdater):
         for wid in range(self.workers_num):
             try:
                 ip = re.sub(r'\.[^.]+$', '.0', server.ip)
-                id = sum(map(lambda x: int(x[0])*x[1], zip(ip.split('.')[1:3],(255,1))))
+                id = self.__get_id_from_ip(ip)
                 ogate = len(self.conf.srvs) + id
-                md_name = 'setmd_srv%d_%d' % (ogate, wid)
                 self.bess.pause_worker(wid)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
                                              'delete', 'IPLookupCommandDeleteArg',
@@ -289,12 +291,15 @@ class BessUpdaterVmgw(BessUpdater):
             except BESS.Error:
                 pass
 
+    def __get_id_from_ip(self, ip):
+        return sum([int(x[0]) * x[1] for x in zip(ip.split('.')[1:3], (255, 1))])
+
     def add_server(self, server):
         self._config_add_server(server)
         for wid in range(self.workers_num):
             try:
                 ip = re.sub(r'\.[^.]+$', '.0', server.ip)
-                id = sum(map(lambda x: int(x[0])*x[1], zip(ip.split('.')[1:3],(255,1))))
+                id = self.__get_id_from_ip(ip)
                 ogate = len(self.conf.srvs) + id
                 self.bess.pause_worker(wid)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
@@ -318,9 +323,8 @@ class BessUpdaterVmgw(BessUpdater):
         for wid in range(self.workers_num):
             try:
                 ip = re.sub(r'\.[^.]+$', '.0', server.ip)
-                id = sum(map(lambda x: int(x[0])*x[1], zip(ip.split('.')[1:3],(255,1))))
+                id = self.__get_id_from_ip(ip)
                 ogate = len(self.conf.srvs) + id
-                md_name = 'setmd_srv%d_%d' % (ogate, wid)
                 self.bess.pause_worker(wid)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
                                              'delete', 'IPLookupCommandDeleteArg',
@@ -381,17 +385,15 @@ if __name__ == '__main__':
         raise
 
     bess_start_cmd = "%s daemon start -- run file ./%s.bess \"config='%s'\"" % (
-        bessctl, args.name, args.conf.name)
+        bessctl, config.name, args.conf.name)
     print(bess_start_cmd)
     subprocess.call(bess_start_cmd, shell=True)
 
-    options = ('mgw', 'vmgw', 'bng')
-    pipeline = args.conf.name.lower()
-    if pipeline in options:
-        namespace = sys.modules[__name__]
-        uclass = getattr(namespace, 'BessUpdater%s' % pipeline.title())
+    try:
+        uclass = getattr(sys.modules[__name__],
+                         'BessUpdater%s' % config.name.title())
         updater = uclass(config)
-    else:
+    except:
         raise
 
     signal.signal(signal.SIGINT, signal_handler)
