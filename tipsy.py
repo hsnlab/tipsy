@@ -4,8 +4,9 @@ import itertools
 import json
 import os
 import subprocess
-from pathlib import Path
+from pathlib import Path, PosixPath
 
+from gen.gen_conf import gen_conf
 
 def json_dump(obj, target):
     """Serialize ``obj`` as a JSON formatted text to ``target``.
@@ -167,7 +168,6 @@ class TipsyManager(object):
             with open(conf, 'r') as conf_file:
                 tmp = json.load(conf_file, object_hook=conf_load)
                 self.tipsy_conf.update(tmp)
-        gen_conf = self.tipsy_dir.joinpath("gen", "gen-conf.py")
         self.tipsy_conf.gen_configs()
         try:
             os.mkdir('measurements')
@@ -179,8 +179,7 @@ class TipsyManager(object):
             out_conf = out_dir.joinpath('pipeline.json')
             tmp_file = out_dir.joinpath('.tipsyconf')
             json_dump(config, tmp_file)
-            cmd = "%s --json %s --output %s" % (gen_conf, tmp_file, out_conf)
-            subprocess.call(cmd, shell=True)
+            json_dump(gen_conf(config), out_conf)
 
     @_action
     def do_traffic_gen(self):
