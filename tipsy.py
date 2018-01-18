@@ -7,6 +7,24 @@ import subprocess
 from pathlib import Path
 
 
+def json_dump(obj, target):
+    """Serialize ``obj`` as a JSON formatted text to ``target``.
+target is either a filename, a PosixPath, or a file-like object.
+"""
+    def dump_to_file(obj, outfile):
+        json.dump(obj, outfile, indent=4)
+        outfile.write("\n")
+
+    if type(target) == PosixPath:
+        with target.open('w') as outfile:
+            dump_to_file(obj, outfile)
+    elif type(target) == str:
+        with open(target, 'w') as outfile:
+            dump_to_file(obj, outfile)
+    else:
+        dump_to_file(obj, target)
+
+
 class TipsyConfig(dict):
     def __init__(self, *args, **kwargs):
         tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
@@ -84,8 +102,7 @@ class TipsyStateManager(object):
             self.reset_states()
 
     def _write_states(self):
-        with open(self.state_json, 'w') as f:
-            json.dump(self.states, f)
+        json_dump(self.states, self.state_json)
 
     def is_state_ready(self, state):
         if self.action_reqs[state]:
@@ -161,8 +178,7 @@ class TipsyManager(object):
             out_dir.mkdir()
             out_conf = out_dir.joinpath('pipeline.json')
             tmp_file = out_dir.joinpath('.tipsyconf')
-            with tmp_file.open('w') as tmpfile:
-                json.dump(config, tmpfile)
+            json_dump(config, tmp_file)
             cmd = "%s --json %s --output %s" % (gen_conf, tmp_file, out_conf)
             subprocess.call(cmd, shell=True)
 
