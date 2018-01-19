@@ -423,6 +423,7 @@ def add_args_from_schema(parser, pipeline_name):
 
   group = parser.add_argument_group('pipeline specific agruments')
   script_dir = os.path.dirname(os.path.realpath(__file__))
+  script_dir = os.path.join(script_dir, '..', 'schema')
   fname = 'pipeline-%s.json' % pipeline_name
   with open(os.path.join(script_dir, fname)) as f:
     schema = json.load(f)
@@ -501,6 +502,7 @@ def parse_cli_args ():
   return args
 
 if __name__ == "__main__":
-  conf = gen_conf(parse_cli_args())
+  args = parse_cli_args()
+  conf = gen_conf(args.__dict__)
   json.dump(conf, args.output, sort_keys=True, indent=4)
   args.output.write("\n")
