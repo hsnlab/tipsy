@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import glob
 import itertools
 import json
 import os
@@ -7,6 +8,7 @@ import subprocess
 from pathlib import Path, PosixPath
 
 from gen.gen_conf import gen_conf
+from lib import validate
 
 def json_dump(obj, target):
     """Serialize ``obj`` as a JSON formatted text to ``target``.
@@ -120,6 +122,9 @@ class TipsyManager(object):
         self.tipsy_dir = Path(__file__).resolve().parent
         self.args = args
         self.state_mngr = TipsyStateManager('.tipsystate')
+        self.fname_pl_in = 'pipeline-in.json'
+        self.fname_pl = 'pipeline.json'
+        self.fname_pcap = 'trace.pcap'
 
     def execute_action_reqs(self, action):
         if self.state_mngr.is_state_ready(action):
@@ -150,9 +155,36 @@ class TipsyManager(object):
     def do_init(self):
         raise NotImplementedError
 
+    def validate_json_conf(self, fname):
+        with open(fname) as f:
+            data = json.load(f)
+        try:
+            validate.validate_data(data, schema_name='pipeline')
+        except Exception as e:
+            print('Validation failed for: %s' % fname)
+            # We should tell the exact command to run
+            print('For details run something like: '
+                  'validate.py -s schema/pipeline-mgw.json %s' % fname)
+            exit(-1)
+
     @_action
-    def do_validate(self):
-        pass  # TODO
+    def do_validate(self, cli_args=None):
+        # TODO: set cli_args in the caller
+
+        join = os.path.join
+        if cli_args:
+            for fname in cli_args:
+                self.validate_json_conf(fname)
+        elif os.path.exists(self.fname_pl_in):
+            self.validate_json_conf(self.fname_pl_in)
+        elif os.path.exists('measurements'):
+            p = join('measurements', '[0-9][0-9][0-9]', self.fname_pl_in)
+            for fname in glob.glob(p):
+                self.validate_json_conf(fname)
+        else:
+            p = join('[0-9][0-9][0-9]', self.fname_pl_in)
+            for fname in glob.glob(p):
+                self.validate_json_conf(fname)
 
     @_action
     def do_config(self):
@@ -176,8 +208,8 @@ class TipsyManager(object):
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
             out_dir = Path('measurements', '%03d' % i)
             out_dir.mkdir()
-            out_conf = out_dir.joinpath('pipeline.json')
-            tmp_file = out_dir.joinpath('.tipsyconf')
+            out_conf = out_dir.joinpath(self.fname_pl)
+            tmp_file = out_dir.joinpath(self.fname_pl_in)
             json_dump(config, tmp_file)
             json_dump(gen_conf(config), out_conf)
 
@@ -186,9 +218,9 @@ class TipsyManager(object):
         gen_pcap = self.tipsy_dir.joinpath("gen", "gen-pcap.py")
         meas_dir = Path('measurements')
         for out_dir in [f for f in meas_dir.iterdir() if f.is_dir()]:
-            out_pcap = out_dir.joinpath('trace.pcap')
-            tmp_file = out_dir.joinpath('.tipsyconf')
-            conf_file = out_dir.joinpath('pipeline.json')
+            out_pcap = out_dir.joinpath(self.fname_pcap)
+            tmp_file = out_dir.joinpath(self.fname_pl_in)
+            conf_file = out_dir.joinpath(self.fname_pl)
             cmd = ("%s --json %s --conf %s --output %s"
                    % (gen_pcap, tmp_file, conf_file, out_pcap))
             subprocess.call(cmd, shell=True)
@@ -229,11 +261,10 @@ if __name__ == '__main__':
                                  help='Init tipsy in current directory')
     init.add_argument('configs', type=str,
                       help='Pipeline name', default='mgw')
-    validate = subparsers.add_parser('validate',
-                                     help='Validate configurations')
-    validate.add_argument('configs', type=argparse.FileType('r'),
-                          help='Config JSON files', nargs='+',
-                          default='benchmark.json')
+    vali = subparsers.add_parser('validate', help='Validate configurations')
+    vali.add_argument('configs', type=argparse.FileType('r'),
+                      help='Config JSON files', nargs='*',
+                      default=None)
     config = subparsers.add_parser('config', help='Configure TIPSY')
     config.add_argument('configs', type=str, nargs='*',
                         help='Config JSON files')

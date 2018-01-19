@@ -19,5 +19,6 @@
       "description": "if set, swap the source MAC address in the packets received from the uplink port before forwarding to the downlink port"
     }
   },
-  "required": ["pipeline"]
+  "required": ["name"],
+  "additionalProperties": false
 }

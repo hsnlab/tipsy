@@ -4,7 +4,7 @@
   "properties": {
     "name": {
       "type": "string",
-      "enum": ["mgw"],
+      "enum": ["vmgw"],
       "description":
         "name of the pipeline, must be set to mgw for the MGW pipeline."
     },
@@ -87,5 +87,6 @@
       "default": 1
     }
   },
-  "required": ["pipeline"]
+  "required": ["name"],
+  "additionalProperties": false
 }

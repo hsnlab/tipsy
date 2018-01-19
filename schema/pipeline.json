@@ -1,0 +1,11 @@
+{
+  "title": "High-level pipeline description",
+  "oneOf": [
+    {"$ref": "pipeline-portfwd.json#"},
+    {"$ref": "pipeline-l2fwd.json#"},
+    {"$ref": "pipeline-l3fwd.json#"},
+    {"$ref": "pipeline-mgw.json#"},
+    {"$ref": "pipeline-vmgw.json#"},
+    {"$ref": "pipeline-bng.json#"}
+  ]
+}

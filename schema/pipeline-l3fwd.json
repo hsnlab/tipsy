@@ -45,5 +45,6 @@
       "description": "number of group-table-update events in the Group Table per sec"
     }
   },
-  "required": ["pipeline"]
+  "required": ["name"],
+  "additionalProperties": false
 }

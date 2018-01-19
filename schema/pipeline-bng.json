@@ -82,5 +82,6 @@
       "default": "aa:22:bb:44:cc:67"
     }
   },
-  "required": ["pipeline"]
+  "required": ["name"],
+  "additionalProperties": false
 }

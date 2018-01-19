@@ -30,5 +30,6 @@
       "description": "number of MAC table entry update events (table-update) per sec"
     }
   },
-  "required": ["pipeline"]
+  "required": ["name"],
+  "additionalProperties": false
 }
