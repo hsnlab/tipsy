@@ -10,6 +10,7 @@ from pathlib import Path, PosixPath
 from gen.gen_conf import gen_conf
 from lib import validate
 
+
 def json_dump(obj, target):
     """Serialize ``obj`` as a JSON formatted text to ``target``.
 target is either a filename, a PosixPath, or a file-like object.
@@ -121,10 +122,12 @@ class TipsyManager(object):
     def __init__(self, args):
         self.tipsy_dir = Path(__file__).resolve().parent
         self.args = args
-        self.state_mngr = TipsyStateManager('.tipsystate')
         self.fname_pl_in = 'pipeline-in.json'
         self.fname_pl = 'pipeline.json'
         self.fname_pcap = 'trace.pcap'
+        self.fname_conf = '.tipsyconf'
+        self.fname_st = '.tipsystate'
+        self.state_mngr = TipsyStateManager(self.fname_st)
 
     def execute_action_reqs(self, action):
         if self.state_mngr.is_state_ready(action):
@@ -186,20 +189,26 @@ class TipsyManager(object):
             for fname in glob.glob(p):
                 self.validate_json_conf(fname)
 
-    @_action
-    def do_config(self):
+    def init_tipsyconfig(self):
         def conf_load(d): return TipsyConfig(**d)
-        try:
+        if self.args.configs:
             jsons = self.args.configs
-            assert jsons
-        except:
+        elif Path(self.fname_conf).exists():
+            jsons = [self.fname_conf]
+        else:
             jsons = [str(f) for f in Path.cwd().glob('*.json')]
         with open(jsons[0], 'r') as c:
             self.tipsy_conf = json.load(c, object_hook=conf_load)
         for conf in jsons[1:]:
-            with open(conf, 'r') as conf_file:
-                tmp = json.load(conf_file, object_hook=conf_load)
+            with open(conf, 'r') as cf:
+                tmp = json.load(cf, object_hook=conf_load)
                 self.tipsy_conf.update(tmp)
+        tmp_file = self.tipsy_dir.joinpath(self.fname_conf)
+        json_dump(self.tipsy_conf, tmp_file)
+
+    @_action
+    def do_config(self):
+        self.init_tipsyconfig()
         self.tipsy_conf.gen_configs()
         try:
             os.mkdir('measurements')
@@ -245,7 +254,8 @@ class TipsyManager(object):
 
     @_meta_action
     def do_clean(self):
-        os.remove('.tipsystate')
+        os.remove(self.fname_conf)
+        os.remove(self.fname_st)
         import shutil
         shutil.rmtree('measurements')
         # TODO
