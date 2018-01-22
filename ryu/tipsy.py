@@ -107,6 +107,207 @@ class ObjectView(object):
     return self.__dict__.get(attr, default)
 
 
+class PL(object):
+  def __init__(self, parent, conf):
+    self.conf = conf
+    self.parent = parent
+    self.logger = self.parent.logger
+
+  def init_datapath():
+    pass
+
+  def do_unknown(self, action):
+    self.logger.error('Unknown action: %s' % action.action)
+
+
+class PL_mgw(PL):
+
+  def __init__(self, parent, conf):
+    super(PL_mgw, self).__init__(parent, conf)
+    self.tables = {
+      'ingress'   : 0,
+      'downlink'  : 3,
+      'uplink'    : 4,
+      'l3_lookup' : 7,
+      'drop'      : 250
+    }
+
+  def mod_user(self, cmd='add', user=None):
+    self.logger.debug('%s-user: teid=%d' % (cmd, user.teid))
+    ofp = self.parent.dp.ofproto
+    parser = self.parent.dp.ofproto_parser
+    goto = self.parent.goto
+    mod_flow = self.parent.mod_flow
+
+    if user.teid == 0:
+      # meter_id = teid, and meter_id cannot be 0
+      self.logger.warn('Skipping user (teid==0)')
+      return
+
+    # Create per user meter
+    command = {'add': ofp.OFPMC_ADD, 'del': ofp.OFPMC_DELETE}[cmd]
+    band = parser.OFPMeterBandDrop(rate=user.rate_limit/1000) # kbps
+    msg = parser.OFPMeterMod(self.parent.dp, command=command,
+                             meter_id=user.teid, bands=[band])
+    self.parent.dp.send_msg(msg)
+
+    # Uplink: vxlan_port -> rate-limiter -> (FW->NAT) -> L3 lookup table
+    if self.conf.name == 'bng':
+      next_tbl = 'ul_fw'
+    else:
+      next_tbl = 'l3_lookup'
+    match = {'tunnel_id': user.teid}
+    inst = [parser.OFPInstructionMeter(meter_id=user.teid), goto(next_tbl)]
+    mod_flow('uplink', match=match, inst=inst, cmd=cmd)
+
+    # Downlink: (NAT->FW) -> rate-limiter -> vxlan_port
+    match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': user.ip}
+    out_port = self.parent.get_tun_port(user.tun_end)
+    inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
+    actions = [parser.OFPActionSetField(tunnel_id=user.teid),
+               parser.OFPActionOutput(out_port)]
+    mod_flow('downlink', match=match, actions=actions, inst=inst, cmd=cmd)
+
+  def mod_server(self, cmd, srv):
+    self.logger.debug('%s-server: ip=%s' % (cmd, srv.ip))
+    parser = self.parent.dp.ofproto_parser
+    match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': srv.ip}
+    action = parser.OFPActionGroup(srv.nhop)
+    self.parent.mod_flow('l3_lookup', None, match, [action], cmd=cmd)
+
+  def config_switch(self, parser):
+    for user in self.conf.users:
+      self.mod_user('add', user)
+
+    for i, nhop in enumerate(self.conf.nhops):
+      out_port = nhop.port or self.parent.ul_port
+      set_field = parser.OFPActionSetField
+      self.parent.add_group(i, [set_field(eth_dst=nhop.dmac),
+                                set_field(eth_src=nhop.smac),
+                                parser.OFPActionOutput(out_port)])
+
+    for srv in self.conf.srvs:
+      self.mod_server('add', srv)
+
+  def do_handover(self, action):
+    parser = self.parent.dp.ofproto_parser
+    mod_flow = self.parent.mod_flow
+    log = self.logger.debug
+    user_idx= action.args.user_teid - 1
+    user = self.conf.users[user_idx]
+    old_bst = user.bst
+    new_bst = (user.bst + action.args.bst_shift) % len(self.conf.bsts)
+    log("handover user.%s: bst.%s -> bst.%s" % (user.teid, old_bst, new_bst))
+    user.bst = new_bst
+    self.conf.users[user_idx] = user
+
+    # Downlink: rate-limiter -> vxlan_port
+    match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': user.ip}
+    out_port = self.parent.get_tun_port(new_bst)
+    actions = [parser.OFPActionSetField(tunnel_id=user.teid),
+               parser.OFPActionOutput(out_port)]
+    inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
+    mod_flow('downlink', match=match, actions=actions, inst=inst, cmd='add')
+
+  def do_add_user(self, action):
+    self.mod_user('add', action.args)
+
+  def do_del_user(self, action):
+    self.mod_user('del', action.args)
+
+  def do_add_server(self, action):
+    self.mod_server('add', action.args)
+
+  def do_del_server(self, action):
+    self.mod_server('del', action.args)
+
+
+class PL_bng(PL_mgw):
+
+  def __init__(self, parent, conf):
+    super(PL_bng, self).__init__(parent, conf)
+    self.tables = {
+      'ingress'   : 0,
+      'dl_nat'    : 1,
+      'dl_fw'     : 2,
+      'downlink'  : 3,
+      'uplink'    : 4,
+      'ul_fw'     : 5,
+      'ul_nat'    : 6,
+      'l3_lookup' : 7,
+      'drop'      : 250
+    }
+
+  def add_fw_rules(self, table_name, rules, next_table):
+    if not rules:
+      return
+
+    goto = self.parent.goto
+    mod_flow = self.parent.mod_flow
+    parser = self.parent.dp.ofproto_parser
+
+    for rule in rules:
+      # TODO: ip_proto, ip mask, port mask (?)
+      match = parser.OFPMatch(
+        eth_type=ETH_TYPE_IP,
+        ip_proto=in_proto.IPPROTO_TCP,
+        ipv4_src=(rule.src_ip, '255.255.255.0'),
+        ipv4_dst=(rule.dst_ip, '255.255.255.0'),
+        tcp_src=rule.src_port,
+        tcp_dst=rule.dst_port)
+      mod_flow(table_name, match=match, inst=[goto('drop')])
+    mod_flow(table_name, priority=1, inst=[goto(next_table)])
+
+  @staticmethod
+  def get_proto_name (ip_proto_num):
+    name = {in_proto.IPPROTO_TCP: 'tcp',
+            in_proto.IPPROTO_UDP: 'udp'}.get(ip_proto_num)
+    #TODO: handle None
+    return name
+
+  def add_ul_nat_rules (self, table_name, next_table):
+    goto = self.parent.goto
+    mod_flow = self.parent.mod_flow
+    parser = self.parent.dp.ofproto_parser
+
+    for rule in self.conf.nat_table:
+      proto_name = self.get_proto_name(rule.proto)
+      match = {'eth_type': ETH_TYPE_IP,
+               'ipv4_src': (rule.priv_ip, '255.255.255.255'),
+               'ip_proto': rule.proto,
+               proto_name + '_src': rule.priv_port}
+      actions = [{'ipv4_src': rule.pub_ip},
+                 {proto_name + '_src': rule.pub_port}]
+      actions = [parser.OFPActionSetField(**a) for a in actions]
+      mod_flow(table_name, match=match, actions=actions,
+               inst=[goto(next_table)])
+
+  def add_dl_nat_rules (self, table_name, next_table):
+    goto = self.parent.goto
+    mod_flow = self.parent.mod_flow
+    parser = self.parent.dp.ofproto_parser
+
+    for rule in self.conf.nat_table:
+      proto_name = self.get_proto_name(rule.proto)
+      match = {'eth_type': ETH_TYPE_IP,
+               'ipv4_dst': (rule.pub_ip, '255.255.255.255'),
+               'ip_proto': rule.proto,
+               proto_name + '_dst': rule.pub_port}
+      actions = [{'ipv4_dst': rule.priv_ip},
+                 {proto_name + '_dst': rule.priv_port}]
+      actions = [parser.OFPActionSetField(**a) for a in actions]
+      mod_flow(table_name, match=match, actions=actions,
+               inst=[goto(next_table)])
+
+  def config_switch(self, parser):
+    super(PL_bng, self).config_switch(parser)
+
+    self.add_fw_rules('ul_fw', self.conf.ul_fw_rules, 'ul_nat')
+    self.add_fw_rules('dl_fw', self.conf.dl_fw_rules, 'downlink')
+    self.add_ul_nat_rules('ul_nat', 'l3_lookup')
+    self.add_dl_nat_rules('dl_nat', 'dl_fw')
+
+
 class Tipsy(app_manager.RyuApp):
   OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
   _CONTEXTS = { 'wsgi': WSGIApplication }
@@ -139,6 +340,12 @@ class Tipsy(app_manager.RyuApp):
     except ValueError as e:
       self.logger.error('Failed to parse cfg file (%s): %s' %
                         (self.conf_file, e))
+      raise(e)
+    try:
+      self.pl = globals()['PL_%s' % self.pl_conf.name](self, self.pl_conf)
+    except (KeyError, NameError) as e:
+      self.logger.error('Failed to instanciate pipeline (%s): %s' %
+                        (self.pl_conf.name, e))
       raise(e)
 
     self._timer = LoopingCall(self.handle_timer)
@@ -173,7 +380,7 @@ class Tipsy(app_manager.RyuApp):
     self.lock = True
 
     for cmd in self.pl_conf.run_time:
-      attr = getattr(self, 'do_%s' % cmd.action, self.do_unknown)
+      attr = getattr(self.pl, 'do_%s' % cmd.action, self.pl.do_unknown)
       attr(cmd)
 
     #time.sleep(0.5)
@@ -326,9 +533,7 @@ class Tipsy(app_manager.RyuApp):
 
   def get_tun_port(self, tun_end):
     "Get SUT port to tun_end"
-    if 'bst-%s' % tun_end in self.ports:
-      return self.ports['bst-%s' % tun_end]
-    return self.ports['cpe-%s' % tun_end]
+    return self.ports['tun-%s' % tun_end]
 
   def mod_flow(self, table=0, priority=None, match=None,
                actions=[], inst=[], out_port=None, out_group=None,
@@ -348,6 +553,9 @@ class Tipsy(app_manager.RyuApp):
     else:
       command=cmd
 
+    if type(match) == dict:
+      match = parser.OFPMatch(**match)
+
     if out_port is None:
       out_port = ofp.OFPP_ANY
     if out_group is None:
@@ -363,48 +571,6 @@ class Tipsy(app_manager.RyuApp):
                             out_port=out_port, out_group=out_group)
     self.dp.send_msg(msg)
 
-  def mod_user(self, cmd='add', user=None):
-    self.logger.debug('%s-user: teid=%d' % (cmd, user.teid))
-    ofp = self.dp.ofproto
-    parser = self.dp.ofproto_parser
-
-    if user.teid == 0:
-      # meter_id = teid, and meter_id cannot be 0
-      self.logger.warn('Skipping user (teid==0)')
-      return
-
-    # Create per user meter
-    command = {'add': ofp.OFPMC_ADD, 'del': ofp.OFPMC_DELETE}[cmd]
-    band = parser.OFPMeterBandDrop(rate=user.rate_limit/1000) # kbps
-    msg = parser.OFPMeterMod(self.dp, command=command,
-                             meter_id=user.teid, bands=[band])
-    self.dp.send_msg(msg)
-
-    # Uplink: vxlan_port -> rate-limiter -> (FW->NAT) -> L3 lookup table
-    if self.pl_conf.name in ['bng']:
-      next_tbl = 'ul_fw'
-    else:
-      next_tbl = 'l3_lookup'
-    match = parser.OFPMatch(tunnel_id=user.teid)
-    inst = [parser.OFPInstructionMeter(meter_id=user.teid), self.goto(next_tbl)]
-    self.mod_flow('uplink', match=match, inst=inst, cmd=cmd)
-
-    # Downlink: (NAT->FW) -> rate-limiter -> vxlan_port
-    match = parser.OFPMatch(eth_type=ETH_TYPE_IP,
-                            ipv4_dst=user.ip)
-    out_port = self.get_tun_port(user.tun_end)
-    inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
-    actions = [parser.OFPActionSetField(tunnel_id=user.teid),
-               parser.OFPActionOutput(out_port)]
-    self.mod_flow('downlink', match=match, actions=actions, inst=inst, cmd=cmd)
-
-  def mod_server(self, cmd, srv):
-    self.logger.debug('%s-server: ip=%s' % (cmd, srv.ip))
-    parser = self.dp.ofproto_parser
-    match = parser.OFPMatch(eth_type=ETH_TYPE_IP, ipv4_dst=srv.ip)
-    action = parser.OFPActionGroup(srv.nhop)
-    self.mod_flow('l3_lookup', None, match, [action], cmd=cmd)
-
   def add_group(self, gr_id, actions, gr_type=None):
     ofp = self.dp.ofproto
     parser = self.dp.ofproto_parser
@@ -417,61 +583,6 @@ class Tipsy(app_manager.RyuApp):
 
     req = parser.OFPGroupMod(self.dp, ofp.OFPGC_ADD, gr_type, gr_id, buckets)
     self.dp.send_msg(req)
-
-  def add_fw_rules(self, table_name, rules, next_table):
-    if not rules:
-      return
-
-    parser = self.dp.ofproto_parser
-    inst = [self.goto('drop')]
-    for rule in rules:
-      # TODO: ip_proto, ip mask, port mask (?)
-      match = parser.OFPMatch(
-        eth_type=ETH_TYPE_IP,
-        ip_proto=in_proto.IPPROTO_TCP,
-        ipv4_src=(rule.src_ip, '255.255.255.0'),
-        ipv4_dst=(rule.dst_ip, '255.255.255.0'),
-        tcp_src=rule.src_port,
-        tcp_dst=rule.dst_port)
-      self.mod_flow(table_name, match=match, inst=inst)
-    self.mod_flow(table_name, priority=1, inst=[self.goto(next_table)])
-
-  @staticmethod
-  def get_proto_name (ip_proto_num):
-    name = {in_proto.IPPROTO_TCP: 'tcp',
-            in_proto.IPPROTO_UDP: 'udp'}.get(ip_proto_num)
-    #TODO: handle None
-    return name
-
-  def add_ul_nat_rules (self, table_name, next_table):
-    parser = self.dp.ofproto_parser
-    for rule in self.pl_conf.nat_table:
-      proto_name = self.get_proto_name(rule.proto)
-      m = {'eth_type': ETH_TYPE_IP,
-           'ipv4_src': (rule.priv_ip, '255.255.255.255'),
-           'ip_proto': rule.proto,
-            proto_name + '_src': rule.priv_port}
-      match = parser.OFPMatch(**m)
-      actions = [{'ipv4_src': rule.pub_ip},
-                 {proto_name + '_src': rule.pub_port}]
-      actions = [parser.OFPActionSetField(**a) for a in actions]
-      self.mod_flow(table_name, match=match, actions=actions,
-                    inst=[self.goto(next_table)])
-
-  def add_dl_nat_rules (self, table_name, next_table):
-    parser = self.dp.ofproto_parser
-    for rule in self.pl_conf.nat_table:
-      proto_name = self.get_proto_name(rule.proto)
-      m = {'eth_type': ETH_TYPE_IP,
-           'ipv4_dst': (rule.pub_ip, '255.255.255.255'),
-           'ip_proto': rule.proto,
-            proto_name + '_dst': rule.pub_port}
-      match = parser.OFPMatch(**m)
-      actions = [{'ipv4_dst': rule.priv_ip},
-                 {proto_name + '_dst': rule.priv_port}]
-      actions = [parser.OFPActionSetField(**a) for a in actions]
-      self.mod_flow(table_name, match=match, actions=actions,
-                    inst=[self.goto(next_table)])
 
   def configure_ingress(self):
     parser = self.dp.ofproto_parser
@@ -530,9 +641,9 @@ class Tipsy(app_manager.RyuApp):
     self.clear_switch()
 
     for bst in self.pl_conf.get('bsts', []):
-      self.add_vxlan_tun('bst', bst)
+      self.add_vxlan_tun('tun', bst)
     for cpe in self.pl_conf.get('cpe', []):
-      self.add_vxlan_tun('cpe', cpe)
+      self.add_vxlan_tun('tun', cpe)
 
     self.dp.send_msg(parser.OFPPortDescStatsRequest(self.dp, 0, ofp.OFPP_ANY))
     self.change_status('wait_for_PortDesc')
@@ -558,24 +669,7 @@ class Tipsy(app_manager.RyuApp):
       self.mod_flow('drop', 1, match=match, actions=[output(port)])
       self.mod_flow('drop', 0, actions=[output(self.ul_port)])
 
-    for user in self.pl_conf.users:
-      self.mod_user('add', user)
-
-    if self.pl_conf.name in ['bng']:
-      self.add_fw_rules('ul_fw', self.pl_conf.ul_fw_rules, 'ul_nat')
-      self.add_fw_rules('dl_fw', self.pl_conf.dl_fw_rules, 'downlink')
-      self.add_ul_nat_rules('ul_nat', 'l3_lookup')
-      self.add_dl_nat_rules('dl_nat', 'dl_fw')
-
-    for i, nhop in enumerate(self.pl_conf.nhops):
-      out_port = nhop.port or self.ul_port
-      set_field = parser.OFPActionSetField
-      self.add_group(i, [set_field(eth_dst=nhop.dmac),
-                         set_field(eth_src=nhop.smac),
-                         parser.OFPActionOutput(out_port)])
-
-    for srv in self.pl_conf.srvs:
-      self.mod_server('add', srv)
+    self.pl.config_switch(parser)
 
     # Finally, send and wait for a barrier
     parser = self.dp.ofproto_parser
@@ -598,42 +692,6 @@ class Tipsy(app_manager.RyuApp):
       self._timer.start(1)
     # else:
     #   hub.spawn_after(1, TipsyController.do_exit)
-
-  def do_handover(self, action):
-    parser = self.dp.ofproto_parser
-    log = self.logger.debug
-    user_idx= action.args.user_teid - 1
-    user = self.pl_conf.users[user_idx]
-    old_bst = user.bst
-    new_bst = (user.bst + action.args.bst_shift) % len(self.pl_conf.bsts)
-    log("handover user.%s: bst.%s -> bst.%s" % (user.teid, old_bst, new_bst))
-    user.bst = new_bst
-    self.pl_conf.users[user_idx] = user
-
-    # Downlink: rate-limiter -> vxlan_port
-    match = parser.OFPMatch(eth_type=ETH_TYPE_IP,
-                            ipv4_dst=user.ip)
-    out_port = self.get_tun_port(new_bst)
-    actions = [parser.OFPActionSetField(tunnel_id=user.teid),
-               parser.OFPActionOutput(out_port)]
-    inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
-    self.mod_flow('downlink', match=match, actions=actions, inst=inst, cmd='add')
-
-  def do_add_user(self, action):
-    self.mod_user('add', action.args)
-
-  def do_del_user(self, action):
-    self.mod_user('del', action.args)
-
-  def do_add_server(self, action):
-    self.mod_server('add', action.args)
-
-  def do_del_server(self, action):
-    self.mod_server('del', action.args)
-
-  def do_unknown(self, action):
-    self.logger.error('Unknown action: %s' % action.action)
-
 
 # TODO?: https://stackoverflow.com/questions/12806386/standard-json-api-response-format
 def rest_command(func):
