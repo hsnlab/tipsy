@@ -1,13 +1,14 @@
-#!/usr/bin/env python2
-import os
-import sys
-import time
-import json
-import signal
-import socket
+#!/usr/bin/env python3
 import argparse
 import itertools
+import json
+import os
+import re
+import signal
+import socket
 import subprocess
+import sys
+import time
 
 
 class BessUpdater(object):
@@ -30,9 +31,8 @@ class BessUpdater(object):
         return str(self.bess.list_workers()).count("workers_status {")
 
     def start(self):
-        if self.conf.run_time:
-            self._running = True
-            self._run()
+        self._running = True
+        self._run()
 
     def stop(self):
         self._running = False
@@ -96,6 +96,12 @@ class BessUpdater(object):
 
     def handover(self, user, new_bst):
         raise NotImplementedError
+
+
+class BessUpdaterDummy(BessUpdater):
+    def _run(self):
+        while self._running:
+            time.sleep(self.runtime_interval)
 
 
 class BessUpdaterMgw(BessUpdater):
@@ -365,23 +371,23 @@ if __name__ == '__main__':
                         default='~/bess', required=True)
     parser.add_argument('--conf', '-c', type=argparse.FileType('r'),
                         help='Pipeline config JSON file',
-                        default='./mgw_conf.json')
+                        default='./pipeline.json')
     args = parser.parse_args()
 
     bessctl = os.path.join(args.bessdir, 'bessctl', 'bessctl')
 
     try:
         sys.path.insert(1, args.bessdir)
-        from pybess.bess import *
+        from pybess.bess import BESS
     except ImportError:
-        print('Cannot import the API module (pybess) from %s' % args.bessdir)
+        print(('Cannot import the API module (pybess) from %s' % args.bessdir))
         raise
 
     try:
         def conv_fn(d): return ObjectView(**d)
         config = json.load(args.conf, object_hook=conv_fn)
     except:
-        print('Error loading config from %s' % args.conf)
+        print(('Error loading config from %s' % args.conf))
         raise
 
     bess_start_cmd = "%s daemon start -- run file ./%s.bess \"config='%s'\"" % (
@@ -394,7 +400,7 @@ if __name__ == '__main__':
                          'BessUpdater%s' % config.name.title())
         updater = uclass(config)
     except:
-        raise
+        updater = BessUpdaterDummy(config)
 
     signal.signal(signal.SIGINT, signal_handler)
 
