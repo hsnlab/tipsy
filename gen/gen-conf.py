@@ -131,6 +131,12 @@ class PL (object):
       },
     }
 
+  def add_sut_mac_addresses (self):
+    addr = {'ul_port_mac': self.args.uplink_mac,
+            'dl_port_mac': self.args.downlink_mac}
+    self.conf['sut'] = self.conf.get('sut', {})
+    self.conf['sut'].update(addr)
+
   def add_fluct_user (self):
     # Generate ephemeral users
     extra_users = []
@@ -165,6 +171,7 @@ class PL (object):
     for i in range(size):
       table.append({
         'ip': byte_seq(addr_template, i),
+        'prefix_len': 24,       # TODO: should vary
         'nhop': i % nhops
       })
     return table
@@ -236,11 +243,11 @@ class PL_l3fwd (PL):
 
   def __init__ (self, args):
     super().__init__(args)
-    self.components += ['l3']
+    self.components += ['l3', 'sut_mac_addresses']
 
   def add_l3 (self):
     for i, d in enumerate(['upstream', 'downstream']):
-      self.conf['%s-l3-table' % d] = self.create_l3_table(
+      self.conf['%s_l3_table' % d] = self.create_l3_table(
         size=self.get_arg('%s_l3_table_size' % d),
         nhops=self.get_arg('%s_group_table_size' % d),
         addr_template='%d.%%d.%%d.2' % (2 + i)
@@ -249,7 +256,7 @@ class PL_l3fwd (PL):
     for d in ['upstream', 'downstream']:
       dprefix = {'upstream': 'aa:bb:bb:aa', 'downstream': 'ab:ba:ab:ba'}[d]
       sprefix = {'upstream': 'ee:dd:dd:aa', 'downstream': 'ed:da:ed:da'}[d]
-      self.conf['%s-group-table' % d] = self.create_l2_table(
+      self.conf['%s_group_table' % d] = self.create_l2_table(
         size=self.get_arg('%s_group_table_size' %d),
         dmac_template='%s:%%02x:%%02x' % dprefix,
         smac_template='%s:%%02x:%%02x' % sprefix

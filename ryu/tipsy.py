@@ -53,7 +53,7 @@ from ryu.controller.handler import set_ev_cls
 from ryu.lib import hub
 from ryu.lib import ofctl_utils as ofctl
 from ryu.lib.packet import in_proto
-from ryu.lib.packet.ether_types import ETH_TYPE_IP
+from ryu.lib.packet.ether_types import ETH_TYPE_IP, ETH_TYPE_ARP
 from ryu.ofproto import ofproto_v1_3
 from ryu.services.protocols.bgp.utils.evtlet import LoopingCall
 
@@ -108,6 +108,72 @@ class PL(object):
 
   def do_unknown(self, action):
     self.logger.error('Unknown action: %s' % action.action)
+
+
+class PL_l3fwd(PL):
+
+  def __init__(self, parent, conf):
+    super(PL_l3fwd, self).__init__(parent, conf)
+    self.tables = {
+      'mac_fwd'             : 0,
+      'arp_select'          : 1,
+      'upstream_l3_table'   : 2,
+      'downstream_l3_table' : 3,
+      'drop'                : 4,
+    }
+
+  def config_switch(self, parser):
+    ul_port = self.parent.ul_port
+    dl_port = self.parent.dl_port
+
+    # A basic MAC table lookup to check that the L2 header of the
+    # receiver packet contains the router's own MAC address(es) in
+    # which case forward to the =ARPselect= module, drop otherwise
+    #
+    # (We don't modify the hwaddr of a kernel interface, or set the
+    # hwaddr of a dpdk interface, we just check whether incoming
+    # packets have the correct addresses.)
+    table = 'mac_fwd'
+    match = {'in_port': ul_port,
+             'eth_dst': self.conf.sut.ul_port_mac}
+    self.parent.mod_flow(table, match=match, goto='arp_select')
+    match = {'in_port': dl_port,
+             'eth_dst': self.conf.sut.dl_port_mac}
+    self.parent.mod_flow(table, match=match, goto='arp_select')
+
+    # arp_select: direct ARP packets to the infra (unimplemented) and
+    # IPv4 packets to the L3FIB for L3 processing, otherwise drop
+    table = 'arp_select'
+    match = {'eth_type': ETH_TYPE_ARP}
+    self.parent.mod_flow(table, match=match, goto='drop')
+    match = {'eth_type': ETH_TYPE_IP, 'in_port': dl_port}
+    self.parent.mod_flow(table, match=match, goto='upstream_l3_table')
+    match = {'eth_type': ETH_TYPE_IP, 'in_port': ul_port}
+    self.parent.mod_flow(table, match=match, goto='downstream_l3_table')
+
+    # L3FIB: perform longest-prefix-matching from an IP lookup table
+    # and forward packets to the appropriate group table entry for
+    # next-hop processing or drop if no matching L3 entry is found
+    gr_offset = 0
+    for d in ['upstream', 'downstream']:
+      for gr_id, entry in enumerate(self.conf.get('%s_group_table' % d),
+                                    gr_offset):
+        port_name = '%sl_port' % d[0]
+        out_port = entry.port or self.parent.__dict__[port_name]
+        actions = [parser.OFPActionSetField(eth_dst=entry.dmac),
+                   parser.OFPActionSetField(eth_src=entry.smac),
+                   parser.OFPActionOutput(out_port)]
+        self.parent.add_group(gr_id, actions)
+
+      table = '%s_l3_table' % d
+      for entry in self.conf.get(table):
+        addr = '%s/%s' % (entry.ip, entry.prefix_len)
+        match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': addr}
+        out_group = gr_offset + entry.nhop
+        action = parser.OFPActionGroup(out_group)
+        self.parent.mod_flow(table, match=match, actions=[action])
+
+      gr_offset = len(self.conf.upstream_group_table)
 
 
 class PL_mgw(PL):
@@ -415,6 +481,7 @@ class Tipsy(app_manager.RyuApp):
 
   def initialize_dp_simple(self):
     # datapath without tunnels
+    sw_conf.del_bridge('br-phy', can_fail=False)
     br_name = 'br-main'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, dp_desc=br_name)
@@ -425,13 +492,6 @@ class Tipsy(app_manager.RyuApp):
     self.add_port(br_name, 'dl_port', CONF['dl_port'])
 
   def initialize_dp_tunneled(self):
-    br_name = 'br-phy'
-    sw_conf.del_bridge(br_name, can_fail=False)
-    sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
-    sw_conf.set_datapath_type(br_name, 'netdev')
-    self.add_port(br_name, 'dl_port', CONF['dl_port'])
-    ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
-
     br_name = 'br-main'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, dp_desc=br_name)
@@ -439,6 +499,13 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
     sw_conf.set_fail_mode(br_name, 'secure')
     self.add_port(br_name, 'ul_port', CONF['ul_port'])
+
+    br_name = 'br-phy'
+    sw_conf.del_bridge(br_name, can_fail=False)
+    sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
+    sw_conf.set_datapath_type(br_name, 'netdev')
+    self.add_port(br_name, 'dl_port', CONF['dl_port'])
+    ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
 
     ip.add_veth('veth-phy', 'veth-main')
     ip.set_up('veth-main')
@@ -685,8 +752,8 @@ class Tipsy(app_manager.RyuApp):
       mod_flow('drop', 0, output=self.ul_port)
     else:
       # fakedrop == True and not has_tunnels
-      mod_flow('drop', match={'ip_port': self.ul_port}, output=self.dl_port)
-      mod_flow('drop', match={'ip_port': self.dl_port}, output=self.ul_port)
+      mod_flow('drop', match={'in_port': self.ul_port}, output=self.dl_port)
+      mod_flow('drop', match={'in_port': self.dl_port}, output=self.ul_port)
 
     self.pl.config_switch(parser)
 

@@ -34,6 +34,16 @@
       "default": 1,
       "description": "number of group table entries (next-hops), upstream direction"
     },
+    "uplink-mac": {
+      "$ref": "definitions.json#/mac-address",
+      "default": "cc:cc:cc:cc:00:00",
+      "description": "mac address of the uplink port of SUT"
+    },
+    "downlink-mac": {
+      "$ref": "definitions.json#/mac-address",
+      "default": "dd:dd:dd:dd:00:00",
+      "description": "mac address of the downlink port of SUT"
+    },
     "fluct-l3-table": {
       "$ref": "definitions.json#/non-negative-integer",
       "default": 0,
