@@ -60,18 +60,6 @@ from ryu.services.protocols.bgp.utils.evtlet import LoopingCall
 import ip
 import sw_conf_vsctl as sw_conf
 
-TABLES = {
-  'ingress'   : 0,
-  'dl_nat'    : 1,
-  'dl_fw'     : 2,
-  'downlink'  : 3,
-  'uplink'    : 4,
-  'ul_fw'     : 5,
-  'ul_nat'    : 6,
-  'l3_lookup' : 7,
-  'drop'      : 250
-}
-
 conf_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                         'conf.json')
 cfg.CONF.register_opts([
@@ -112,9 +100,11 @@ class PL(object):
     self.conf = conf
     self.parent = parent
     self.logger = self.parent.logger
+    self.has_tunnels = False
+    self.tables = {'drop': 0}
 
-  def init_datapath():
-    pass
+  def get_tunnel_endpoints(self):
+    raise NotImplementedError
 
   def do_unknown(self, action):
     self.logger.error('Unknown action: %s' % action.action)
@@ -124,6 +114,7 @@ class PL_mgw(PL):
 
   def __init__(self, parent, conf):
     super(PL_mgw, self).__init__(parent, conf)
+    self.has_tunnels = True
     self.tables = {
       'ingress'   : 0,
       'downlink'  : 3,
@@ -131,6 +122,9 @@ class PL_mgw(PL):
       'l3_lookup' : 7,
       'drop'      : 250
     }
+
+  def get_tunnel_endpoints(self):
+    return self.conf.bsts
 
   def mod_user(self, cmd='add', user=None):
     self.logger.debug('%s-user: teid=%d' % (cmd, user.teid))
@@ -176,6 +170,18 @@ class PL_mgw(PL):
     self.parent.mod_flow('l3_lookup', None, match, [action], cmd=cmd)
 
   def config_switch(self, parser):
+    mod_flow = self.parent.mod_flow
+
+    table = 'ingress'
+    match = {'in_port': self.parent.ports['veth-main']}
+    mod_flow('ingress', 9, match, [], [])
+    next_table = {'mgw': 'downlink', 'bng': 'dl_fw'}[self.conf.name]
+    match = {'in_port': self.parent.ul_port, 'eth_dst': self.conf.gw.mac}
+    mod_flow('ingress', 9, match, goto=next_table)
+    match = {'in_port': self.parent.ul_port}
+    mod_flow('ingress', 8, match, goto='drop')
+    mod_flow('ingress', 7, None, goto='uplink')
+
     for user in self.conf.users:
       self.mod_user('add', user)
 
@@ -195,10 +201,11 @@ class PL_mgw(PL):
     log = self.logger.debug
     user_idx= action.args.user_teid - 1
     user = self.conf.users[user_idx]
-    old_bst = user.bst
-    new_bst = (user.bst + action.args.bst_shift) % len(self.conf.bsts)
-    log("handover user.%s: bst.%s -> bst.%s" % (user.teid, old_bst, new_bst))
-    user.bst = new_bst
+    old_bst = user.tun_end
+    new_bst = (user.tun_end + action.args.bst_shift) % len(self.conf.bsts)
+    log("handover user.%s: tun_end.%s -> tun_end.%s" %
+        (user.teid, old_bst, new_bst))
+    user.tun_end = new_bst
     self.conf.users[user_idx] = user
 
     # Downlink: rate-limiter -> vxlan_port
@@ -238,25 +245,28 @@ class PL_bng(PL_mgw):
       'drop'      : 250
     }
 
+  def get_tunnel_endpoints(self):
+    return self.conf.cpe
+
   def add_fw_rules(self, table_name, rules, next_table):
     if not rules:
       return
 
-    goto = self.parent.goto
     mod_flow = self.parent.mod_flow
     parser = self.parent.dp.ofproto_parser
 
     for rule in rules:
       # TODO: ip_proto, ip mask, port mask (?)
-      match = parser.OFPMatch(
-        eth_type=ETH_TYPE_IP,
-        ip_proto=in_proto.IPPROTO_TCP,
-        ipv4_src=(rule.src_ip, '255.255.255.0'),
-        ipv4_dst=(rule.dst_ip, '255.255.255.0'),
-        tcp_src=rule.src_port,
-        tcp_dst=rule.dst_port)
-      mod_flow(table_name, match=match, inst=[goto('drop')])
-    mod_flow(table_name, priority=1, inst=[goto(next_table)])
+      match = {
+        'eth_type': ETH_TYPE_IP,
+        'ip_proto': in_proto.IPPROTO_TCP,
+        'ipv4_src': (rule.src_ip, '255.255.255.0'),
+        'ipv4_dst': (rule.dst_ip, '255.255.255.0'),
+        'tcp_src': rule.src_port,
+        'tcp_dst': rule.dst_port,
+      }
+      mod_flow(table_name, match=match, goto='drop')
+    mod_flow(table_name, priority=1, goto=next_table)
 
   @staticmethod
   def get_proto_name (ip_proto_num):
@@ -266,7 +276,6 @@ class PL_bng(PL_mgw):
     return name
 
   def add_ul_nat_rules (self, table_name, next_table):
-    goto = self.parent.goto
     mod_flow = self.parent.mod_flow
     parser = self.parent.dp.ofproto_parser
 
@@ -279,11 +288,9 @@ class PL_bng(PL_mgw):
       actions = [{'ipv4_src': rule.pub_ip},
                  {proto_name + '_src': rule.pub_port}]
       actions = [parser.OFPActionSetField(**a) for a in actions]
-      mod_flow(table_name, match=match, actions=actions,
-               inst=[goto(next_table)])
+      mod_flow(table_name, match=match, actions=actions, goto=next_table)
 
   def add_dl_nat_rules (self, table_name, next_table):
-    goto = self.parent.goto
     mod_flow = self.parent.mod_flow
     parser = self.parent.dp.ofproto_parser
 
@@ -296,8 +303,7 @@ class PL_bng(PL_mgw):
       actions = [{'ipv4_dst': rule.priv_ip},
                  {proto_name + '_dst': rule.priv_port}]
       actions = [parser.OFPActionSetField(**a) for a in actions]
-      mod_flow(table_name, match=match, actions=actions,
-               inst=[goto(next_table)])
+      mod_flow(table_name, match=match, actions=actions, goto=next_table)
 
   def config_switch(self, parser):
     super(PL_bng, self).config_switch(parser)
@@ -407,10 +413,18 @@ class Tipsy(app_manager.RyuApp):
                        options={'key': 'flow',
                                 'remote_ip': host.ip})
 
+  def initialize_dp_simple(self):
+    # datapath without tunnels
+    br_name = 'br-main'
+    sw_conf.del_bridge(br_name, can_fail=False)
+    sw_conf.add_bridge(br_name, dp_desc=br_name)
+    sw_conf.set_datapath_type(br_name, 'netdev')
+    sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
+    sw_conf.set_fail_mode(br_name, 'secure')
+    self.add_port(br_name, 'ul_port', CONF['ul_port'])
+    self.add_port(br_name, 'dl_port', CONF['dl_port'])
 
-  def initialize_datapath(self):
-    self.change_status('initialize_datapath')
-
+  def initialize_dp_tunneled(self):
     br_name = 'br-phy'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
@@ -418,7 +432,7 @@ class Tipsy(app_manager.RyuApp):
     self.add_port(br_name, 'dl_port', CONF['dl_port'])
     ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
 
-    br_name = 'br-int'
+    br_name = 'br-main'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, dp_desc=br_name)
     sw_conf.set_datapath_type(br_name, 'netdev')
@@ -426,10 +440,10 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.set_fail_mode(br_name, 'secure')
     self.add_port(br_name, 'ul_port', CONF['ul_port'])
 
-    ip.add_veth('veth-phy', 'veth-int')
-    ip.set_up('veth-int')
+    ip.add_veth('veth-phy', 'veth-main')
+    ip.set_up('veth-main')
     ip.set_up('veth-phy')
-    sw_conf.add_port('br-int', 'veth-int', type='system')
+    sw_conf.add_port('br-main', 'veth-main', type='system')
     sw_conf.add_port('br-phy', 'veth-phy', type='system')
     # Don't use a controller for the following static rules
     cmd = 'sudo ovs-ofctl --protocol OpenFlow13 add-flow br-phy priority=1,'
@@ -442,13 +456,20 @@ class Tipsy(app_manager.RyuApp):
         self.logger.error('cmd failed: %s' % cmd)
 
     nets = {}
-    tun_end = self.pl_conf.get('bsts', []) + self.pl_conf.get('cpe', [])
-    for host in tun_end:
+    for host in self.pl.get_tunnel_endpoints():
       net = re.sub(r'[.][0-9]+$', '.0/24', host.ip)
       nets[str(net)] = True
     for net in nets.iterkeys():
       ip.add_route_gw(net, self.pl_conf.gw.default_gw.ip)
     self.set_arp_table()
+
+  def initialize_datapath(self):
+    self.change_status('initialize_datapath')
+
+    if self.pl.has_tunnels:
+      self.initialize_dp_tunneled()
+    else:
+      self.initialize_dp_simple()
 
     self.change_status('wait')  # Wait datapath to connect
 
@@ -496,20 +517,24 @@ class Tipsy(app_manager.RyuApp):
     for name in sorted(self.ports):
       self.logger.debug('port: %s, %s' % (name, self.ports[name]))
 
-    for port_type in ['ul_port']:
-      port_name = CONF[port_type]
+    if self.pl.has_tunnels:
+      ports = ['ul_port']
+    else:
+      ports = ['ul_port', 'dl_port']
+    for spec_port in ports:
+      port_name = CONF[spec_port]
       if self.ports.get(port_name):
         # kernel interface -> OF returns the interface name as port_name
         port_no = self.ports[port_name]
-        self.__dict__[port_type] = port_no
-        self.logger.info('%s (%s): %s' % (port_type, port_name, port_no))
-      elif self.ports.get(port_type):
+        self.__dict__[spec_port] = port_no
+        self.logger.info('%s (%s): %s' % (spec_port, port_name, port_no))
+      elif self.ports.get(spec_port):
         # dpdk interface -> OF returns the "logical" br name as port_name
-        port_no = self.ports[port_type]
-        self.__dict__[port_type] = port_no
-        self.logger.info('%s (%s): %s' % (port_type, port_name, port_no))
+        port_no = self.ports[spec_port]
+        self.__dict__[spec_port] = port_no
+        self.logger.info('%s (%s): %s' % (spec_port, port_name, port_no))
       else:
-        self.logger.critical('%s (%s): not found' % (port_type, port_name))
+        self.logger.critical('%s (%s): not found' % (spec_port, port_name))
     self.configure_1()
 
   @set_ev_cls(ofp_event.EventOFPErrorMsg,
@@ -521,31 +546,41 @@ class Tipsy(app_manager.RyuApp):
     if msg.type == ofp.OFPET_METER_MOD_FAILED:
       cmd = 'ovs-vsctl set bridge s1 datapath_type=netdev'
       self.logger.error('METER_MOD failed, "%s" might help' % cmd)
-    else:
+    elif msg.type and msg.code:
       self.logger.error('OFPErrorMsg received: type=0x%02x code=0x%02x '
                         'message=%s',
                         msg.type, msg.code, utils.hex_array(msg.data))
+    else:
+      self.logger.error('OFPErrorMsg received: %s', msg)
 
   def goto(self, table_name):
     "Return a goto insturction to table_name"
     parser = self.dp.ofproto_parser
-    return parser.OFPInstructionGotoTable(TABLES[table_name])
+    return parser.OFPInstructionGotoTable(self.pl.tables[table_name])
 
   def get_tun_port(self, tun_end):
     "Get SUT port to tun_end"
     return self.ports['tun-%s' % tun_end]
 
   def mod_flow(self, table=0, priority=None, match=None,
-               actions=[], inst=[], out_port=None, out_group=None,
-               cmd='add'):
+               actions=None, inst=None, out_port=None, out_group=None,
+               output=None, goto=None, cmd='add'):
 
     ofp = self.dp.ofproto
     parser = self.dp.ofproto_parser
 
+    if actions is None:
+      actions = []
+    if inst is None:
+      inst = []
     if type(table) == str:
-      table = TABLES[table]
+      table = self.pl.tables[table]
     if priority is None:
       priority = ofp.OFP_DEFAULT_PRIORITY
+    if output:
+      actions.append(parser.OFPActionOutput(output))
+    if goto:
+      inst.append(self.goto(goto))
     if cmd == 'add':
       command=ofp.OFPFC_ADD
     elif cmd == 'del':
@@ -584,22 +619,6 @@ class Tipsy(app_manager.RyuApp):
     req = parser.OFPGroupMod(self.dp, ofp.OFPGC_ADD, gr_type, gr_id, buckets)
     self.dp.send_msg(req)
 
-  def configure_ingress(self):
-    parser = self.dp.ofproto_parser
-
-    match = parser.OFPMatch(in_port=self.ports['veth-int'])
-    self.mod_flow('ingress', 9, match, [], [])
-    match = parser.OFPMatch(in_port=self.ul_port,
-                            eth_dst=self.pl_conf.gw.mac)
-    if self.pl_conf.name in ['bng']:
-      next_table='dl_fw'
-    else:
-      next_table='downlink'
-    self.mod_flow('ingress', 9, match, [], [self.goto(next_table)])
-    match = parser.OFPMatch(in_port=self.ul_port)
-    self.mod_flow('ingress', 8, match, [], [self.goto('drop')])
-    self.mod_flow('ingress', 7, None, [], [self.goto('uplink')])
-
   def clear_table(self, table_id):
     parser = self.dp.ofproto_parser
     ofp = self.dp.ofproto
@@ -611,7 +630,7 @@ class Tipsy(app_manager.RyuApp):
     self.dp.send_msg(clear)
 
   def clear_switch(self):
-    for table_id in TABLES.values():
+    for table_id in self.pl.tables.values():
       self.clear_table(table_id)
 
     # Delete all meters
@@ -651,28 +670,27 @@ class Tipsy(app_manager.RyuApp):
 
   def configure_1(self):
     self.change_status('configure_1')
-    ofp = self.dp.ofproto
     parser = self.dp.ofproto_parser
-
-    self.configure_ingress()
+    mod_flow = self.mod_flow
 
     # Insert default drop actions for the sake of statistics
-    for table_name in TABLES.iterkeys():
+    for table_name in self.pl.tables.iterkeys():
       if table_name != 'drop':
-        self.mod_flow(table_name, 0, inst=[self.goto('drop')])
+        mod_flow(table_name, 0, goto='drop')
     if not self.pl_conf.fakedrop:
-      self.mod_flow('drop', 0)
+      mod_flow('drop', 0)
+    elif self.pl.has_tunnels:
+      match = {'in_port': self.ul_port}
+      mod_flow('drop', 1, match=match, output=self.ports['veth-main'])
+      mod_flow('drop', 0, output=self.ul_port)
     else:
-      output = parser.OFPActionOutput
-      match = parser.OFPMatch(in_port=self.ul_port)
-      port = self.ports['veth-int']
-      self.mod_flow('drop', 1, match=match, actions=[output(port)])
-      self.mod_flow('drop', 0, actions=[output(self.ul_port)])
+      # fakedrop == True and not has_tunnels
+      mod_flow('drop', match={'ip_port': self.ul_port}, output=self.dl_port)
+      mod_flow('drop', match={'ip_port': self.dl_port}, output=self.ul_port)
 
     self.pl.config_switch(parser)
 
     # Finally, send and wait for a barrier
-    parser = self.dp.ofproto_parser
     msg = parser.OFPBarrierRequest(self.dp)
     msgs = []
     ofctl.send_stats_request(self.dp, msg, self.waiters, msgs, self.logger)
