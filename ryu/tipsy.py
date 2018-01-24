@@ -121,6 +121,8 @@ class PL_l3fwd(PL):
       'downstream_l3_table' : 3,
       'drop'                : 4,
     }
+    self.gr_next = 0
+    self.gr_table = {}
 
   def config_switch(self, parser):
     ul_port = self.parent.ul_port
@@ -154,26 +156,63 @@ class PL_l3fwd(PL):
     # L3FIB: perform longest-prefix-matching from an IP lookup table
     # and forward packets to the appropriate group table entry for
     # next-hop processing or drop if no matching L3 entry is found
-    gr_offset = 0
     for d in ['upstream', 'downstream']:
-      for gr_id, entry in enumerate(self.conf.get('%s_group_table' % d),
-                                    gr_offset):
-        port_name = '%sl_port' % d[0]
-        out_port = entry.port or self.parent.__dict__[port_name]
-        actions = [parser.OFPActionSetField(eth_dst=entry.dmac),
-                   parser.OFPActionSetField(eth_src=entry.smac),
-                   parser.OFPActionOutput(out_port)]
-        self.parent.add_group(gr_id, actions)
+      for entry in self.conf.get('%s_group_table' % d):
+        self.add_group_table_entry(d, entry)
 
-      table = '%s_l3_table' % d
-      for entry in self.conf.get(table):
-        addr = '%s/%s' % (entry.ip, entry.prefix_len)
-        match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': addr}
-        out_group = gr_offset + entry.nhop
-        action = parser.OFPActionGroup(out_group)
-        self.parent.mod_flow(table, match=match, actions=[action])
+      for entry in self.conf.get('%s_l3_table' % d):
+        self.mod_l3_table('add', d, entry)
 
+  def mod_l3_table(self, cmd, table_prefix, entry):
+    parser = self.parent.dp.ofproto_parser
+    if table_prefix == 'upstream':
+      gr_offset = 0
+    else:
       gr_offset = len(self.conf.upstream_group_table)
+    table = '%s_l3_table' % table_prefix
+    addr = '%s/%s' % (entry.ip, entry.prefix_len)
+    match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': addr}
+    out_group = gr_offset + entry.nhop
+    action = parser.OFPActionGroup(out_group)
+    self.parent.mod_flow(table, match=match, actions=[action], cmd=cmd)
+
+  def add_group_table_entry(self, direction, entry):
+    parser = self.parent.dp.ofproto_parser
+    port_name = '%sl_port' % direction[0]
+    out_port = entry.port or self.parent.__dict__[port_name]
+    actions = [parser.OFPActionSetField(eth_dst=entry.dmac),
+               parser.OFPActionSetField(eth_src=entry.smac),
+               parser.OFPActionOutput(out_port)]
+    self.parent.add_group(self.gr_next, actions)
+    self.gr_table[(entry.dmac, entry.smac)] = self.gr_next
+    self.gr_next += 1
+
+  def del_group_table_entry(self, entry):
+    key = (entry.dmac, entry.smac)
+    gr_id = self.gr_table[key]
+    del self.gr_table[key]
+    self.parent.del_group(gr_id)
+
+    # We could be more clever here, but the run-time config always
+    # deletes the last entry first.
+    if gr_id == self.gr_next - 1:
+      self.gr_next -= 1
+    else:
+      # Something unexpected.  We leave a hole in the group id space.
+      self.logger.warn('Leakage in the group id space')
+      self.logger.info('%s, %s', gr_id, self.gr_next)
+
+  def do_mod_l3_table(self, args):
+    self.mod_l3_table(args.operation, args.table, args.entry)
+
+  def do_mod_group_table(self, args):
+    if args.operation == 'add':
+      self.add_group_table_entry(args.table, args.entry)
+    elif args.operation == 'del':
+      self.del_group_table_entry(args.entry)
+    else:
+      self.logger.error('%s: unknown operation(%s)',
+                        args.action, args.operation)
 
 
 class PL_mgw(PL):
@@ -640,7 +679,7 @@ class Tipsy(app_manager.RyuApp):
       actions = []
     if inst is None:
       inst = []
-    if type(table) == str:
+    if type(table) in [str, unicode]:
       table = self.pl.tables[table]
     if priority is None:
       priority = ofp.OFP_DEFAULT_PRIORITY
@@ -684,6 +723,14 @@ class Tipsy(app_manager.RyuApp):
     buckets = [parser.OFPBucket(weight, watch_port, watch_group, actions)]
 
     req = parser.OFPGroupMod(self.dp, ofp.OFPGC_ADD, gr_type, gr_id, buckets)
+    self.dp.send_msg(req)
+
+  def del_group(self, gr_id, gr_type=None):
+    ofp = self.dp.ofproto
+    parser = self.dp.ofproto_parser
+    gr_type = gr_type or ofp.OFPGT_INDIRECT
+
+    req = parser.OFPGroupMod(self.dp, ofp.OFPGC_DELETE, gr_type, gr_id)
     self.dp.send_msg(req)
 
   def clear_table(self, table_id):
