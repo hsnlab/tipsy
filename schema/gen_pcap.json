@@ -1,0 +1,58 @@
+{
+  "title": "CLI arguments of the gen_pcap program",
+  "type": "object",
+  "properties": {
+    "json": {
+      "$ref": "definitions.json#/readable-file",
+      "short_opt": "-j",
+      "default": null,
+      "description":
+        "Input config file, command line arguments override settings"
+    },
+    "conf": {
+      "$ref": "definitions.json#/readable-file",
+      "short_opt": "-c",
+      "description": "Measurement setup (in JSON)"
+    },
+    "output": {
+      "$ref": "definitions.json#/writable-file",
+      "short_opt": "-o",
+      "default": "/dev/stdout",
+      "description": "Output file"
+    },
+    "dir": {
+      "type": "string",
+      "enum": ["uplink", "downlink", "bidir"],
+      "short_opt": "-d",
+      "default": "uplink",
+      "description": "Direction: uplink, downlink, or bidir"
+    },
+    "pkt-num": {
+      "$ref": "definitions.json#/positive-integer",
+      "short_opt": "-n",
+      "default": 10,
+      "description": "Number of packets"
+    },
+    "pkt-size": {
+      "$ref": "definitions.json#/positive-integer",
+      "short_opt": "-s",
+      "default": 64,
+      "description": "Size of packets"
+    },
+    "thread": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "short_opt": "-t",
+      "default": 0,
+      "description":
+        "Number of requested processing CPU threads. 0 means all of the available cores."
+    },
+    "ascii": {
+      "type": "boolean",
+      "short_opt": "-a",
+      "default": false,
+      "description": "Dump generated packets in human readable ASCII form"
+    }
+  },
+  "required": ["conf"],
+  "additionalProperties": false
+}

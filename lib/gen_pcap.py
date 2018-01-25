@@ -30,6 +30,8 @@ except ImportError:
     PosixPath = str
 from scapy.all import *
 
+import args_from_schema
+
 __all__ = ["gen_pcap"]
 
 
@@ -184,30 +186,7 @@ def parse_args(defaults=None):
     else:
         required = True
     parser = argparse.ArgumentParser()
-    parser.add_argument('--json', '-j', type=argparse.FileType('r'),
-                        help='Input config file, '
-                        'command line arguments override settings')
-    parser.add_argument('--conf', '-c', type=argparse.FileType('r'),
-                        help='Measurement setup (in JSON)', required=required)
-    parser.add_argument('--output', '-o', type=argparse.FileType('w'),
-                        help='Output file', default='/dev/stdout')
-    parser.add_argument('--dir', '-d', type=str,
-                        help='Direction: uplink, downlink or bidir',
-                        default='uplink')
-    parser.add_argument('--pkt-num', '-n', type=int,
-                        help='Number of packets',
-                        default=10)
-    parser.add_argument('--pkt-size', '-s', type=int,
-                        help='Size of packets',
-                        default=64)
-    parser.add_argument('--thread', '-t', type=int,
-                        help='Number of requested processing CPU threads. '
-                        '0 means all of the available cores.',
-                        default=0)
-    parser.add_argument('--ascii', '-a',
-                        help='Dump generated packets in human readable ASCII form',
-                        action='store_true')
-    parser.set_defaults(ascii=False)
+    args_from_schema.add_args(parser, 'gen_pcap')
     parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
     pa_args = None
     if defaults:

@@ -19,10 +19,8 @@
 
 import argparse
 import json
-import os
-import re
-import sys
-from distutils.util import strtobool
+
+import args_from_schema
 
 __all__ = ["gen_conf"]
 
@@ -393,82 +391,12 @@ def list_pipelines ():
   l = [n[3:] for n in globals() if n.startswith('PL_')]
   return sorted(l)
 
-def check_type_positive_integer (string):
-  msg = "'%s' is not a positive integer" % string
-  try:
-    i = int(string)
-  except ValueError:
-    raise argparse.ArgumentTypeError(msg)
-  if i <= 0:
-    raise argparse.ArgumentTypeError(msg)
-  return i
-
-def check_type_non_negative_integer (string):
-  msg = "'%s' is not non-negative integer" % string
-  try:
-    i = int(string)
-  except ValueError:
-    raise argparse.ArgumentTypeError(msg)
-  if i < 0:
-    raise argparse.ArgumentTypeError(msg)
-  return i
-
-def check_type_ip_address (string):
-  msg = "'%s' is not an ip address" % string
-  l = string.split('.')
-  if len(l) != 4:
-    raise argparse.ArgumentTypeError(msg)
-  for i in l:
-    if int(i) > 255 or int(i) < 0:
-      raise argparse.ArgumentTypeError(msg)
-  return string
-
-def check_type_mac_address (string):
-  if re.match(r'^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$', string):
-    return string
-  msg = "'%s' is not a mac address" % string
-  raise argparse.ArgumentTypeError(msg)
-
-def check_type_mac_address_or_null (string):
-  if string.lower() in ['null', 'none']:
-    return None
-  if re.match(r'^([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$', string):
-    return string
-  msg = "'%s' is not a mac address" % string
-  raise argparse.ArgumentTypeError(msg)
-
-def check_type_string (string):
-  return string
-
-def check_type_boolean (string):
-  return bool(strtobool(string))
-
 def add_args_from_schema(parser, pipeline_name):
   "Add per pipeline CLI args from the schema definition"
 
   group = parser.add_argument_group('pipeline specific agruments')
-  script_dir = os.path.dirname(os.path.realpath(__file__))
-  script_dir = os.path.join(script_dir, '..', 'schema')
-  fname = 'pipeline-%s.json' % pipeline_name
-  with open(os.path.join(script_dir, fname)) as f:
-    schema = json.load(f)
-
-  name = schema['properties']['name']['enum'][0]
-  for prop, val in sorted(schema['properties'].items()):
-    if val.get('$ref'):
-      m = re.search(r'#\/(.*)$', val['$ref'])
-      type_name = re.sub(r'-', '_', m.group(1))
-    else:
-      type_name = val['type']
-    a = {'type': globals()['check_type_%s' % type_name],
-         'help': val['description'],
-         'metavar': type_name.upper(),
-    }
-    if 'default' in val:
-      a['default'] = val['default']
-    if prop != 'name':
-      parser.add_argument('--%s' % prop, **a)
-
+  schema_name = 'pipeline-%s' % pipeline_name
+  args_from_schema.add_args(parser, schema_name, ignored_properties=['name'])
 
 def parse_cli_args ():
   parser = argparse.ArgumentParser()
