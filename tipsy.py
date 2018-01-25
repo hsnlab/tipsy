@@ -311,7 +311,6 @@ class TipsyManager(object):
                 cmd = [gen_pcap, '--json', tmp_file,
                        '--conf', conf_file, '--output', out_pcap]
                 cmd = [str(x) for x in cmd]
-                print('asdf')
                 subprocess.call(cmd)
 
 

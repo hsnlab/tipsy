@@ -171,9 +171,8 @@ def parse_args(defaults=None):
                         'command line arguments override settings')
     parser.add_argument('--conf', '-c', type=argparse.FileType('r'),
                         help='Measurement setup (in JSON)', required=required)
-    parser.add_argument('--output', '-o', type=str,
-                        help='Output file',
-                        default='/dev/stdout')
+    parser.add_argument('--output', '-o', type=argparse.FileType('w'),
+                        help='Output file', default='/dev/stdout')
     parser.add_argument('--dir', '-d', type=str,
                         help='Direction: uplink, downlink or bidir',
                         default='uplink')
@@ -184,12 +183,14 @@ def parse_args(defaults=None):
                         help='Size of packets',
                         default=64)
     parser.add_argument('--thread', '-t', type=int,
-                        help='Number of requested processing CPU threads',
-                        default=4)
+                        help='Number of requested processing CPU threads. '
+                        '0 means all of the available cores.',
+                        default=0)
     parser.add_argument('--ascii', '-a',
                         help='Dump generated packets in human readable ASCII form',
                         action='store_true')
     parser.set_defaults(ascii=False)
+    parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
     pa_args = None
     if defaults:
         parser.set_defaults(**defaults)
@@ -199,6 +200,8 @@ def parse_args(defaults=None):
         new_defaults = json_load(args.json)
         parser.set_defaults(**new_defaults)
         args = parser.parse_args(pa_args)
+    if args.thread == 0:
+        args.thread = multiprocessing.cpu_count()
 
     return args
 
