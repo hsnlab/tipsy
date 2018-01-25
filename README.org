@@ -389,4 +389,6 @@ You can make the output a bit more readable by installing
 =ryu/color_log.py=, read the header of =ryu/color_log.py= for how to do
 that.
 
-* TODO License
+* License
+
+TIPSY is a free software and licensed under [[./LICENSE][GPLv3+]].
