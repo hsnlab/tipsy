@@ -2,10 +2,9 @@
 #+LaTeX_HEADER:\usepackage{enumitem}
 #+LaTeX_HEADER:\usepackage{tikz}
 #+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
-#+OPTIONS: toc:nil author:t ^:nil num:nil
+#+OPTIONS: toc:nil ^:nil num:nil
 
 #+TITLE: Broadband Nerwork Gateway (BNG)
-#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
 
 * Static pipeline
 

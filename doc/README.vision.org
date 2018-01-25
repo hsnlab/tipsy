@@ -2,10 +2,9 @@
 #+LaTeX_HEADER:\usepackage{enumitem}
 #+LaTeX_HEADER:\usepackage{tikz}
 #+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
-#+OPTIONS: toc:nil author:t ^:nil num:nil
+#+OPTIONS: toc:nil ^:nil num:nil
 
 #+TITLE: Vision: The TIPSY Workflow
-#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
 
 Unfortunately, TIPSY is still unfinished.  The current vision for how a
 full-fledged TIPSY would work is as follows.  Take this as a pretty much

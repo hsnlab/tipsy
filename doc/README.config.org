@@ -3,10 +3,9 @@
 #+LaTeX_HEADER:\usepackage{tikz}
 #+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
 #+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
-#+OPTIONS: toc:nil author:t ^:nil num:nil
+#+OPTIONS: toc:nil ^:nil num:nil
 
 #+TITLE: TIPSY configuration guide
-#+AUTHOR: Tamás Lévai, Felicián Németh, Gábor Rétvári (BME)
 
 TIPSY relies on a high-level main configuration file to perform reliable
 and reproducible benchmarks. The key to the flexibility of TIPSY is that
