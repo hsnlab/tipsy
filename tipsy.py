@@ -5,6 +5,7 @@ import itertools
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path, PosixPath
 
 from gen.gen_conf import gen_conf
@@ -118,6 +119,70 @@ class TipsyStateManager(object):
         return self.action_reqs[state]
 
 
+class SUTConnector(object):
+    def __init__(self, sut_conf):
+        self.sut_conf = sut_conf
+        self.ssh_access = self.sut_conf.mgmt.split(':')[1]
+        self.ssh_cmd_pre = "ssh %s " % self.ssh_access
+        self.screen_name = 'TIPSY_SUT'
+
+    def run_ssh_cmd(self, cmd):
+        subprocess.call("%s '%s'" % (self.ssh_cmd_pre, cmd), shell=True)
+
+    def get_screen_cmd(self, cmd):
+        params = (self.screen_name, cmd)
+        return "screen -c /dev/null -d -m -S %s bash -c \"%s\"" % params
+
+    def start_sut(self, *args):
+        raise NotImplementedError
+
+    def stop_sut(self, *args):
+        cmd = "screen -S %s -X stuff ^C" % self.screen_name
+        self.run_ssh_cmd(cmd)
+
+
+class BessConnector(SUTConnector):
+    def start_sut(self, json):
+        # TODO: copy json, etc
+        path = '/dev/null'  # TODO
+        params = (path, self.sut_conf.bess_dir, json)
+        bu = "cd %s; ./bess-runner.py -d %s -c %s" % params
+        cmd = self.get_screen_cmd(bu)
+        self.run_ssh_cmd(cmd)
+
+
+class OvsConnector(SUTConnector):
+    def start_sut(self):
+        cd = "cd %s" % ryu_dir
+        ryu = "ryu-manager --config-dir ."
+        cmd = self.get_screen_cmd("%s; %s" % (cd, ryu))
+        self.run_ssh_cmd(cmd)
+
+
+class TesterRunner(object):
+    def run(self, out_dir):
+        raise NotImplementedError
+
+
+class MoongenRunner(TesterRunner):
+    def __init__(self, tipsy_conf):
+        self.txdev = tipsy_conf.environment.tester.uplink_port
+        self.rxdev = tipsy_conf.environment.tester.downlink_port
+        self.mg_dir = tipsy_conf.environment.tester.moongen_dir
+        self.script = tipsy_dir.joinpath('utils', 'mg-pcap.lua').resolve()
+        self.runtime = tipsy_conf.sut.test_time
+
+    def run(self, out_dir):
+        pcap = Path(dir).joinpath('trace.pcap').resolve()
+        pfix = str(Path(dir).joinpath('mg').resolve())
+        hfile = Path(dir).joinpath('%s.histogram.csv' % pfix).resolve()
+        params = (self.mg_dir, self.script, self.txdev, self.rxdev,
+                  pcap, self.runtime, pfix, hfile)
+        cmd = ('sudo %s/build/MoonGen %s %s %s %s -l -t -r %s -o %s --hfile %s'
+               % params)
+        subprocess.call(cmd, shell=True)
+
+
 class TipsyManager(object):
     def __init__(self, args):
         self.tipsy_dir = Path(__file__).resolve().parent
@@ -191,12 +256,13 @@ class TipsyManager(object):
 
     def init_tipsyconfig(self):
         def conf_load(d): return TipsyConfig(**d)
-        if self.args.configs:
+        try:
             jsons = self.args.configs
-        elif Path(self.fname_conf).exists():
-            jsons = [self.fname_conf]
-        else:
-            jsons = [str(f) for f in Path.cwd().glob('*.json')]
+        except:
+            if Path(self.fname_conf).exists():
+                jsons = [self.fname_conf]
+            else:
+                jsons = [str(f) for f in Path.cwd().glob('*.json')]
         with open(jsons[0], 'r') as c:
             self.tipsy_conf = json.load(c, object_hook=conf_load)
         for conf in jsons[1:]:
@@ -234,9 +300,27 @@ class TipsyManager(object):
                    % (gen_pcap, tmp_file, conf_file, out_pcap))
             subprocess.call(cmd, shell=True)
 
+    def run_tester(self, dir):
+        tester = getattr(sys.modules[__name__],
+                         "%Runner" % self.tipsy_conf.tester.type.title())
+        test_runner = tester(self.tipsy_conf)
+        test_runner.run(dir)
+
     @_action
     def do_run(self):
-        raise NotImplementedError
+        self.init_tipsyconfig()
+        meas_dir = Path('measurements')
+        if type(self.tipsy_conf.sut.type) is not list:
+            self.tipsy_conf.sut.type = [self.tipsy_conf.sut.type]
+        for sut in self.tipsy_conf.sut.type:
+            con_init = getattr(sys.modules[__name__],
+                               "%sConnector" % sut.title())
+            sut_con = con_init(self.tipsy_conf.environment.sut)
+            for out_dir in [f for f in meas_dir.iterdir() if f.is_dir()]:
+                pl_json = str(out_dir.joinpath(self.fname_pl).resolve())
+                sut_con.start_sut(pl_json)
+                self.run_tester(out_dir)
+                sut_con.stop_sut()
 
     @_action
     def do_evaluate(self):
