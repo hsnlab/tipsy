@@ -226,7 +226,7 @@ class PL_l2fwd (PL):
     def make_rule (op, entry, tbl):
       return [{
         'action': 'mod_table',
-        'operation': op,
+        'cmd': op,
         'entry': entry,
         'table': tbl,
       }]
@@ -264,7 +264,7 @@ class PL_l3fwd (PL):
 
     # Define the run-time behaviour
     def make_rule(op, entry, tbl):
-      return {'action': action, 'operation': op, 'entry': entry, 'table': tbl}
+      return {'action': action, 'cmd': op, 'entry': entry, 'table': tbl}
     action = 'mod_l3_table'
     add_rules, del_rules  = [], []
     for i, d in enumerate(['upstream', 'downstream']):

@@ -110,6 +110,50 @@ class PL(object):
     self.logger.error('Unknown action: %s' % action.action)
 
 
+class PL_l2fwd(PL):
+
+  def __init__(self, parent, conf):
+    super(PL_l2fwd, self).__init__(parent, conf)
+    self.tables = {
+      'selector'   : 0,
+      'upstream'   : 1,
+      'downstream' : 2,
+      'drop'       : 3,
+    }
+
+  def config_switch(self, parser):
+    # Upstream the L2fwd pipeline will receive packets from the
+    # downlink port, perform a lookup for the destination MAC address
+    # in a static MAC table, and if a match is found the packet will
+    # be forwarded to the uplink port or otherwise dropped (or
+    # likewise forwarded upstream if the =fakedrop= parameter is set
+    # to =true=).  The downstream pipeline is just the other way
+    # around, but note that the upstream and downstream pipelines use
+    # separate MAC tables.
+    ul_port = self.parent.ul_port
+    dl_port = self.parent.dl_port
+
+    table = 'selector'
+    self.parent.mod_flow(table, match={'in_port': dl_port}, goto='upstream')
+    self.parent.mod_flow(table, match={'in_port': ul_port}, goto='downstream')
+
+    for d in ['upstream', 'downstream']:
+      for entry in self.conf.get('%s-table' % d):
+        self.mod_table('add', d, entry)
+
+  def mod_table(self, cmd, table, entry):
+    mod_flow = self.parent.mod_flow
+    out_port = {'upstream': self.parent.ul_port,
+                'downstream': self.parent.dl_port}[table]
+    out_port = entry.out_port or out_port
+
+    mod_flow(table, match={'eth_dst': entry.mac}, output=out_port, cmd=cmd)
+
+  def do_mod_table(self, args):
+    self.logger.info('asdf %s', args)
+    self.mod_table(args.cmd, args.table, args.entry)
+
+
 class PL_l3fwd(PL):
 
   def __init__(self, parent, conf):
@@ -203,16 +247,15 @@ class PL_l3fwd(PL):
       self.logger.info('%s, %s', gr_id, self.gr_next)
 
   def do_mod_l3_table(self, args):
-    self.mod_l3_table(args.operation, args.table, args.entry)
+    self.mod_l3_table(args.cmd, args.table, args.entry)
 
   def do_mod_group_table(self, args):
-    if args.operation == 'add':
+    if args.cmd == 'add':
       self.add_group_table_entry(args.table, args.entry)
-    elif args.operation == 'del':
+    elif args.cmd == 'del':
       self.del_group_table_entry(args.entry)
     else:
-      self.logger.error('%s: unknown operation(%s)',
-                        args.action, args.operation)
+      self.logger.error('%s: unknown cmd (%s)', args.action, args.cmd)
 
 
 class PL_mgw(PL):
