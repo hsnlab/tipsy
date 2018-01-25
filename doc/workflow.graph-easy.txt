@@ -6,9 +6,9 @@
 #
 # Generate the output graph easily with graph-easy:
 #
-# $ graph-easy --dot | dot -Grankdir=TB -Tsvg
+# $ graph-easy --dot | dot -Tsvg
 #
-
+graph { flow: south; }
 node.cmd { border: dotted; }
 
 [gen-conf]  {class: cmd; label: tipsy config (gen-conf)}
@@ -32,9 +32,8 @@ node.cmd { border: dotted; }
 [pipeline.json] --> [ryu]
 [pipeline.json] --> [bess]
 
-
 [meas]
--- main/sut/type --> [pipeline-type]{shape: point;}
+-- main/sut/type --> [pipeline-type]{label: type?; border-width: 0;}
 
 [meas]
 -- main/tester/backend --> [meas-moon]
@@ -46,3 +45,7 @@ node.cmd { border: dotted; }
 
 [pipeline-type] --> [ryu]
 [pipeline-type] --> [bess]
+
+# Local Variables:
+# compile-command: "graph-easy --dot workflow.graph-easy.txt | dot -Tpng -o workflow.graph-easy.png"
+# End:
