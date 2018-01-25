@@ -1,6 +1,6 @@
 # TIPSY: Telco pIPeline benchmarking SYstem
 #
-# Copyright (C) 2018 by it's authors (See AUTHORS)
+# Copyright (C) 2018 by its authors (See AUTHORS)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
