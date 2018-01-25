@@ -1,0 +1,70 @@
+# -*- mode: python; -*-
+import json
+
+def mac_int_from_str(s):
+  return int("0x%s" % ''.join(s.split(':')), 16)
+
+class ObjectView(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def __repr__(self):
+      return self.__dict__.__repr__()
+
+
+bess_inport = int($inport!'0')
+bess_outport = int($outport!'0')
+bess_workers = int($workers!'1')
+conf_file = $config!'./portfwd.json'
+
+with open(conf_file, 'r') as f:
+  conv_fn = lambda d: ObjectView(**d)
+  conf = json.load(f, object_hook=conv_fn)
+
+portIn = PMDPort(port_id=bess_inport,
+                 num_inc_q=bess_workers * 2,
+                 num_out_q=bess_workers * 2)
+
+if bess_inport == bess_outport:
+  portOut = portIn
+else:
+  portOut = PMDPort(port_id=bess_outport,
+                    num_inc_q=bess_workers * 2,
+                    num_out_q=bess_workers * 2)
+
+for wid in range(0, bess_workers * 2, 2):
+  bess.add_worker(wid, wid)
+  bess.add_worker(wid+1, wid+1)
+
+  # uplink
+  in_u = QueueInc(port=portIn.name, qid=wid)
+  out_u = QueueOut(port=portOut.name, qid=wid)
+  buf_u = Buffer(name='out_buf_%d' % wid)
+  buf_u -> out_u
+  mac_addr_up = conf.mac_swap_upstream
+  if mac_addr_up:
+    update = Update(name='update_mac_u_%d' % wid,
+                    fields=[{'offset': 6, 'size': 6,
+                             'value': mac_int_from_str(mac_addr_up)}])
+    in_u -> update -> buf_u
+  else:
+    in_u -> buf_u
+  bess.attach_task(in_u.name, wid=wid)
+
+  # downlink
+  in_d = QueueInc(port=portOut.name, qid=wid+1)
+  out_d = QueueOut(port=portIn.name, qid=wid+1)
+  buf_d = Buffer(name='out_buf_%d' % int(wid+1))
+  buf_d -> out_d
+  mac_addr_down = conf.mac_swap_downstream
+  if mac_addr_down:
+    update = Update(name='update_mac_d_%d' % wid,
+                    fields=[{'offset': 6, 'size': 6,
+                             'value': mac_int_from_str(mac_addr_down)}])
+    in_d -> update -> buf_d
+  else:
+    in_d -> buf_d
+  bess.attach_task(in_d.name, wid=wid+1)
+
+bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
+bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
