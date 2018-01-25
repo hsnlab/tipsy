@@ -393,18 +393,19 @@ if __name__ == '__main__':
     bess_start_cmd = "%s daemon start -- run file ./%s.bess \"config='%s'\"" % (
         bessctl, config.name, args.conf.name)
     print(bess_start_cmd)
-    subprocess.call(bess_start_cmd, shell=True)
+    ret_val = subprocess.call(bess_start_cmd, shell=True)
+    if not ret_val:
 
-    try:
-        uclass = getattr(sys.modules[__name__],
-                         'BessUpdater%s' % config.name.title())
-        updater = uclass(config)
-    except:
-        updater = BessUpdaterDummy(config)
+        try:
+            uclass = getattr(sys.modules[__name__],
+                             'BessUpdater%s' % config.name.title())
+            updater = uclass(config)
+        except:
+            updater = BessUpdaterDummy(config)
 
-    signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
 
-    updater.start()
+        updater.start()
 
     bess_stop_cmd = "%s daemon stop" % bessctl
     print(bess_stop_cmd)
