@@ -176,7 +176,7 @@ Input to TIPSY is a high-level description of the intended measurement,
 like the name of the pipeline to be coded into the SUT and the general
 parameters (number of users, number of Internet routes, etc.) and the
 output is a set of configurations/data-plane programs that can be loaded
-into the SUT and a set of traffic traces for each config.  
+into the SUT and a set of traffic traces for each config.
 
 Below is a sample configuration that defines a benchmark on the
 [[./doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=) pipeline, with
@@ -251,7 +251,7 @@ benchmark root directory with different command line arguments.
 mkdir my_benchmark
 cd my_benchmark
 <store a TIPSY benchnmark configuration into a JSON file>
-tipsy config 
+tipsy config
 tipsy traffic-gen
 tipsy run
 ...
@@ -277,17 +277,24 @@ The basic workflow is as follows.
      {
          "benchmark": {
              "id": "my_benchmark"
+             "scale": "outer",
              "pipeline": {
                  "name": "mgw",
-                 "user": [10, 100, 1000, 1000],
+                 "user": [10, 100, 1000, 1000]
              }
          },
          "traffic": {
-             "pkt-size": 64,
+             "pkt-size": [64, 128],
+             "pkt-num": 10000
          },
          "sut": {
-             "type": ["ovs", "bess"]
+             "type": ["ovs", "bess"],
+             "cores": 4
          },
+         "tester": {
+             "generator": "moongen",
+             "test_time": 30
+         }
      }
    #+END_SRC
 
@@ -384,4 +391,3 @@ You can make the output a bit more readable by installing
 that.
 
 * TODO License
-

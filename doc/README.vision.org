@@ -31,19 +31,23 @@ it becomes ready.
              "scale": "outer",
              "pipeline": {
                  "name": "mgw",
-                 "user": [10, 100, 1000, 1000],
+                 "user": [10, 100, 1000, 1000]
              }
          },
          "traffic": {
-             "pkt-size": 64,
+             "pkt-size": 64
          },
          "sut": {
              "type": ["ovs", "bess"]
          },
+         "tester": {
+             "generator": "moongen",
+	     "test-time": 30
+         },
          "visualize":
          [
              {
-                 "x_axis": "mgw.user", 
+                 "x_axis": "mgw.user",
                  "y_axis": "packet_rate",
                  "curve": ["ovs", "bess"]
              }
@@ -76,7 +80,7 @@ it becomes ready.
    #+BEGIN_SRC sh
    tipsy config /var/lib/tipsy/environment.json /var/lib/dpdk/dpdk.json my_benchmark.json
    #+END_SRC
-   
+
    The order of JSON files on the command line specifies the override
    priority.  This allows to use, say, a common =environment.json= to set
    the filesystem paths for the backends or a =dpdk.json= configuration to

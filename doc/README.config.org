@@ -41,10 +41,12 @@ A sample configuration for TIPSY is given below.
                 "dir": ["uplink", "downlink", "bidir"]
             },
 	    "sut": {
-		"type": "bess"
+		"type": "bess",
+                "cores": 4
 	    },
 	    "tester": {
-		"backend": "moongen"
+		"generator": "moongen",
+		"test-time": 30
 	    }
         }
     ]
@@ -83,8 +85,8 @@ Parameters for the traffic trace that will be fed to the pipeline by the
 Tester. This section might contain the below parameters.
 
 - =pkt-size=: packet size [byte]
-- =pkt-num=: number of packets 
-- =dir=: 
+- =pkt-num=: number of packets
+- =dir=:
   - =uplink=: evaluate the upstream datapath
   - =downlink=: evaluate the downstream datapath
   - =bidir=: run test in both directions
@@ -95,8 +97,12 @@ Parameters for the Tester, among others, the traffic generator backend to
 be used for insert the traffic trace into the SUT and other Tester specific
 settings.
 
-- =backend=: packet generator for the Tester (=moongen= or =scapy=)
+- =generator=: packet generator for the Tester (=moongen= or =scapy=)
+- =test-time=: runtime in seconds
 
 * The =sut= section
 
 Settings for the System-Under-Test (SUT).
+
+- =types=: SUT implementation (=bess= or =ovs=)
+- =cores=: number of CPU cores/workers
