@@ -8,7 +8,8 @@ import subprocess
 import sys
 from pathlib import Path, PosixPath
 
-from gen.gen_conf import gen_conf
+from lib.gen_conf import gen_conf
+from lib.gen_pcap import gen_pcap
 from lib import validate
 
 
@@ -290,15 +291,29 @@ class TipsyManager(object):
 
     @_action
     def do_traffic_gen(self):
-        gen_pcap = self.tipsy_dir.joinpath("gen", "gen-pcap.py")
         meas_dir = Path('measurements')
         for out_dir in [f for f in meas_dir.iterdir() if f.is_dir()]:
-            out_pcap = out_dir.joinpath(self.fname_pcap)
-            tmp_file = out_dir.joinpath(self.fname_pl_in)
-            conf_file = out_dir.joinpath(self.fname_pl)
-            cmd = ("%s --json %s --conf %s --output %s"
-                   % (gen_pcap, tmp_file, conf_file, out_pcap))
-            subprocess.call(cmd, shell=True)
+            # NB: We cannot use gen_pcap as a lib, because
+            # python3-scapy does not support VXLAN headers
+            use_pcap_lib = False
+            if use_pcap_lib:
+                args = {
+                    'output': out_dir.joinpath(self.fname_pcap),
+                    'conf': out_dir.joinpath(self.fname_pl),
+                    'json': out_dir.joinpath(self.fname_pl_in),
+                }
+                gen_pcap(args)
+            else:
+                gen_pcap = self.tipsy_dir.joinpath("lib", "gen_pcap.py")
+                out_pcap = out_dir.joinpath(self.fname_pcap)
+                tmp_file = out_dir.joinpath(self.fname_pl_in)
+                conf_file = out_dir.joinpath(self.fname_pl)
+                cmd = [gen_pcap, '--json', tmp_file,
+                       '--conf', conf_file, '--output', out_pcap]
+                cmd = [str(x) for x in cmd]
+                print('asdf')
+                subprocess.call(cmd)
+
 
     def run_tester(self, dir):
         tester = getattr(sys.modules[__name__],

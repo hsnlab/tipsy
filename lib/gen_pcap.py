@@ -1,10 +1,18 @@
 #!/usr/bin/env python
-from scapy.all import *
 import argparse
-import json
 import itertools
+import json
 import multiprocessing
 import random
+import scapy
+try:
+    from pathlib import PosixPath
+except ImportError:
+    # python2
+    PosixPath = str
+from scapy.all import *
+
+__all__ = ["gen_pcap"]
 
 
 class PicklablePacket(object):
@@ -40,7 +48,7 @@ def gen_packets(params_tuple):
         dir = ('dl', 'ul')
     else:
         dir = (dir, dir)
-    for i in range(pkt_num / 2 + 1):
+    for i in range(pkt_num // 2 + 1):
         for d in dir:
             pkt_gen_func = getattr(sys.modules[__name__],
                                    '_gen_%s_pkt_%s' % (d, pl))
@@ -141,63 +149,92 @@ def vwrap(pkt, conf):
     return vxlanpkt
 
 
-##################
-parser = argparse.ArgumentParser()
-parser.add_argument('--json', '-j', type=argparse.FileType('r'),
-                    help='Input config file, '
-                    'command line arguments override settings')
-parser.add_argument('--conf', '-c', type=argparse.FileType('r'),
-                    help='Measurement setup (in JSON)',  required=True)
-parser.add_argument('--output', '-o', type=str,
-                    help='Output file',
-                    default='/dev/stdout')
-parser.add_argument('--dir', '-d', type=str,
-                    help='Direction: uplink, downlink or bidir',
-                    default='uplink')
-parser.add_argument('--pkt-num', '-n', type=int,
-                    help='Number of packets',
-                    default=10)
-parser.add_argument('--pkt-size', '-s', type=int,
-                    help='Size of packets',
-                    default=64)
-parser.add_argument('--thread', '-t', type=int,
-                    help='Number of requested processing CPU threads',
-                    default=4)
-parser.add_argument('--ascii', '-a',
-                    help='Dump generated packets in human readable ASCII form',
-                    action='store_true')
-parser.set_defaults(ascii=False)
-args = parser.parse_args()
-if args.json:
-    new_defaults = json.load(args.json)
-    parser.set_defaults(**new_defaults)
-    args = parser.parse_args()
+def json_load(file, object_hook=None):
+    if type(file) == str:
+        with open(file, 'r') as infile:
+            return json.load(infile, object_hook=object_hook)
+    elif type(file) == PosixPath:
+        with file.open('r') as infile:
+            return json.load(infile, object_hook=object_hook)
+    else:
+        return json.load(file, object_hook=object_hook)
 
 
-def conv_fn(d): return ObjectView(**d)
-conf = json.load(args.conf, object_hook=conv_fn)
+def parse_args(defaults=None):
+    if defaults:
+        required = False
+    else:
+        required = True
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--json', '-j', type=argparse.FileType('r'),
+                        help='Input config file, '
+                        'command line arguments override settings')
+    parser.add_argument('--conf', '-c', type=argparse.FileType('r'),
+                        help='Measurement setup (in JSON)', required=required)
+    parser.add_argument('--output', '-o', type=str,
+                        help='Output file',
+                        default='/dev/stdout')
+    parser.add_argument('--dir', '-d', type=str,
+                        help='Direction: uplink, downlink or bidir',
+                        default='uplink')
+    parser.add_argument('--pkt-num', '-n', type=int,
+                        help='Number of packets',
+                        default=10)
+    parser.add_argument('--pkt-size', '-s', type=int,
+                        help='Size of packets',
+                        default=64)
+    parser.add_argument('--thread', '-t', type=int,
+                        help='Number of requested processing CPU threads',
+                        default=4)
+    parser.add_argument('--ascii', '-a',
+                        help='Dump generated packets in human readable ASCII form',
+                        action='store_true')
+    parser.set_defaults(ascii=False)
+    pa_args = None
+    if defaults:
+        parser.set_defaults(**defaults)
+        pa_args = []
+    args = parser.parse_args(pa_args)
+    if args.json:
+        new_defaults = json_load(args.json)
+        parser.set_defaults(**new_defaults)
+        args = parser.parse_args(pa_args)
 
-dir = '%sl' % args.dir[0]
-wargs = []
-worker_num = min(args.pkt_num, args.thread)
-pkt_left = args.pkt_num
-ppw = args.pkt_num / worker_num
-for _ in range(worker_num):
-    wargs.append((dir, ppw, args.pkt_size, conf))
-    pkt_left -= ppw
-if pkt_left > 0:
-    wargs.append((dir, args.pkt_num % worker_num, args.pkt_size, conf))
-    worker_num += 1
-workers = multiprocessing.Pool(worker_num)
+    return args
 
-pkts = workers.map(gen_packets, wargs)
-pkts = [p for wpkts in pkts for p in wpkts]
-pkts = map(PicklablePacket.__call__, pkts)
 
-if args.ascii:
-    print("Dumping packets:")
-    for p in pkts:
-        # p.show()
-        print(p.__repr__())
-else:
-    wrpcap(args.output, pkts)
+def gen_pcap(defaults=None):
+    args = parse_args(defaults)
+    conf = json_load(args.conf, object_hook=lambda x: ObjectView(**x))
+
+    dir = '%sl' % args.dir[0]
+    wargs = []
+    worker_num = min(args.pkt_num, args.thread)
+    pkt_left = args.pkt_num
+    ppw = args.pkt_num // worker_num
+    for _ in range(worker_num):
+        wargs.append((dir, ppw, args.pkt_size, conf))
+        pkt_left -= ppw
+    if pkt_left > 0:
+        wargs.append((dir, args.pkt_num % worker_num, args.pkt_size, conf))
+        worker_num += 1
+    workers = multiprocessing.Pool(worker_num)
+
+    pkts = workers.map(gen_packets, wargs)
+    pkts = [p for wpkts in pkts for p in wpkts]
+    pkts = map(PicklablePacket.__call__, pkts)
+
+    if args.ascii:
+        print("Dumping packets:")
+        for p in pkts:
+            if sys.stdout.isatty():
+                #scapy.config.conf.color_theme = themes.DefaultTheme()
+                scapy.config.conf.color_theme = themes.ColorOnBlackTheme()
+            # p.show()
+            print(p.__repr__())
+    else:
+        wrpcap(args.output, pkts)
+
+
+if __name__ == "__main__":
+    gen_pcap()
