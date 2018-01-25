@@ -110,7 +110,53 @@ class PL(object):
     self.logger.error('Unknown action: %s' % action.action)
 
 
+class PL_portfwd(PL):
+  """L2 Port Forwarding
+
+  In the upstream direction the pipeline will receive L2 packets from the
+  downlink port of the SUT and forward them to the uplink port. Meanwhile, it
+  may optionally rewrite the source MAC address in the L2 frame to the MAC
+  address of the uplink port (must be specified by the pipeline config).  The
+  downstream direction is the same, but packets are received from the uplink
+  port and forwarded to the downlink port after an optional MAC rewrite.
+  """
+  def __init__(self, parent, conf):
+    super(PL_portfwd, self).__init__(parent, conf)
+    self.tables = {
+      'tbl'  : 0,
+    }
+
+  def config_switch(self, parser):
+    mod_flow = self.parent.mod_flow
+    ul_port = self.parent.ul_port
+    dl_port = self.parent.dl_port
+
+    actions = []
+    mac = self.conf.mac_swap_downstream
+    if mac:
+      actions = [parser.OFPActionSetField(eth_src=mac)]
+    match = {'in_port': dl_port}
+    mod_flow(match=match, actions=actions, output=ul_port)
+
+    actions = []
+    mac = self.conf.mac_swap_upstream
+    if mac:
+      actions = [parser.OFPActionSetField(eth_src=mac)]
+    match = {'in_port': ul_port}
+    mod_flow(match=match, actions=actions, output=dl_port)
+
+
 class PL_l2fwd(PL):
+  """L2 Packet Forwarding
+
+  Upstream the L2fwd pipeline will receive packets from the downlink
+  port, perform a lookup for the destination MAC address in a static
+  MAC table, and if a match is found the packet will be forwarded to
+  the uplink port or otherwise dropped (or likewise forwarded upstream
+  if the =fakedrop= parameter is set to =true=).  The downstream
+  pipeline is just the other way around, but note that the upstream
+  and downstream pipelines use separate MAC tables.
+  """
 
   def __init__(self, parent, conf):
     super(PL_l2fwd, self).__init__(parent, conf)
@@ -122,14 +168,6 @@ class PL_l2fwd(PL):
     }
 
   def config_switch(self, parser):
-    # Upstream the L2fwd pipeline will receive packets from the
-    # downlink port, perform a lookup for the destination MAC address
-    # in a static MAC table, and if a match is found the packet will
-    # be forwarded to the uplink port or otherwise dropped (or
-    # likewise forwarded upstream if the =fakedrop= parameter is set
-    # to =true=).  The downstream pipeline is just the other way
-    # around, but note that the upstream and downstream pipelines use
-    # separate MAC tables.
     ul_port = self.parent.ul_port
     dl_port = self.parent.dl_port
 
@@ -150,7 +188,6 @@ class PL_l2fwd(PL):
     mod_flow(table, match={'eth_dst': entry.mac}, output=out_port, cmd=cmd)
 
   def do_mod_table(self, args):
-    self.logger.info('asdf %s', args)
     self.mod_table(args.cmd, args.table, args.entry)
 
 
@@ -808,6 +845,25 @@ class Tipsy(app_manager.RyuApp):
     # Delete tunnels of old base-stations
     sw_conf.del_old_ports(self.dp_id)
 
+  def insert_fakedrop_rules(self):
+    if self.pl_conf.get('fakedrop', None) is None:
+      return
+    # Insert default drop actions for the sake of statistics
+    mod_flow = self.mod_flow
+    for table_name in self.pl.tables.iterkeys():
+      if table_name != 'drop':
+        mod_flow(table_name, 0, goto='drop')
+    if not self.pl_conf.fakedrop:
+      mod_flow('drop', 0)
+    elif self.pl.has_tunnels:
+      match = {'in_port': self.ul_port}
+      mod_flow('drop', 1, match=match, output=self.ports['veth-main'])
+      mod_flow('drop', 0, output=self.ul_port)
+    else:
+      # fakedrop == True and not has_tunnels
+      mod_flow('drop', match={'in_port': self.ul_port}, output=self.dl_port)
+      mod_flow('drop', match={'in_port': self.dl_port}, output=self.ul_port)
+
   def configure(self):
     if self.configured:
       return
@@ -828,23 +884,8 @@ class Tipsy(app_manager.RyuApp):
   def configure_1(self):
     self.change_status('configure_1')
     parser = self.dp.ofproto_parser
-    mod_flow = self.mod_flow
 
-    # Insert default drop actions for the sake of statistics
-    for table_name in self.pl.tables.iterkeys():
-      if table_name != 'drop':
-        mod_flow(table_name, 0, goto='drop')
-    if not self.pl_conf.fakedrop:
-      mod_flow('drop', 0)
-    elif self.pl.has_tunnels:
-      match = {'in_port': self.ul_port}
-      mod_flow('drop', 1, match=match, output=self.ports['veth-main'])
-      mod_flow('drop', 0, output=self.ul_port)
-    else:
-      # fakedrop == True and not has_tunnels
-      mod_flow('drop', match={'in_port': self.ul_port}, output=self.dl_port)
-      mod_flow('drop', match={'in_port': self.dl_port}, output=self.ul_port)
-
+    self.insert_fakedrop_rules()
     self.pl.config_switch(parser)
 
     # Finally, send and wait for a barrier
