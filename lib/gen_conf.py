@@ -20,7 +20,10 @@
 import argparse
 import json
 
-import args_from_schema
+try:
+  import args_from_schema
+except ImportError:
+  from . import args_from_schema
 
 __all__ = ["gen_conf"]
 
