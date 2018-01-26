@@ -282,9 +282,8 @@ class TipsyManager(object):
                 jsons = [self.fname_conf]
             else:
                 jsons = [str(f) for f in Path.cwd().glob('*.json')]
-        with open(jsons[0], 'r') as c:
-            self.tipsy_conf = json.load(c, object_hook=conf_load)
-        for conf in jsons[1:]:
+        self.tipsy_conf = conf_load({})
+        for conf in jsons:
             with open(conf, 'r') as cf:
                 tmp = json.load(cf, object_hook=conf_load)
                 self.tipsy_conf.update(tmp)
