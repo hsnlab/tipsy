@@ -74,25 +74,29 @@ class BessUpdater(object):
     def _calc_new_bst_id(self, cur_bst_id, bst_shift):
         return (cur_bst_id + bst_shift) % len(self.conf.bsts)
 
+    def _config_add(self, entry, conf_container, key):
+        con = getattr(self.conf, conf_container)
+        if not any(e for e in con if getattr(e, key) == getattr(entry, key)):
+            con.append(entry)
+
+    def _config_del(self, entry, conf_container, key):
+        con = getattr(self.conf, conf_container)
+        for i, e in enumerate(con):
+            if getattr(e, key) == getattr(entry, key):
+                con.pop(i)
+                break
+
     def _config_add_user(self, user):
-        if not any(u for u in self.conf.users if u.teid == user.teid):
-            self.conf.users.append(user)
+        self._config_add(user, 'users', 'teid')
 
     def _config_del_user(self, user):
-        for i, u in enumerate(self.conf.users):
-            if u.teid == user.teid:
-                self.conf.users.pop(i)
-                break
+        self._config_del(user, 'users', 'teid')
 
     def _config_add_server(self, server):
-        if not any(s for s in self.conf.srvs if s.ip == server.ip):
-            self.conf.srvs.append(server)
+        self._config_add(server, 'srvs', 'ip')
 
     def _config_del_server(self, server):
-        for i, s in enumerate(self.conf.srvs):
-            if s.ip == server.ip:
-                self.conf.srvs.pop(i)
-                break
+        self._config_del(server, 'srvs', 'ip')
 
     def _config_handover(self, user, new_bst):
         for i, usr in enumerate(self.conf.users):
