@@ -1,0 +1,105 @@
+# -*- mode: python; -*-
+
+# TIPSY: Telco pIPeline benchmarking SYstem
+#
+# Copyright (C) 2018 by its authors (See AUTHORS)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+import json
+
+def mac_from_str(s):
+  return ''.join([chr(int(c, 16)) for c in s.split(':')])
+
+class ObjectView(object):
+    def __init__(self, **kwargs):
+      tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
+      self.__dict__.update(**tmp)
+
+    def __repr__(self):
+      return self.__dict__.__repr__()
+
+
+bess_inport = int($inport!'0')
+bess_outport = int($outport!'0')
+bess_workers = int($workers!'1')
+conf_file = $config!'./l2fwd.json'
+
+with open(conf_file, 'r') as f:
+    conv_fn = lambda d: ObjectView(**d)
+    conf = json.load(f, object_hook=conv_fn)
+
+portIn = PMDPort(port_id=bess_inport,
+                 num_inc_q=bess_workers * 2,
+                 num_out_q=bess_workers * 2)
+
+if bess_inport == bess_outport:
+  portOut = portIn
+else:
+  portOut = PMDPort(port_id=bess_outport,
+                    num_inc_q=bess_workers * 2,
+                    num_out_q=bess_workers *2)
+
+for wid in range(0,bess_workers * 2, 2):
+  bess.add_worker(wid, wid)
+  bess.add_worker(wid+1, wid+1)
+
+  # uplink
+  in_u = QueueInc(port=portIn.name, qid=wid)
+  out_u = QueueOut(port=portOut.name, qid=wid)
+  buf_u = Buffer(name='out_buf_%d' % wid)
+  if conf.fakedrop:
+    drop = buf_u
+  else:
+    drop = Sink()
+  mac_table_u = ExactMatch(name='mac_table_u_%d' % wid,
+                           fields=[{'offset': 0, 'num_bytes': 6}])
+  mac_table_u.set_default_gate(gate=0)
+  for i, entry in enumerate(conf.upstream_table, start=1):
+    gat = entry.out_port or i
+    mac_table_u.add(fields=[{'value_bin': mac_from_str(entry.mac)}],
+                    gate=gat)
+    mac_table_u:i -> buf_u
+
+  in_u -> mac_table_u
+  mac_table_u:0 -> drop
+  buf_u -> out_u
+
+  bess.attach_task(in_u.name, wid=wid)
+
+  # downlink
+  in_d = QueueInc(port=portOut.name, qid=wid + 1)
+  out_d = QueueOut(port=portIn.name, qid=wid + 1)
+  buf_d = Buffer(name='out_buf_%d' % int(wid + 1))
+  if conf.fakedrop:
+    drop = buf_d
+  else:
+    drop = Sink()
+  mac_table_d = ExactMatch(name='mac_table_d_%d' % wid,
+                           fields=[{'offset': 0, 'num_bytes': 6}])
+  mac_table_d.set_default_gate(gate=0)
+  for i, entry in enumerate(conf.downstream_table, start=1):
+    gat = entry.out_port or i
+    mac_table_d.add(fields=[{'value_bin': mac_from_str(entry.mac)}],
+                    gate=gat)
+    mac_table_d:i -> buf_d
+
+  in_d -> mac_table_d
+  mac_table_d:0 -> drop
+  buf_d -> out_d
+
+  bess.attach_task(in_d.name, wid=wid + 1)
+
+bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
+bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
