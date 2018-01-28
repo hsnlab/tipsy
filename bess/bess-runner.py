@@ -18,6 +18,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import binascii
 import itertools
 import json
 import os
@@ -67,6 +68,8 @@ class BessUpdater(object):
                     user = [u for u in self.conf.users if u.teid == teid][0]
                     new_bst = self._calc_new_bst_id(user.tun_end, shift)
                     self.handover(user, new_bst)
+                elif task.action == 'mod_table':
+                    self.mod_table(task.cmd, task.table, task.entry)
                 elif task.action in tasks:
                     getattr(self, task.action)(task.args)
             time.sleep(self.runtime_interval)
@@ -104,6 +107,24 @@ class BessUpdater(object):
                 usr.tun_end = new_bst
                 self.conf.users[i] = usr
 
+    def _config_mod_table(self, cmd, table, entry):
+        if 'up' in table:
+            tab = self.conf.upstream_table
+        elif 'down' in table:
+            tab = self.conf.downstream_table
+        else:
+            raise ValueError
+        if cmd == 'add':
+            if not any(e for e in tab if e.mac == entry.mac):
+                tab.append(entry)
+        elif cmd == 'del':
+            for i, e in enumerate(tab):
+                if entry.mac == e.mac:
+                    tab.pop(i)
+                    break
+        else:
+            raise ValueError
+
     def add_user(self, user):
         raise NotImplementedError
 
@@ -119,11 +140,53 @@ class BessUpdater(object):
     def handover(self, user, new_bst):
         raise NotImplementedError
 
+    def mod_table(self, cmd, table, entry):
+        raise NotImplementedError
+
 
 class BessUpdaterDummy(BessUpdater):
     def _run(self):
         while self._running:
             time.sleep(self.runtime_interval)
+
+
+class BessUpdaterL2Fwd(BessUpdater):
+    def __init__(self, conf):
+        super(BessUpdaterL2Fwd, self).__init__(conf)
+
+    def mod_table(self, cmd, table, entry):
+        self._config_mod_table(cmd, table, entry)
+        for wid in range(0, self.workers_num, 2):
+            name = 'mac_table_%s_%d' % (table[0], wid)
+            buf = 'out_buf_%s_%d' % (table[0], wid)
+            if table[0] == 'u':
+                ogate = entry.out_port or len(self.conf.upstream_table) + 1
+            else:
+                ogate = entry.out_port or len(self.conf.downstream_table) + 1
+            try:
+                self.bess.pause_worker(wid)
+                self.bess.pause_worker(wid + 1)
+                if cmd == 'add':
+                    self.bess.run_module_command(name,
+                                                 'add', 'ExactMatchCommandAddArg',
+                                                 {'fields':
+                                                  [{'value_bin':
+                                                    mac_from_str(entry.mac)}],
+                                                  'gate': ogate})
+                    self.bess.connect_modules(name, buf,
+                                              ogate, 0)
+                elif cmd == 'del':
+                    self.bess.run_module_command(name,
+                                                 'delete', 'ExactMatchCommandDeleteArg',
+                                                 {'fields':
+                                                  [{'value_bin':
+                                                    mac_from_str(entry.mac)}]})
+                    self.bess.disconnect_modules(name, ogate + 1)
+                self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid + 1)
+            except BESS.Error:
+                self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid + 1)
 
 
 class BessUpdaterMgw(BessUpdater):
@@ -372,7 +435,8 @@ class BessUpdaterBng(BessUpdater):
 
 class ObjectView(object):
     def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+        tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
+        self.__dict__.update(**tmp)
 
     def __repr__(self):
         return self.__dict__.__repr__()
@@ -380,6 +444,10 @@ class ObjectView(object):
 
 def aton(ip):
     return socket.inet_aton(ip)
+
+
+def mac_from_str(s):
+    return binascii.unhexlify(s.replace(':', ''))
 
 
 def signal_handler(signum, frame):

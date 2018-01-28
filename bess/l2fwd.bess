@@ -18,9 +18,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import json
+import binascii
 
 def mac_from_str(s):
-  return ''.join([chr(int(c, 16)) for c in s.split(':')])
+  return binascii.unhexlify(s.replace(':', ''))
 
 class ObjectView(object):
     def __init__(self, **kwargs):
@@ -58,7 +59,7 @@ for wid in range(0,bess_workers * 2, 2):
   # uplink
   in_u = QueueInc(port=portIn.name, qid=wid)
   out_u = QueueOut(port=portOut.name, qid=wid)
-  buf_u = Buffer(name='out_buf_%d' % wid)
+  buf_u = Buffer(name='out_buf_u_%d' % wid)
   if conf.fakedrop:
     drop = buf_u
   else:
@@ -81,7 +82,7 @@ for wid in range(0,bess_workers * 2, 2):
   # downlink
   in_d = QueueInc(port=portOut.name, qid=wid + 1)
   out_d = QueueOut(port=portIn.name, qid=wid + 1)
-  buf_d = Buffer(name='out_buf_%d' % int(wid + 1))
+  buf_d = Buffer(name='out_buf_d_%d' % wid)
   if conf.fakedrop:
     drop = buf_d
   else:
