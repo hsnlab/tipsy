@@ -91,53 +91,6 @@ class TipsyConfig(dict):
         return ret_list
 
 
-class TipsyStateManager(object):
-    def __init__(self, state_json):
-        self.state_json = state_json
-        self.action_reqs = {'init': None,
-                            'validate': None,
-                            'config': ['validate'],
-                            'traffic_gen': ['config'],
-                            'run': ['traffic_gen'],
-                            'eval': ['run'],
-                            'visualize': ['eval'],
-                            'make': None,
-                            'clean': None}
-        self._read_states()
-
-    def get_state(self, state):
-        return self.states[state]
-
-    def set_state(self, state, value):
-        self.states[state] = value
-        self._write_states()
-
-    def reset_states(self):
-        actions = ['init', 'validate', 'config', 'traffic_gen',
-                   'run', 'eval', 'visualize', 'make', 'clean']
-        self.states = {a: False for a in actions}
-        self._write_states()
-
-    def _read_states(self):
-        try:
-            with open(self.state_json, 'r') as f:
-                self.states = json.load(f)
-        except:
-            self.reset_states()
-
-    def _write_states(self):
-        json_dump(self.states, self.state_json)
-
-    def is_state_ready(self, state):
-        if self.action_reqs[state]:
-            return all(self.states[s] for s in self.action_reqs[state])
-        else:
-            return True
-
-    def get_reqs(self, state):
-        return self.action_reqs[state]
-
-
 class SUTConnector(object):
     def __init__(self, sut_conf):
         self.sut_conf = sut_conf
@@ -210,35 +163,7 @@ class TipsyManager(object):
         self.fname_pl = 'pipeline.json'
         self.fname_pcap = 'trace.pcap'
         self.fname_conf = '.tipsyconf'
-        self.fname_st = '.tipsystate'
-        self.state_mngr = TipsyStateManager(self.fname_st)
 
-    def execute_action_reqs(self, action):
-        if self.state_mngr.is_state_ready(action):
-            pass
-        else:
-            reqs = self.state_mngr.get_reqs(action)
-            for req in reqs:
-                getattr(self, "do_%s" % req)()
-
-    def end_action(self, action):
-        self.state_mngr.set_state(action, True)
-
-    def _action(action_func):
-        def wrapper(self, *args, **kwargs):
-            action = action_func.__name__.replace('do_', '')
-            self.execute_action_reqs(action)
-            if not self.state_mngr.get_state(action):
-                action_func(self, *args, **kwargs)
-            self.end_action(action)
-        return wrapper
-
-    def _meta_action(action_func):
-        def wrapper(self, *args, **kwargs):
-            action_func(self, *args, **kwargs)
-        return wrapper
-
-    @_action
     def do_init(self):
         raise NotImplementedError
 
@@ -254,7 +179,6 @@ class TipsyManager(object):
                   'validate.py -s schema/pipeline-mgw.json %s' % fname)
             exit(-1)
 
-    @_action
     def do_validate(self, cli_args=None):
         # TODO: set cli_args in the caller
 
@@ -290,7 +214,6 @@ class TipsyManager(object):
         tmp_file = self.tipsy_dir.joinpath(self.fname_conf)
         json_dump(self.tipsy_conf, tmp_file)
 
-    @_action
     def do_config(self):
         self.init_tipsyconfig()
         self.tipsy_conf.gen_configs()
@@ -306,7 +229,6 @@ class TipsyManager(object):
             json_dump(config, tmp_file)
             json_dump(gen_conf(config), out_conf)
 
-    @_action
     def do_traffic_gen(self):
         meas_dir = Path('measurements')
         for out_dir in [f for f in meas_dir.iterdir() if f.is_dir()]:
@@ -337,7 +259,6 @@ class TipsyManager(object):
         test_runner = tester(self.tipsy_conf)
         test_runner.run(dir)
 
-    @_action
     def do_run(self):
         self.init_tipsyconfig()
         meas_dir = Path('measurements')
@@ -353,24 +274,19 @@ class TipsyManager(object):
                 self.run_tester(out_dir)
                 sut_con.stop_sut()
 
-    @_action
     def do_evaluate(self):
         raise NotImplementedError
 
-    @_action
     def do_visualize(self):
         raise NotImplementedError
 
-    @_meta_action
     def do_make(self):
         for cmd in ('validate', 'config', 'traffic_gen',
                     'run', 'evaluate', 'visualize'):
             getattr(self, 'do_%s' % cmd)()
 
-    @_meta_action
     def do_clean(self):
         os.remove(self.fname_conf)
-        os.remove(self.fname_st)
         import shutil
         shutil.rmtree('measurements')
         # TODO
