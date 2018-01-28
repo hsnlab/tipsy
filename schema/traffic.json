@@ -5,14 +5,15 @@
     "json": {
       "$ref": "definitions.json#/readable-file",
       "short_opt": "-j",
-      "default": null,
+      "default": "",
       "description":
         "Input config file, command line arguments override settings"
     },
     "conf": {
       "$ref": "definitions.json#/readable-file",
       "short_opt": "-c",
-      "description": "Measurement setup (in JSON)"
+      "description": "Measurement setup (in JSON)",
+      "default": "pipeline.json"
     },
     "output": {
       "$ref": "definitions.json#/writable-file",

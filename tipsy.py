@@ -162,14 +162,15 @@ class TipsyManager(object):
         self.fname_pl_in = 'pipeline-in.json'
         self.fname_pl = 'pipeline.json'
         self.fname_pcap = 'traffic.pcap'
-        self.fname_conf = '.tipsyconf'
+        self.fname_conf = '.tipsy.json'
 
     def do_init(self):
         raise NotImplementedError
 
-    def validate_json_conf(self, fname):
-        with open(fname) as f:
-            data = json.load(f)
+    def validate_json_conf(self, fname, data=None):
+        if data is None:
+            with open(fname) as f:
+                data = json.load(f)
         try:
             validate.validate_data(data, schema_name='pipeline')
         except Exception as e:
@@ -197,6 +198,19 @@ class TipsyManager(object):
             for fname in glob.glob(p):
                 self.validate_json_conf(fname)
 
+    def validate_main(self):
+        # We cannot fully validate a configuration until we generate
+        # the exact config with the "scale" property.  But some errors
+        # can be catched if allow a property to be either its original
+        # type or an array of the type.
+        try:
+            validate.validate_data(self.tipsy_conf,
+                                   schema_name='main',
+                                   extension='property_array')
+        except Exception as e:
+            print("Validation failed for: %s\n%s" % (self.fname_conf, e))
+            exit(-1)
+
     def init_tipsyconfig(self):
         def conf_load(d): return TipsyConfig(**d)
         try:
@@ -211,17 +225,39 @@ class TipsyManager(object):
             with open(conf, 'r') as cf:
                 tmp = json.load(cf, object_hook=conf_load)
                 self.tipsy_conf.update(tmp)
+        self.validate_main()
         tmp_file = self.tipsy_dir.joinpath(self.fname_conf)
         json_dump(self.tipsy_conf, tmp_file)
+
+    def create_file_from_template(self, src, dst, replacements):
+        content = src.read_text()
+        for old, new in replacements.items():
+            content = content.replace('@%s@' % old, new)
+        dst.write_text(content)
 
     def write_per_dir_makefile(self, out_dir):
         src = Path(__file__).parent / 'lib' / 'per-dir-makefile.in'
         dst = out_dir / 'Makefile'
         replacements = {'tipsy': str(Path(__file__).resolve())}
-        content = src.read_text()
-        for old, new in replacements.items():
-            content = content.replace('@%s@' % old, new)
-        dst.write_text(content)
+        self.create_file_from_template(src, dst, replacements)
+
+    def write_main_makefile(self, out_dir):
+        src = Path(__file__).parent / 'lib' / 'main-makefile.in'
+        dst = out_dir / 'Makefile'
+        replacements = {'tipsy': str(Path(__file__).resolve())}
+        self.create_file_from_template(src, dst, replacements)
+
+    def json_validate_and_dump(self, data, outfile, schema_name):
+        # Treat the 'pipeline' schema specially, because the errors of
+        # the general check is not very helpful.
+        if schema_name == 'pipeline':
+            schema_name = 'pipeline-%s' % data.get('name', '')
+        try:
+            validate.validate_data(data, schema_name=schema_name)
+        except Exception as e:
+            print("Failed validating %s:\n%s" % (outfile, e))
+            exit(-1)
+        json_dump(data, outfile)
 
     def do_config(self):
         self.init_tipsyconfig()
@@ -230,14 +266,14 @@ class TipsyManager(object):
             os.mkdir('measurements')
         except FileExistsError:
             pass
+        self.write_main_makefile(Path.cwd())
+        save = self.json_validate_and_dump
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
             out_dir = Path('measurements', '%03d' % i)
             out_dir.mkdir()
-            pl_conf = out_dir.joinpath(self.fname_pl)
-            pl_in_conf = out_dir.joinpath(self.fname_pl_in)
-            json_dump(config['pipeline'], pl_in_conf)
-            json_dump(gen_conf(config['pipeline']), pl_conf)
-            json_dump(config['traffic'], out_dir / 'traffic.json')
+            save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
+            save(config['traffic'], out_dir / 'traffic.json', 'traffic')
+            json_dump(gen_conf(config['pipeline']), out_dir / self.fname_pl)
             self.write_per_dir_makefile(out_dir)
 
     def do_traffic_gen(self):

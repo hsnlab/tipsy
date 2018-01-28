@@ -7,6 +7,12 @@
     "type": "integer",
     "minimum": 0
   },
+  "readable-file": {
+    "type": "string"
+  },
+  "writable-file": {
+    "type": "string"
+  },
   "ip-address": {
     "allOf": [
       {"type": "string"},

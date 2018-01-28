@@ -52,7 +52,7 @@ schema_dir = path.join(path.abspath(path.dirname(__file__)),
 # Background info:
 # https://spacetelescope.github.io/understanding-json-schema/index.html
 
-# This is a slight modifications of jsonschema._validators.oneOf_draft4()
+# This is a modification of jsonschema._validators.oneOf_draft4()
 #
 # It resets the defaults after backtracking
 def oneOf_with_default (validator, oneOf, instance, schema):
@@ -96,21 +96,37 @@ def extend_with_default (validator_class):
       ):
         yield error
 
-  #validator_class.VALIDATORS['oneOf'] = oneOf_with_default
-
   return jsonschema.validators.extend(
     validator_class, {"properties" : set_defaults,
                       "oneOf": oneOf_with_default},
   )
 
+def extend_with_property_array (validator_class):
+  orig = validator_class.VALIDATORS["properties"]
 
-def validate_data (data, schema=None, schema_name=None):
+  def allow_property_array(validator, properties, instance, schema):
+    for property, subschema in properties.items():
+      if type(instance.get(property)) == list and subschema.get('type') != 'array':
+        new_schema = {"type": "array", "items": deepcopy(subschema)}
+        subschema.clear()
+        subschema.update(new_schema)
+
+    for error in orig(validator, properties, instance, schema):
+      yield error
+
+  return jsonschema.validators.extend(
+    validator_class, {"properties": allow_property_array})
+
+def validate_data (data, schema=None, schema_name=None, extension='default'):
   if schema_name:
     with open(path.join(schema_dir, schema_name + '.json')) as f:
       schema = json.load(f)
 
-  validator = extend_with_default(jsonschema.Draft4Validator)
-  #validator = jsonschema.Draft4Validator
+  if extension is not None:
+    fn = globals()['extend_with_%s' % extension]
+    validator = fn(jsonschema.Draft4Validator)
+  else:
+    validator = jsonschema.Draft4Validator
   resolver = jsonschema.RefResolver('file://' + schema_dir + '/', schema)
   validator(schema, resolver=resolver).validate(data)
 
