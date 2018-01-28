@@ -19,6 +19,7 @@
 
 import argparse
 import glob
+import inspect
 import itertools
 import json
 import os
@@ -36,7 +37,7 @@ def json_dump(obj, target):
 target is either a filename, a PosixPath, or a file-like object.
 """
     def dump_to_file(obj, outfile):
-        json.dump(obj, outfile, indent=4)
+        json.dump(obj, outfile, indent=4, sort_keys=True)
         outfile.write("\n")
 
     if type(target) == PosixPath:
@@ -164,7 +165,14 @@ class TipsyManager(object):
         self.fname_conf = '.tipsy.json'
 
     def do_init(self):
-        raise NotImplementedError
+        fname = 'main.json'
+        data = {'benchmark': {'pipeline': {'name': self.args.pipeline}}}
+        validate.validate_data(data, schema_name='main')
+        json_dump(data, fname)
+        print(inspect.cleandoc("""
+          The sample config file ({fname}) has been created.
+          Edit it, then run: "{prg} config"
+        """.format(fname=fname, prg=sys.argv[0])))
 
     def validate_json_conf(self, fname, data=None):
         if data is None:
@@ -338,15 +346,24 @@ class TipsyManager(object):
         # TODO
 
 
-##################
+def list_pipelines():
+    schema_dir = Path(__file__).resolve().parent / 'schema'
+    pl = []
+    for fname in schema_dir.glob('pipeline-*.json'):
+        pl.append(fname.stem.replace('pipeline-', ''))
+    return sorted(pl)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='TIPSY: Telco pIPeline benchmarking SYstem')
     subparsers = parser.add_subparsers(dest='command')
     subparsers.required = True
     init = subparsers.add_parser('init',
-                                 help='Init tipsy in current directory')
-    init.add_argument('configs', type=str,
+        help='Init tipsy in current directory with a sample configuration')
+    init.formatter_class = argparse.ArgumentDefaultsHelpFormatter
+    init.add_argument('pipeline', type=str, nargs='?',
+                      choices=list_pipelines(),
                       help='Pipeline name', default='mgw')
     vali = subparsers.add_parser('validate', help='Validate configurations')
     vali.add_argument('configs', type=argparse.FileType('r'),

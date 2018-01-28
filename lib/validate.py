@@ -130,6 +130,7 @@ def validate_data (data, schema=None, schema_name=None, extension='default'):
   resolver = jsonschema.RefResolver('file://' + schema_dir + '/', schema)
   validator(schema, resolver=resolver).validate(data)
 
+
 if __name__ == "__main__":
   pipeline_json = path.join(schema_dir, 'pipeline.json')
   parser = argparse.ArgumentParser(
