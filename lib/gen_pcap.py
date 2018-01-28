@@ -137,8 +137,10 @@ def _gen_ul_pkt_vmgw(pkt_size, conf):
 
 
 def _gen_ul_pkt_bng(pkt_size, conf):
+    server = random.choice(conf.srvs)
+    user = random.choice(conf.users)
     proto = random.choice([TCP(), UDP()])
-    cpe = conf.cpe[user.tun_end_id]
+    cpe = conf.cpe[user.tun_end]
     p = (
         Ether(src=cpe.mac, dst=conf.gw.mac, type=0x0800) /
         IP(src=cpe.ip, dst=conf.gw.ip) /
