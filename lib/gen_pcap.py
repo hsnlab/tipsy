@@ -191,7 +191,7 @@ def parse_args(defaults=None):
     else:
         required = True
     parser = argparse.ArgumentParser()
-    args_from_schema.add_args(parser, 'gen_pcap')
+    args_from_schema.add_args(parser, 'traffic')
     parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
     pa_args = None
     if defaults:

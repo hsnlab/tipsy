@@ -218,23 +218,17 @@ class TipsyManager(object):
             print("Validation failed for: %s\n%s" % (self.fname_conf, e))
             exit(-1)
 
-    def init_tipsyconfig(self):
+    def init_tipsyconfig(self, config_files=[]):
         def conf_load(d): return TipsyConfig(**d)
-        try:
-            jsons = self.args.configs
-        except:
-            if Path(self.fname_conf).exists():
-                jsons = [self.fname_conf]
-            else:
-                jsons = [str(f) for f in Path.cwd().glob('*.json')]
+        if not config_files:
+            config_files = [str(f) for f in sorted(Path.cwd().glob('*.json'))]
         self.tipsy_conf = conf_load({})
-        for conf in jsons:
-            with open(conf, 'r') as cf:
+        for config_file in config_files:
+            with open(config_file, 'r') as cf:
                 tmp = json.load(cf, object_hook=conf_load)
                 self.tipsy_conf.update(tmp)
         self.validate_main()
-        tmp_file = self.tipsy_dir.joinpath(self.fname_conf)
-        json_dump(self.tipsy_conf, tmp_file)
+        json_dump(self.tipsy_conf, self.fname_conf)
 
     def create_file_from_template(self, src, dst, replacements):
         content = src.read_text()
@@ -267,7 +261,7 @@ class TipsyManager(object):
         json_dump(data, outfile)
 
     def do_config(self):
-        self.init_tipsyconfig()
+        self.init_tipsyconfig(self.args.configs)
         self.tipsy_conf.gen_configs()
         try:
             os.mkdir('measurements')
@@ -314,7 +308,7 @@ class TipsyManager(object):
         test_runner.run(dir)
 
     def do_run(self):
-        self.init_tipsyconfig()
+        self.init_tipsyconfig([self.fname_conf])
         meas_dir = Path('measurements')
         if type(self.tipsy_conf.sut.type) is not list:
             self.tipsy_conf.sut.type = [self.tipsy_conf.sut.type]
