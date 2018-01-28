@@ -51,17 +51,16 @@ target is either a filename, a PosixPath, or a file-like object.
 
 class TipsyConfig(dict):
     def __init__(self, *args, **kwargs):
-        tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
-        self.update(*args, **tmp)
+        self.update(*args, **kwargs)
 
     def __getattr__(self, name):
-        return self[name]
+        return self[name.replace('-', '_')]
 
     def __setattr__(self, name, value):
-        self[name] = value
+        self[name.replace('_', '-')] = value
 
     def __delattr__(self, name):
-        del self[name]
+        del self[name.replace('-', '_')]
 
     def gen_configs(self):
         assert self.benchmark
