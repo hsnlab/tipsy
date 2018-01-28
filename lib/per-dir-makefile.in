@@ -1,0 +1,7 @@
+tipsy=@tipsy@
+tipsy_lib=$(dir $(tipsy))lib
+gen_pcap=$(tipsy_lib)/gen_pcap.py
+
+.DELETE_ON_ERROR:
+traffic.pcap: traffic.json pipeline.json
+	$(gen_pcap) --json traffic.json --conf pipeline.json --output $@

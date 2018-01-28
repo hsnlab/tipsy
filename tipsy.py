@@ -69,7 +69,7 @@ class TipsyConfig(dict):
         scale = getattr(self, '_scale_%s' % self.benchmark.scale)
         benchmarks = scale(self.benchmark.pipeline)
         traffics = self._scale_outer(self.traffic)
-        self.configs = [{**l[0], **l[1]}
+        self.configs = [{'pipeline': l[0], 'traffic': l[1]}
                         for l in itertools.product(benchmarks, traffics)]
 
     def _scale_none(self, conf_dict):
@@ -145,7 +145,7 @@ class MoongenRunner(TesterRunner):
         self.runtime = tipsy_conf.sut.test_time
 
     def run(self, out_dir):
-        pcap = Path(dir).joinpath('trace.pcap').resolve()
+        pcap = Path(dir).joinpath('traffic.pcap').resolve()
         pfix = str(Path(dir).joinpath('mg').resolve())
         hfile = Path(dir).joinpath('%s.histogram.csv' % pfix).resolve()
         params = (self.mg_dir, self.script, self.txdev, self.rxdev,
@@ -161,7 +161,7 @@ class TipsyManager(object):
         self.args = args
         self.fname_pl_in = 'pipeline-in.json'
         self.fname_pl = 'pipeline.json'
-        self.fname_pcap = 'trace.pcap'
+        self.fname_pcap = 'traffic.pcap'
         self.fname_conf = '.tipsyconf'
 
     def do_init(self):
@@ -214,6 +214,15 @@ class TipsyManager(object):
         tmp_file = self.tipsy_dir.joinpath(self.fname_conf)
         json_dump(self.tipsy_conf, tmp_file)
 
+    def write_per_dir_makefile(self, out_dir):
+        src = Path(__file__).parent / 'lib' / 'per-dir-makefile.in'
+        dst = out_dir / 'Makefile'
+        replacements = {'tipsy': str(Path(__file__).resolve())}
+        content = src.read_text()
+        for old, new in replacements.items():
+            content = content.replace('@%s@' % old, new)
+        dst.write_text(content)
+
     def do_config(self):
         self.init_tipsyconfig()
         self.tipsy_conf.gen_configs()
@@ -224,10 +233,12 @@ class TipsyManager(object):
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
             out_dir = Path('measurements', '%03d' % i)
             out_dir.mkdir()
-            out_conf = out_dir.joinpath(self.fname_pl)
-            tmp_file = out_dir.joinpath(self.fname_pl_in)
-            json_dump(config, tmp_file)
-            json_dump(gen_conf(config), out_conf)
+            pl_conf = out_dir.joinpath(self.fname_pl)
+            pl_in_conf = out_dir.joinpath(self.fname_pl_in)
+            json_dump(config['pipeline'], pl_in_conf)
+            json_dump(gen_conf(config['pipeline']), pl_conf)
+            json_dump(config['traffic'], out_dir / 'traffic.json')
+            self.write_per_dir_makefile(out_dir)
 
     def do_traffic_gen(self):
         meas_dir = Path('measurements')

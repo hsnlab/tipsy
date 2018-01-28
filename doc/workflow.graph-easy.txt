@@ -37,13 +37,14 @@ node.cmd { border: dotted; }
 [ryu]       {class: cmd; label: ryu/tipsy}
 [bess]      {class: cmd; label: bess/update-agent}
 
-[main]{label: main.json}
--- main/pipeline --> [gen-conf]
+[main]{label: main.json} --> [gen-conf]
 
-[gen-conf]
---> [pipeline.json]
---  main/traffic --> [gen-pcap]
---> [trace.pcap]
+[gen-conf] --> [pipeline.json]
+[gen-conf] --> [pipeline-in.json]
+[gen-conf] --> [traffic.json]
+
+[traffic.json], [pipeline.json] --> [gen-pcap]
+--> [traffic.pcap]
 --> [meas]
 
 [pipeline.json] --> [ryu]
