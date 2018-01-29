@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # TIPSY: Telco pIPeline benchmarking SYstem
 #
@@ -18,10 +18,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import time
-import BaseHTTPServer
-import thread
+from threading import Thread
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class MyHandler(BaseHTTPRequestHandler):
   def do_GET(self):
     if self.path != self.w_url:
       self.send_response(404)
@@ -29,15 +29,14 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.send_response(200)
     self.send_header("Content-type", "application/json")
     self.end_headers()
-    self.wfile.write("\"%s\"\n" % self.path)
+    self.wfile.write(bytes("\"%s\"\n" % self.path, 'utf-8'))
 
     def shutdown(server):
       server.shutdown()
-    thread.start_new_thread(shutdown, (self.httpd,))
+    Thread(target=shutdown, args=(self.httpd,)).start()
 
 def wait_for_request(host_name, port_number, url):
-  server_class = BaseHTTPServer.HTTPServer
-  httpd = server_class((host_name, port_number), MyHandler)
+  httpd = HTTPServer((host_name, port_number), MyHandler)
   httpd.RequestHandlerClass.w_url = url
   httpd.RequestHandlerClass.httpd = httpd
   try:
