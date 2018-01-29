@@ -480,8 +480,9 @@ if __name__ == '__main__':
         print(('Error loading config from %s' % args.conf))
         raise
 
-    bess_start_cmd = "%s daemon start -- run file ./%s.bess \"config='%s'\"" % (
-        bessctl, config.name, args.conf.name)
+    pipeline_bess = str(Path().cwd().parent / '%s.bess' % config.name)
+    bess_start_cmd = "%s daemon start -- run file %s \"config='%s'\"" % (
+        bessctl, pipeline_bess, args.conf.name)
     print(bess_start_cmd)
     ret_val = subprocess.call(bess_start_cmd, shell=True)
     if not ret_val:

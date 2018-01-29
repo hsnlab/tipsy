@@ -34,6 +34,21 @@
           "type": "string",
           "enum": ["ovs", "bess"],
           "default": "ovs"
+        },
+        "hostname": {
+          "type": "string",
+          "default": "sut.local",
+          "description": "Hostname that can be used to ssh into SUT without a password as 'ssh hostname'.  Edit ~/.ssh/config for more complicated scenarios.  See man page: ssh_config (5)"
+        },
+        "tipsy-dir": {
+          "type": "string",
+          "default": "/opt/tipsy",
+          "description": "A directory on SUT in which TIPSY is installed"
+        },
+        "bess-dir": {
+          "type": "string",
+          "default": "/opt/bess",
+          "description": "A directory on SUT in which bess is installed"
         }
       },
       "default": {}
@@ -41,7 +56,7 @@
     "tester": {
       "type": "object",
       "properties": {
-        "generator": {
+        "type": {
           "type": "string",
           "enum": ["moongen"],
           "default": "moongen"
@@ -50,6 +65,21 @@
           "$ref": "definitions.json#/non-negative-integer",
           "description": "length of the measurement [s]",
           "default": 30
+        },
+        "uplink_port": {
+          "type": "string",
+          "default": "eth1",
+          "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
+        },
+        "downlink_port": {
+          "type": "string",
+          "default": "0000:0b:00.0",
+          "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0')  or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
+        },
+        "moongen-cmd": {
+          "type": "string",
+          "default": "/opt/MoonGen/build/MoonGen",
+          "description": "Absolute path of the MoonGen executable"
         }
       },
       "default": {}
