@@ -60,6 +60,7 @@ class BessUpdater(object):
         actions = ('add', 'del')
         targets = ('user', 'server')
         tasks = ['_'.join(e) for e in itertools.product(actions, targets)]
+        table_actions = ('mod_table', 'mod_l3_table', 'mod_group_table')
         while self._running:
             for task in self.conf.run_time:
                 if task.action == 'handover':
@@ -68,8 +69,9 @@ class BessUpdater(object):
                     user = [u for u in self.conf.users if u.teid == teid][0]
                     new_bst = self._calc_new_bst_id(user.tun_end, shift)
                     self.handover(user, new_bst)
-                elif task.action == 'mod_table':
-                    self.mod_table(task.cmd, task.table, task.entry)
+                elif task.action in table_actions:
+                    self.mod_table(task.action, task.cmd,
+                                   task.table, task.entry)
                 elif task.action in tasks:
                     getattr(self, task.action)(task.args)
             time.sleep(self.runtime_interval)
@@ -107,19 +109,24 @@ class BessUpdater(object):
                 usr.tun_end = new_bst
                 self.conf.users[i] = usr
 
-    def _config_mod_table(self, cmd, table, entry):
-        if 'up' in table:
-            tab = self.conf.upstream_table
-        elif 'down' in table:
-            tab = self.conf.downstream_table
-        else:
+    def _config_mod_table(self, action, cmd, table, entry):
+        key = 'mac'
+        if 'l3' in action:
+            key = 'ip'
+        if 'group' in action:
+            key = 'dmac'
+        try:
+            params = (table, action.replace('mod_',''))
+            tab = getattr(self.conf, '%s_%s' % params)
+        except:
             raise ValueError
         if cmd == 'add':
-            if not any(e for e in tab if e.mac == entry.mac):
+            if not any(e for e in tab if
+                       getattr(e, key) == getattr(entry, key)):
                 tab.append(entry)
         elif cmd == 'del':
             for i, e in enumerate(tab):
-                if entry.mac == e.mac:
+                if getattr(e, key) == getattr(entry, key):
                     tab.pop(i)
                     break
         else:
@@ -140,7 +147,7 @@ class BessUpdater(object):
     def handover(self, user, new_bst):
         raise NotImplementedError
 
-    def mod_table(self, cmd, table, entry):
+    def mod_table(self, action, cmd, table, entry):
         raise NotImplementedError
 
 
@@ -154,8 +161,8 @@ class BessUpdaterL2Fwd(BessUpdater):
     def __init__(self, conf):
         super(BessUpdaterL2Fwd, self).__init__(conf)
 
-    def mod_table(self, cmd, table, entry):
-        self._config_mod_table(cmd, table, entry)
+    def mod_table(self, action, cmd, table, entry):
+        self._config_mod_table(action, cmd, table, entry)
         for wid in range(0, self.workers_num, 2):
             name = 'mac_table_%s_%d' % (table[0], wid)
             buf = 'out_buf_%s_%d' % (table[0], wid)
