@@ -487,7 +487,7 @@ if __name__ == '__main__':
         print(('Error loading config from %s' % args.conf))
         raise
 
-    pipeline_bess = str(Path().cwd().parent / '%s.bess' % config.name)
+    pipeline_bess = str(Path(__file__).parent / '%s.bess' % config.name)
     bess_start_cmd = "%s daemon start -- run file %s \"config='%s'\"" % (
         bessctl, pipeline_bess, args.conf.name)
     print(bess_start_cmd)
