@@ -1,0 +1,158 @@
+# -*- mode: python; -*-
+
+# TIPSY: Telco pIPeline benchmarking SYstem
+#
+# Copyright (C) 2018 by its authors (See AUTHORS)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+import binascii
+import json
+import re
+import struct
+
+def mac_from_str(s):
+  return binascii.unhexlify(s.replace(':', ''))
+
+def mac_int_from_str(s):
+  return int("0x%s" % ''.join(s.split(':')), 16)
+
+class ObjectView(object):
+    def __init__(self, **kwargs):
+      tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
+      self.__dict__.update(**tmp)
+
+    def __repr__(self):
+      return self.__dict__.__repr__()
+
+
+bess_inport = int($inport!'0')
+bess_outport = int($outport!'0')
+bess_workers = int($workers!'1')
+conf_file = $config!'./l2fwd.json'
+
+with open(conf_file, 'r') as f:
+    conv_fn = lambda d: ObjectView(**d)
+    conf = json.load(f, object_hook=conv_fn)
+
+portIn = PMDPort(port_id=bess_inport,
+                 num_inc_q=bess_workers * 2,
+                 num_out_q=bess_workers * 2)
+
+if bess_inport == bess_outport:
+  portOut = portIn
+else:
+  portOut = PMDPort(port_id=bess_outport,
+                    num_inc_q=bess_workers * 2,
+                    num_out_q=bess_workers *2)
+
+for wid in range(0,bess_workers * 2, 2):
+  bess.add_worker(wid, wid)
+  bess.add_worker(wid+1, wid+1)
+
+  # uplink
+  in_u = QueueInc(port=portIn.name, qid=wid)
+  out_u = QueueOut(port=portOut.name, qid=wid)
+  buf_u = Buffer(name='out_buf_u_%d' % wid)
+  in_d = QueueInc(port=portOut.name, qid=wid + 1)
+  out_d = QueueOut(port=portIn.name, qid=wid + 1)
+  buf_d = Buffer(name='out_buf_d_%d' % wid)
+  if conf.fakedrop:
+    drop_u = buf_u
+    drop_d = buf_d
+  else:
+    drop_u = Sink()
+    drop_d = Sink()
+
+  # uplink
+  umac = conf.sut.ul_port_mac
+  mac_table_u = ExactMatch(name='mac_table_u_%d' % wid,
+                         fields=[{'offset': 0, 'num_bytes': 6}])
+  mac_table_u.set_default_gate(gate=0)
+  mac_table_u.add(fields=[{'value_bin': mac_from_str(umac)}],
+                gate=1)
+  arp_check_u = ExactMatch(name='arp_check_u_%d' % wid,
+                         fields=[{'offset': 12, 'num_bytes': 2}])
+  arp_check_u.add(fields=[{'value_bin': struct.pack("!H", 0x0806)}], gate=0)  # ARP
+  arp_check_u.add(fields=[{'value_bin': struct.pack("!H", 0x0800)}], gate=1)  # IPv4
+  arp_check_u.set_default_gate(gate=1)
+  uttl_u = UpdateTTL(name='update_ttl_u_%d' % wid)
+  update_s_mac_u = Update(name='u_smac_u_%d' % wid,
+                          fields=[{'offset': 6, 'size': 6,
+                                   'value': mac_int_from_str(umac)}])
+  l3fib_u = IPLookup(name='l3fib_u_%d' % wid)
+  l3fib_u.add(prefix='0.0.0.0', prefix_len=0, gate=0)
+  for entry in conf.upstream_l3_table:
+    gat = entry.nhop + 1
+    ip = re.sub(r'\.[^.]+$', '.0', entry.ip)
+    l3fib_u.add(prefix=ip, prefix_len=24, gate=gat)
+  for i, entry in enumerate(conf.upstream_group_table, start=1):
+    update_d_mac_u = Update(name='u_dmac_u_%d_%d' % (i, wid),
+                          fields=[{'offset': 0, 'size': 6,
+                                   'value': mac_int_from_str(entry.dmac)}])
+    l3fib_u:i -> update_d_mac_u -> IPChecksum() -> buf_u
+
+  buf_u -> out_u
+  in_u -> mac_table_u
+  mac_table_u:0 -> drop_u
+  mac_table_u:1 -> arp_check_u
+  arp_check_u:0 -> drop_u
+  arp_check_u:1 -> uttl_u
+  uttl_u -> update_s_mac_u
+  update_s_mac_u -> l3fib_u
+  l3fib_u:0 -> drop_u
+
+  # downlink
+  dmac = conf.sut.dl_port_mac
+  mac_table_d = ExactMatch(name='mac_table_d_%d' % wid,
+                         fields=[{'offset': 0, 'num_bytes': 6}])
+  mac_table_d.set_default_gate(gate=0)
+  mac_table_d.add(fields=[{'value_bin': mac_from_str(dmac)}],
+                  gate=1)
+  arp_check_d = ExactMatch(name='arp_check_d_%d' % wid,
+                         fields=[{'offset': 12, 'num_bytes': 2}])
+  arp_check_d.add(fields=[{'value_bin': struct.pack("!H", 0x0806)}], gate=0)  # ARP
+  arp_check_d.add(fields=[{'value_bin': struct.pack("!H", 0x0800)}], gate=1)  # IPv4
+  arp_check_d.set_default_gate(gate=1)
+  uttl_d = UpdateTTL(name='update_ttl_d_%d' % wid)
+  update_s_mac_d = Update(name='u_smac_d_%d' % wid,
+                          fields=[{'offset': 6, 'size': 6,
+                                   'value': mac_int_from_str(dmac)}])
+  l3fib_d = IPLookup(name='l3fib_d_%d' % wid)
+  l3fib_d.add(prefix='0.0.0.0', prefix_len=0, gate=0)
+  for entry in conf.downstream_l3_table:
+    gat = entry.nhop + 1
+    ip = re.sub(r'\.[^.]+$', '.0', entry.ip)
+    l3fib_d.add(prefix=ip, prefix_len=24, gate=gat)
+  for i, entry in enumerate(conf.downstream_group_table, start=1):
+    update_d_mac_d = Update(name='u_dmac_d_%d_%d' % (i, wid),
+                          fields=[{'offset': 0, 'size': 6,
+                                   'value': mac_int_from_str(entry.dmac)}])
+    l3fib_d:i -> update_d_mac_d -> IPChecksum() -> buf_d
+
+  buf_d -> out_d
+  in_d -> mac_table_d
+  mac_table_d:0 -> drop_d
+  mac_table_d:1 -> arp_check_d
+  arp_check_d:0 -> drop_d
+  arp_check_d:1 -> uttl_d
+  uttl_d -> update_s_mac_d
+  update_s_mac_d -> l3fib_d
+  l3fib_d:0 -> drop_d
+
+  bess.attach_task(in_u.name, wid=wid)
+  bess.attach_task(in_d.name, wid=wid + 1)
+
+bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
+bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
