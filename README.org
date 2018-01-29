@@ -274,26 +274,29 @@ The basic workflow is as follows.
 
    #+BEGIN_SRC javascript
      {
-         "benchmark": {
-             "id": "my_benchmark"
-             "scale": "outer",
-             "pipeline": {
-                 "name": "mgw",
-                 "user": [10, 100, 1000, 1000]
+         "benchmark": 
+         [
+             {
+                 "id": "my_benchmark"
+                 "scale": "outer",
+                 "pipeline": {
+                     "name": "mgw",
+                     "user": [10, 100, 1000, 1000]
+                 },
+                 "traffic": {
+                     "pkt-size": [64, 128],
+                     "pkt-num": 10000
+                 },
+                 "sut": {
+                     "type": ["ovs", "bess"],
+                     "cores": 4
+                 },
+                 "tester": {
+                     "generator": "moongen",
+                     "test_time": 30
+                 }
              }
-         },
-         "traffic": {
-             "pkt-size": [64, 128],
-             "pkt-num": 10000
-         },
-         "sut": {
-             "type": ["ovs", "bess"],
-             "cores": 4
-         },
-         "tester": {
-             "generator": "moongen",
-             "test_time": 30
-         }
+         ]
      }
    #+END_SRC
 
