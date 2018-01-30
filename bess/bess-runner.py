@@ -196,6 +196,69 @@ class BessUpdaterL2Fwd(BessUpdater):
                 self.bess.resume_worker(wid + 1)
 
 
+class BessUpdaterL3Fwd(BessUpdater):
+    def __init__(self, conf):
+        super(BessUpdaterL3Fwd, self).__init__(conf)
+
+    def mod_table(self, action, cmd, table, entry):
+        self._config_mod_table(action, cmd, table, entry)
+        if 'l3' in action:
+            self.mod_l3_table(cmd, table, entry)
+        elif 'group' in action:
+            self.mod_group_table(cmd, table, entry)
+
+    def mod_l3_table(self, cmd, table, entry):
+        for wid in range(0, self.workers_num, 2):
+            try:
+                self.bess.pause_worker(wid)
+                self.bess.pause_worker(wid + 1)
+                name = 'l3fib_%s_%d' % (table[0], wid)
+                ip = re.sub(r'\.[^.]+$', '.0', entry.ip)
+                gat = entry.nhop + 1
+                if cmd == 'add':
+                    self.bess.run_module_command(name,
+                                                 'add', 'IPLookupCommandAddArg',
+                                                 {'prefix': ip,
+                                                  'prefix_len': entry.prefix_len,
+                                                  'gate': gat})
+                elif cmd == 'del':
+                    self.bess.run_module_command(name,
+                                                 'delete', 'IPLookupCommandDeleteArg',
+                                                 {'prefix': ip,
+                                                  'prefix_len': entry.prefix_len})
+            except BESS.Error:
+                raise
+            finally:
+                self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid + 1)
+
+    def mod_group_table(self, cmd, table, entry):
+        for wid in range(0, self.workers_num, 2):
+            try:
+                self.bess.pause_worker(wid)
+                self.bess.pause_worker(wid + 1)
+                l3fib = 'l3fib_%s_%d' % (table[0], wid)
+                ip_chk = 'ip_chk_%s_%d' % (table[0], wid)
+                iter_tab = enumerate(getattr(self.conf, '%s_group_table' % table), start=1)
+                uid = next((i for (i, v) in iter_tab if v.dmac == entry.dmac), 1)
+                if cmd == 'add':
+                    name = 'up_dmac_x_%d_%s_%d' % (uid, table[0], wid)
+                    self.bess.create_module('Update', name,
+                                            {'fields':
+                                             [{'offset': 0, 'size': 6,
+                                               'value': mac_int_from_str(entry.dmac)}]})
+                    self.bess.connect_modules(l3fib, name, uid, 0)
+                    self.bess.connect_modules(name, ip_chk, 0, 0)
+                elif cmd == 'del':
+                    name = 'up_dmac_x_%d_%s_%d' % (uid + 1, table[0], wid)
+                    self.bess.destroy_module(name)
+            except BESS.Error:
+                raise
+            finally:
+                self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid + 1)
+
+
 class BessUpdaterMgw(BessUpdater):
     def __init__(self, conf):
         super(BessUpdaterMgw, self).__init__(conf)
@@ -455,6 +518,10 @@ def aton(ip):
 
 def mac_from_str(s):
     return binascii.unhexlify(s.replace(':', ''))
+
+
+def mac_int_from_str(s):
+    return int("0x%s" % ''.join(s.split(':')), 16)
 
 
 def signal_handler(signum, frame):

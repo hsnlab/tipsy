@@ -88,6 +88,7 @@ for wid in range(0,bess_workers * 2, 2):
   arp_check_u.add(fields=[{'value_bin': struct.pack("!H", 0x0800)}], gate=1)  # IPv4
   arp_check_u.set_default_gate(gate=1)
   uttl_u = UpdateTTL(name='update_ttl_u_%d' % wid)
+  ip_u = IPChecksum(name='ip_chk_u_%d' % wid)
   update_s_mac_u = Update(name='u_smac_u_%d' % wid,
                           fields=[{'offset': 6, 'size': 6,
                                    'value': mac_int_from_str(umac)}])
@@ -101,8 +102,9 @@ for wid in range(0,bess_workers * 2, 2):
     update_d_mac_u = Update(name='u_dmac_u_%d_%d' % (i, wid),
                           fields=[{'offset': 0, 'size': 6,
                                    'value': mac_int_from_str(entry.dmac)}])
-    l3fib_u:i -> update_d_mac_u -> IPChecksum() -> buf_u
+    l3fib_u:i -> update_d_mac_u -> ip_u
 
+  ip_u -> buf_u
   buf_u -> out_u
   in_u -> mac_table_u
   mac_table_u:0 -> drop_u
@@ -126,6 +128,7 @@ for wid in range(0,bess_workers * 2, 2):
   arp_check_d.add(fields=[{'value_bin': struct.pack("!H", 0x0800)}], gate=1)  # IPv4
   arp_check_d.set_default_gate(gate=1)
   uttl_d = UpdateTTL(name='update_ttl_d_%d' % wid)
+  ip_d = IPChecksum(name='ip_chk_d_%d' % wid)
   update_s_mac_d = Update(name='u_smac_d_%d' % wid,
                           fields=[{'offset': 6, 'size': 6,
                                    'value': mac_int_from_str(dmac)}])
@@ -139,8 +142,9 @@ for wid in range(0,bess_workers * 2, 2):
     update_d_mac_d = Update(name='u_dmac_d_%d_%d' % (i, wid),
                           fields=[{'offset': 0, 'size': 6,
                                    'value': mac_int_from_str(entry.dmac)}])
-    l3fib_d:i -> update_d_mac_d -> IPChecksum() -> buf_d
+    l3fib_d:i -> update_d_mac_d -> ip_d
 
+  ip_d -> buf_d
   buf_d -> out_d
   in_d -> mac_table_d
   mac_table_d:0 -> drop_d
