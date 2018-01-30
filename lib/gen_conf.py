@@ -212,7 +212,7 @@ class PL_portfwd (PL):
     self.components = ['portfwd']
 
   def add_portfwd (self):
-    self.conf['name'] = args.name
+    self.conf['name'] = self.args.name
     self.conf['run_time'] = []
     for arg in ['name', 'mac_swap_upstream', 'mac_swap_downstream']:
       self.conf[arg] = self.get_arg(arg)
