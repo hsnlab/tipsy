@@ -293,11 +293,16 @@ class BessUpdaterMgw(BessUpdater):
                 self.bess.connect_modules('teid_split_%d' % wid, q_name,
                                           user.teid, 0)
                 t_name = 't_%d_%d' % (wid, user.teid)
-                self.bess.add_tc(t_name, policy='rate_limit',
-                                 resource='bit', limit={'bit': user.rate_limit},
-                                 wid=wid)
+                try:
+                    self.bess.add_tc(t_name, policy='rate_limit',
+                                     resource='bit', limit={'bit': user.rate_limit},
+                                     wid=wid)
+                except BESS.Error:
+                    pass
                 self.bess.attach_task(q_name, parent=t_name)
             except BESS.Error:
+                raise
+            finally:
                 self.bess.resume_worker(wid)
 
     def del_user(self, user):
@@ -308,127 +313,12 @@ class BessUpdaterMgw(BessUpdater):
                 self.bess.run_module_command('ue_selector_%d' % wid,
                                              'delete', 'ExactMatchCommandDeleteArg',
                                              {'fields': [{'value_bin': aton(user.ip)}]})
-            except BESS.Error:
-                pass
-            finally:
-                self.bess.resume_worker(wid)
-
-    def handover(self, user, new_bst):
-        self._config_handover(user, new_bst)
-        for wid in range(self.workers_num):
-            try:
                 md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
-                tun_ip_dst = self.conf.bsts[user.tun_end].ip
                 self.bess.destroy_module(md_name)
-                self.bess.create_module('SetMetadata', md_name,
-                                        {'attrs': [{'name': 'tun_id', 'size': 4,
-                                                    'value_int': user.teid},
-                                                   {'name': 'tun_ip_src', 'size': 4,
-                                                    'value_bin': aton(self.conf.gw.ip)},
-                                                   {'name': 'tun_ip_dst', 'size': 4,
-                                                    'value_bin': aton(tun_ip_dst)}]})
-                self.bess.connect_modules('ue_selector_%d' % wid, md_name,
-                                          user.teid, 0)
-                self.bess.connect_modules(md_name, 'vxlan_encap_%d' % wid,
-                                          0, 0)
-            except BESS.Error:
-                pass
-
-    def __get_id_from_ip(self, ip):
-        return sum([int(x[0]) * x[1] for x in zip(ip.split('.')[1:3], (255, 1))])
-
-    def add_server(self, server):
-        self._config_add_server(server)
-        for wid in range(self.workers_num):
-            try:
-                ip = re.sub(r'\.[^.]+$', '.0', server.ip)
-                id = self.__get_id_from_ip(ip)
-                ogate = len(self.conf.srvs) + id
-                self.bess.pause_worker(wid)
-                self.bess.run_module_command('ip_lookup_%d' % wid,
-                                             'add', 'IPLookupCommandAddArg',
-                                             {'prefix': ip, 'prefix_len': 24,
-                                              'gate': ogate})
-                self.bess.resume_worker(wid)
-                md_name = 'setmd_srv%d_%d' % (ogate, wid)
-                self.bess.create_module('SetMetadata', md_name,
-                                        {'attrs': [{'name': 'nhop', 'size': 4,
-                                                    'value_int': server.nhop}]})
-                self.bess.connect_modules('ip_lookup_%d' % wid, md_name,
-                                          ogate, 0)
-            except BESS.Error:
-                pass
-            finally:
-                self.bess.resume_worker(wid)
-
-    def del_server(self, server):
-        self._config_del_server(server)
-        for wid in range(self.workers_num):
-            try:
-                ip = re.sub(r'\.[^.]+$', '.0', server.ip)
-                id = self.__get_id_from_ip(ip)
-                ogate = len(self.conf.srvs) + id
-                self.bess.pause_worker(wid)
-                self.bess.run_module_command('ip_lookup_%d' % wid,
-                                             'delete', 'IPLookupCommandDeleteArg',
-                                             {'prefix': ip, 'prefix_len': 24})
-                self.bess.disconnect_modules('ip_lookup_%d' % wid, ogate)
-            except BESS.Error:
-                pass
-            finally:
-                self.bess.resume_worker(wid)
-
-
-class BessUpdaterVmgw(BessUpdater):
-    def __init__(self, conf):
-        super(BessUpdaterVmgw, self).__init__(conf)
-
-    def add_user(self, user):
-        self._config_add_user(user)
-        for wid in range(self.workers_num):
-            try:
-                self.bess.pause_worker(wid)
-                self.bess.run_module_command('ue_selector_%d' % wid,
-                                             'add', 'ExactMatchCommandAddArg',
-                                             {'fields': [{'value_bin': aton(user.ip)}],
-                                              'gate': user.teid})
-                self.bess.resume_worker(wid)
-                md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
-                tun_ip_dst = self.conf.bsts[user.tun_end].ip
-                self.bess.create_module('SetMetadata', md_name,
-                                        {'attrs': [{'name': 'tun_id', 'size': 4,
-                                                    'value_int': user.teid},
-                                                   {'name': 'tun_ip_src', 'size': 4,
-                                                    'value_bin': aton(self.conf.gw.ip)},
-                                                   {'name': 'tun_ip_dst', 'size': 4,
-                                                    'value_bin': aton(tun_ip_dst)}]})
-                self.bess.connect_modules('ue_selector_%d' % wid, md_name,
-                                          user.teid, 0)
-                self.bess.connect_modules(md_name, 'vxlan_encap_%d' % wid,
-                                          0, 0)
                 q_name = 'rl_%d_%d' % (wid, user.teid)
-                self.bess.create_module('Queue', q_name)
-                self.bess.connect_modules(q_name, 'prel3_buf_%d' % wid, 0, 0)
-                self.bess.connect_modules('teid_split_%d' % wid, q_name,
-                                          user.teid, 0)
-                t_name = 't_%d_%d' % (wid, user.teid)
-                self.bess.add_tc(t_name, policy='rate_limit',
-                                 resource='bit', limit={'bit': user.rate_limit},
-                                 share=1, parent='traffic_mgmt_%d' % wid)
-                self.bess.attach_task(q_name, parent=t_name)
+                self.bess.destroy_module(q_name)
             except BESS.Error:
-                self.bess.resume_worker(wid)
-
-    def del_user(self, user):
-        self._config_del_user(user)
-        for wid in range(self.workers_num):
-            try:
-                self.bess.pause_worker(wid)
-                self.bess.run_module_command('ue_selector_%d' % wid,
-                                             'delete', 'ExactMatchCommandDeleteArg',
-                                             {'fields': [{'value_bin': aton(user.ip)}]})
-            except BESS.Error:
-                pass
+                raise
             finally:
                 self.bess.resume_worker(wid)
 
@@ -436,8 +326,8 @@ class BessUpdaterVmgw(BessUpdater):
         self._config_handover(user, new_bst)
         for wid in range(self.workers_num):
             try:
-                md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
                 tun_ip_dst = self.conf.bsts[user.tun_end].ip
+                md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
                 self.bess.destroy_module(md_name)
                 self.bess.create_module('SetMetadata', md_name,
                                         {'attrs': [{'name': 'tun_id', 'size': 4,
@@ -476,7 +366,7 @@ class BessUpdaterVmgw(BessUpdater):
                 self.bess.connect_modules('ip_lookup_%d' % wid, md_name,
                                           ogate, 0)
             except BESS.Error:
-                pass
+                raise
             finally:
                 self.bess.resume_worker(wid)
 
@@ -486,14 +376,16 @@ class BessUpdaterVmgw(BessUpdater):
             try:
                 ip = re.sub(r'\.[^.]+$', '.0', server.ip)
                 id = self.__get_id_from_ip(ip)
-                ogate = len(self.conf.srvs) + id
+                ogate = len(self.conf.srvs) + id + 1
                 self.bess.pause_worker(wid)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
                                              'delete', 'IPLookupCommandDeleteArg',
                                              {'prefix': ip, 'prefix_len': 24})
                 self.bess.disconnect_modules('ip_lookup_%d' % wid, ogate)
+                md_name = 'setmd_srv%d_%d' % (ogate, wid)
+                self.bess.destroy_module(md_name)
             except BESS.Error:
-                pass
+                raise
             finally:
                 self.bess.resume_worker(wid)
 
