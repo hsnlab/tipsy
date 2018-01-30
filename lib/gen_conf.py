@@ -389,6 +389,9 @@ class PL_bng (PL):
     self.users = users
     self.conf['users'] = users
 
+  def add_fluct_user (self):
+    self.args.bst = self.args.cpe
+    super().add_fluct_user()
 
 def list_pipelines ():
   l = [n[3:] for n in globals() if n.startswith('PL_')]
