@@ -21,7 +21,6 @@ import argparse
 import binascii
 import itertools
 import json
-import os
 import re
 import signal
 import socket
@@ -540,7 +539,7 @@ if __name__ == '__main__':
                         default='./pipeline.json')
     args = parser.parse_args()
 
-    bessctl = os.path.join(args.bessdir, 'bessctl', 'bessctl')
+    bessctl = Path(args.bessdir, 'bessctl', 'bessctl')
 
     try:
         sys.path.insert(1, args.bessdir)
