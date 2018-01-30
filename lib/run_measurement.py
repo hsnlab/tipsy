@@ -22,11 +22,11 @@ import subprocess
 from pathlib import Path, PosixPath
 
 try:
-  import args_from_schema
-  import wait_for_callback
+    import args_from_schema
+    import wait_for_callback
 except ImportError:
-  from . import args_from_schema
-  from . import wait_for_callback
+    from . import args_from_schema
+    from . import wait_for_callback
 
 
 __all__ = ["run"]
@@ -65,9 +65,10 @@ class SUT(object):
         self.cmd_prefix = ['ssh', conf.sut.hostname]
         self.screen_name = 'TIPSY_SUT'
 
-    def run_ssh_cmd(self, cmd):
-        print(self.cmd_prefix + cmd)
-        subprocess.call(self.cmd_prefix + cmd)
+    def run_ssh_cmd(self, cmd, *extra_cmd):
+        command = self.cmd_prefix + list(extra_cmd) + cmd
+        print(' '.join(command))
+        subprocess.run(command, check=True)
 
     def get_screen_cmd(self, cmd):
         return ['screen', '-c', '/dev/null', '-d', '-m',
@@ -99,12 +100,20 @@ class SUT_ovs(SUT):
         super().__init__(conf)
 
     def start(self):
-        cmd = Path(self.conf.sut.tipsy_dir) / 'ryu' / 'start-ryu'
+        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
+        remote_pipeline = remote_ryu_dir / 'pipeline.json'
+        local_pipeline = Path().cwd() / 'pipeline.json'
+        dst = '%s:%s' % (self.conf.sut.hostname, remote_pipeline)
+        cmd = [str(c) for c in ['scp', local_pipeline, dst]]
+        print(' '.join(cmd))
+        subprocess.call(cmd)
+
+        cmd = remote_ryu_dir / 'start-ryu'
         cmd = self.get_screen_cmd(['sudo', str(cmd)])
         self.run_ssh_cmd(cmd)
 
         cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
-        self.run_ssh_cmd([str(cmd)])
+        self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 class Tester(object):
     def start(self, out_dir):

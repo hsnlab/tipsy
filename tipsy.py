@@ -28,7 +28,6 @@ import sys
 from pathlib import Path, PosixPath
 
 from lib.gen_conf import gen_conf
-from lib.gen_pcap import gen_pcap
 from lib import validate
 
 
@@ -220,6 +219,7 @@ class TipsyManager(object):
             # python3-scapy does not support VXLAN headers
             use_pcap_lib = False
             if use_pcap_lib:
+                from lib.gen_pcap import gen_pcap
                 args = {
                     'output': out_dir.joinpath(self.fname_pcap),
                     'conf': out_dir.joinpath(self.fname_pl),

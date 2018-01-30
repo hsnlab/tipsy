@@ -902,7 +902,7 @@ class Tipsy(app_manager.RyuApp):
     self.configured = True
     self.change_status('configured')
     try:
-      requests.post(CONF['webhook_configured'], data='')
+      requests.get(CONF['webhook_configured'])
     except requests.ConnectionError:
       pass
     if self.pl_conf.get('run_time'):
