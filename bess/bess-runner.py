@@ -22,6 +22,7 @@ import binascii
 import itertools
 import json
 import re
+import requests
 import signal
 import socket
 import subprocess
@@ -452,6 +453,11 @@ if __name__ == '__main__':
         bessctl, pipeline_bess, args.conf.name)
     print(bess_start_cmd)
     ret_val = subprocess.call(bess_start_cmd, shell=True)
+    try:
+        url = 'http://localhost:9000/configured'
+        requests.get(url)
+    except requests.ConnectionError:
+        pass
     if not ret_val:
 
         try:
