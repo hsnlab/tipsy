@@ -28,6 +28,7 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 
 class BessUpdater(object):
@@ -116,7 +117,7 @@ class BessUpdater(object):
         if 'group' in action:
             key = 'dmac'
         try:
-            params = (table, action.replace('mod_',''))
+            params = (table, action.replace('mod_', ''))
             tab = getattr(self.conf, '%s_%s' % params)
         except:
             raise ValueError
@@ -189,9 +190,9 @@ class BessUpdaterL2Fwd(BessUpdater):
                                                   [{'value_bin':
                                                     mac_from_str(entry.mac)}]})
                     self.bess.disconnect_modules(name, ogate + 1)
-                self.bess.resume_worker(wid)
-                self.bess.resume_worker(wid + 1)
             except BESS.Error:
+                raise
+            finally:
                 self.bess.resume_worker(wid)
                 self.bess.resume_worker(wid + 1)
 
@@ -239,8 +240,9 @@ class BessUpdaterL3Fwd(BessUpdater):
                 self.bess.pause_worker(wid + 1)
                 l3fib = 'l3fib_%s_%d' % (table[0], wid)
                 ip_chk = 'ip_chk_%s_%d' % (table[0], wid)
-                iter_tab = enumerate(getattr(self.conf, '%s_group_table' % table), start=1)
-                uid = next((i for (i, v) in iter_tab if v.dmac == entry.dmac), 1)
+                tab = getattr(self.conf, '%s_group_table' % table)
+                i_tab = enumerate(tab, start=1)
+                uid = next((i for (i, v) in i_tab if v.dmac == entry.dmac), 1)
                 if cmd == 'add':
                     name = 'up_dmac_x_%d_%s_%d' % (uid, table[0], wid)
                     self.bess.create_module('Update', name,
@@ -554,7 +556,7 @@ if __name__ == '__main__':
         print(('Error loading config from %s' % args.conf))
         raise
 
-    pipeline_bess = str(Path(__file__).parent / '%s.bess' % config.name)
+    pipeline_bess = Path(__file__).parent.joinpath('%s.bess' % config.name)
     bess_start_cmd = "%s daemon start -- run file %s \"config='%s'\"" % (
         bessctl, pipeline_bess, args.conf.name)
     print(bess_start_cmd)
