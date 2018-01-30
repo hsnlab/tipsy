@@ -74,6 +74,13 @@ class SUT(object):
         return ['screen', '-c', '/dev/null', '-d', '-m',
                 '-S', self.screen_name] + cmd
 
+    def upload_to_remote(self, src, dst):
+        "scp one file to SUT"
+        dst = '%s:%s' % (self.conf.sut.hostname, dst)
+        cmd = [str(c) for c in ['scp', src, dst]]
+        print(' '.join(cmd))
+        subprocess.call(cmd)
+
     def start(self, *args):
         raise NotImplementedError
 
@@ -83,16 +90,21 @@ class SUT(object):
 
 
 class SUT_bess(SUT):
-    def start(self, json):
-        # TODO: copy json, etc
+    def start(self):
+        local_pipeline = Path().cwd() / 'pipeline.json'
+        dst = Path('/tmp') / 'pipeline.json'
+        self.upload_to_remote(local_pipeline, dst)
         cmd = [
             Path(self.conf.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
             '-d', self.conf.sut.bess_dir,
-            '-c', json,
+            '-c', dst,
         ]
 
         cmd = self.get_screen_cmd([str(c) for c in cmd])
         self.run_ssh_cmd(cmd)
+
+        cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
+        self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 
 class SUT_ovs(SUT):
@@ -103,10 +115,7 @@ class SUT_ovs(SUT):
         remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
         remote_pipeline = remote_ryu_dir / 'pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
-        dst = '%s:%s' % (self.conf.sut.hostname, remote_pipeline)
-        cmd = [str(c) for c in ['scp', local_pipeline, dst]]
-        print(' '.join(cmd))
-        subprocess.call(cmd)
+        self.upload_to_remote(local_pipeline, remote_pipeline)
 
         cmd = remote_ryu_dir / 'start-ryu'
         cmd = self.get_screen_cmd(['sudo', str(cmd)])
