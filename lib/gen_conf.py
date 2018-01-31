@@ -441,7 +441,8 @@ def parse_cli_args ():
   args, _ = parser2.parse_known_args()
   if args.json:
     # Set the default pipeline from the json file
-    new_defaults = json.load(args.json)
+    fn = lambda d: {k.replace('-', '_'): v for k, v in d.items()}
+    new_defaults = json.load(args.json, object_hook=fn)
     parser.set_defaults(**new_defaults)
     (args, _) = parser.parse_known_args()
 
