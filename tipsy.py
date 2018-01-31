@@ -153,16 +153,34 @@ class TipsyManager(object):
             print("Validation failed for: %s\n%s" % (self.fname_conf, e))
             exit(-1)
 
-    def init_tipsyconfig(self, config_files=[]):
+    def init_tipsyconfig(self, config_files=None):
         def conf_load(d): return TipsyConfig(**d)
         if not config_files:
-            config_files = [str(f) for f in sorted(Path.cwd().glob('*.json'))]
+            config_files = []
+            for f in sorted(Path.cwd().glob('*.json')):
+                if not f.name.startswith('.'):
+                    # https://bugs.python.org/issue26096
+                    config_files.append(str(f.name))
         self.tipsy_conf = conf_load({})
         for config_file in config_files:
+            print('Processing config file: %s' % config_file)
             with open(config_file, 'r') as cf:
-                tmp = json.load(cf, object_hook=conf_load)
-                self.tipsy_conf.update(tmp)
+                new = json.load(cf, object_hook=conf_load)
+                old = self.tipsy_conf
+                for k, v in new.items():
+                    if old.get(k) is None:
+                        old[k] = v
+                    elif type(old[k]) == list:
+                        if type(v) == list:
+                            old[k] += v
+                        else:
+                            old[k].append(v)
+                    elif type(old[k]) == TipsyConfig:
+                        old[k].update(v)
+                    else:
+                        old[k] = v
         self.validate_main()
+        print('Saving config file    : %s' % self.fname_conf)
         json_dump(self.tipsy_conf, self.fname_conf)
 
     def create_file_from_template(self, src, dst, replacements):
