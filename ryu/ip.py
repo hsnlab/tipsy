@@ -32,7 +32,7 @@ def add_route_gw(net, gw):
 def add_veth(name1, name2):
   call('link', 'add', 'name', name1, 'type', 'veth', 'peer', 'name', name2)
 
-def del_veth(name1):
+def del_veth(name1, _name2=None):
   call('link', 'del', 'dev', name1)
 
 def set_up(iface, addr=None):

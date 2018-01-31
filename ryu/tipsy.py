@@ -45,6 +45,7 @@ from ryu import utils
 from ryu.app.wsgi import ControllerBase
 from ryu.app.wsgi import Response
 from ryu.app.wsgi import WSGIApplication
+from ryu.app.wsgi import CONF as wsgi_conf
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER
@@ -555,6 +556,7 @@ class Tipsy(app_manager.RyuApp):
                        conditions=dict(method=['GET']))
 
     self.initialize_datapath()
+    self.change_status('wait')  # Wait datapath to connect
 
   def change_status(self, new_status):
     self.logger.info("status: %s -> %s" % (self.status, new_status))
@@ -611,6 +613,9 @@ class Tipsy(app_manager.RyuApp):
     self.add_port(br_name, 'ul_port', CONF['ul_port'])
     self.add_port(br_name, 'dl_port', CONF['dl_port'])
 
+  def stop_dp_simple(self):
+    sw_conf.del_bridge('br-main')
+
   def initialize_dp_tunneled(self):
     br_name = 'br-main'
     sw_conf.del_bridge(br_name, can_fail=False)
@@ -650,6 +655,11 @@ class Tipsy(app_manager.RyuApp):
       ip.add_route_gw(net, self.pl_conf.gw.default_gw.ip)
     self.set_arp_table()
 
+  def stop_dp_tunneled(self):
+    sw_conf.del_bridge('br-main')
+    sw_conf.del_bridge('br-phy')
+    ip.del_veth('veth-phy', 'veth-main')
+
   def initialize_datapath(self):
     self.change_status('initialize_datapath')
 
@@ -658,7 +668,11 @@ class Tipsy(app_manager.RyuApp):
     else:
       self.initialize_dp_simple()
 
-    self.change_status('wait')  # Wait datapath to connect
+  def stop_datapath(self):
+    if self.pl.has_tunnels:
+      self.stop_dp_tunneled()
+    else:
+      self.stop_dp_simple()
 
   def set_arp_table(self):
     def_gw = self.pl_conf.gw.default_gw
@@ -910,6 +924,13 @@ class Tipsy(app_manager.RyuApp):
     # else:
     #   hub.spawn_after(1, TipsyController.do_exit)
 
+  def stop(self):
+    self.change_status('stopping')
+    self.stop_datapath()
+    self.close()
+    self.change_status('stopped')
+
+
 # TODO?: https://stackoverflow.com/questions/12806386/standard-json-api-response-format
 def rest_command(func):
   def _rest_command(*args, **kwargs):
@@ -935,7 +956,6 @@ def rest_command(func):
 
   return _rest_command
 
-
 class TipsyController(ControllerBase):
 
   def __init__(self, req, link, data, **config):
@@ -947,7 +967,7 @@ class TipsyController(ControllerBase):
 
   @rest_command
   def get_exit(self, req, **kw):
-    hub.spawn_after(1, self.do_exit)
+    hub.spawn_after(0, self.do_exit)
     return "ok"
 
   @rest_command
@@ -957,11 +977,13 @@ class TipsyController(ControllerBase):
 
   @staticmethod
   def do_exit():
-    tipsy = Tipsy._instance
-    tipsy.change_status('shutdown')
-    tipsy.close()
     m = app_manager.AppManager.get_instance()
     m.uninstantiate('Tipsy')
     pid = os.getpid()
     os.kill(pid, signal.SIGTERM)
 
+def handle_sigint(sig_num, stack_frame):
+  url = 'http://%s:%s' % (wsgi_conf.wsapi_host, wsgi_conf.wsapi_port)
+  url += '/tipsy/exit'
+  hub.spawn_after(0, requests.get, url)
+signal.signal(signal.SIGINT, handle_sigint)

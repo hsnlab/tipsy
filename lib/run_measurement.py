@@ -79,7 +79,7 @@ class SUT(object):
         dst = '%s:%s' % (self.conf.sut.hostname, dst)
         cmd = [str(c) for c in ['scp', src, dst]]
         print(' '.join(cmd))
-        subprocess.call(cmd)
+        subprocess.run(cmd, check=True)
 
     def start(self, *args):
         raise NotImplementedError
