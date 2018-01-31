@@ -80,6 +80,22 @@ def gen_packets(params_tuple):
     return pkts[:pkt_num]
 
 
+def _gen_pkt_portfwd(pkt_size, conf):
+    smac = RandMAC()
+    dmac = RandMAC()
+    p = Ether(dst=dmac, src=smac)
+    p = add_payload(p, pkt_size)
+    return p
+
+
+def _gen_dl_pkt_portfwd(pkt_size, conf):
+    return _gen_pkt_portfwd(pkt_size, conf)
+
+
+def _gen_ul_pkt_portfwd(pkt_size, conf):
+    return _gen_pkt_portfwd(pkt_size, conf)
+
+
 def _gen_dl_pkt_mgw(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
