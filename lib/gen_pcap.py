@@ -101,6 +101,22 @@ def _gen_ul_pkt_portfwd(pkt_size, conf):
     return _gen_pkt_portfwd(pkt_size, conf)
 
 
+def _gen_pkt_l2fwd(dir, pkt_size, conf):
+    smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65536))
+    dmac = random.choice(getattr(conf, '%s_table' % dir)).mac
+    p = Ether(dst=dmac, src=smac)
+    p = add_payload(p, pkt_size)
+    return p
+
+
+def _gen_dl_pkt_l2fwd(pkt_size, conf):
+    return _gen_pkt_l2fwd('downstream', pkt_size, conf)
+
+
+def _gen_ul_pkt_l2fwd(pkt_size, conf):
+    return _gen_pkt_l2fwd('upstream', pkt_size, conf)
+
+
 def _gen_dl_pkt_mgw(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
