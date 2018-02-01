@@ -63,6 +63,10 @@ class ObjectView(object):
         return self.__dict__.__repr__()
 
 
+def byte_seq (template, seq):
+  return template % (int(seq / 254), (seq % 254) + 1)
+
+
 def gen_packets(params_tuple):
     (dir, pkt_num, pkt_size, conf) = params_tuple
     pl = conf.name
@@ -81,8 +85,8 @@ def gen_packets(params_tuple):
 
 
 def _gen_pkt_portfwd(pkt_size, conf):
-    smac = RandMAC()
-    dmac = RandMAC()
+    smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65536))
+    dmac = byte_seq('aa:cc:dd:cc:%02x:%02x', random.randrange(1, 65536))
     p = Ether(dst=dmac, src=smac)
     p = add_payload(p, pkt_size)
     return p
