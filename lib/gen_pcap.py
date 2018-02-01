@@ -57,7 +57,8 @@ class PicklablePacket(object):
 
 class ObjectView(object):
     def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+        tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
+        self.__dict__.update(**tmp)
 
     def __repr__(self):
         return self.__dict__.__repr__()
