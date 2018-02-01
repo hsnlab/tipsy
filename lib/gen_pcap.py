@@ -18,11 +18,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import itertools
 import json
 import multiprocessing
 import random
 import scapy
+import sys
 try:
     from pathlib import PosixPath
 except ImportError:
@@ -31,9 +31,9 @@ except ImportError:
 from scapy.all import *
 
 try:
-  import args_from_schema
+    import args_from_schema
 except ImportError:
-  from . import args_from_schema
+    from . import args_from_schema
 
 __all__ = ["gen_pcap"]
 
@@ -63,8 +63,8 @@ class ObjectView(object):
         return self.__dict__.__repr__()
 
 
-def byte_seq (template, seq):
-  return template % (int(seq / 254), (seq % 254) + 1)
+def byte_seq(template, seq):
+    return template % (int(seq / 254), (seq % 254) + 1)
 
 
 def gen_packets(params_tuple):
