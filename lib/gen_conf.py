@@ -30,12 +30,16 @@ __all__ = ["gen_conf"]
 def gen_conf (args):
   parser = argparse.ArgumentParser()
   add_args_from_schema(parser, args.get('name', 'mgw'))
-  parser.set_defaults(**args)
+  set_defaults(parser, **args)
   args = parser.parse_args([])
 
   pl = globals()['PL_%s' % args.name](args)
   conf = pl.create_conf()
   return conf
+
+def set_defaults(parser, **defaults):
+  defaults = {k.replace('-', '_'): v for k, v in defaults.items()}
+  parser.set_defaults(**defaults)
 
 def byte_seq (template, seq):
   return template % (int(seq / 254), (seq % 254) + 1)
@@ -441,9 +445,8 @@ def parse_cli_args ():
   args, _ = parser2.parse_known_args()
   if args.json:
     # Set the default pipeline from the json file
-    fn = lambda d: {k.replace('-', '_'): v for k, v in d.items()}
-    new_defaults = json.load(args.json, object_hook=fn)
-    parser.set_defaults(**new_defaults)
+    new_defaults = json.load(args.json)
+    set_defaults(parser, **new_defaults)
     (args, _) = parser.parse_known_args()
 
   add_args_from_schema(parser, args.name)
