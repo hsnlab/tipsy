@@ -158,6 +158,17 @@ the TIPSY code.
 * Installation and usage
 
 ** Installation
+TIPSY depends on external software components. To run TIPSY, it is
+necessary to install the following:
+
+On SUT:
+- sudo,
+- screen.
+
+On Tester:
+- ssh,
+- python-jsonschema,
+- scapy.
 
 TIPSY does not require explicit installation but the =tipsy= executable
 must always be available and executable; the easiest setup is to add the
