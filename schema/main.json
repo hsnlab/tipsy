@@ -12,7 +12,7 @@
         },
         "scale": {
           "type": "string",
-          "enum": ["none", "outer", "all"],
+          "enum": ["none", "outer", "joint"],
           "default": "none",
           "description": "=scale= describes the way the individual benchmark instances in the scalability benchmark are to be executed.  TIPSY allows to easily request and perform scalability tests by repeating the benchmark multiple times, each time setting one or all parameters as controlled by the =scale= setting:\n  =none=: do not perform scalability tests,\n =outer=: take the outer product of all settings specified for the benchmark and generate a separate test case for all,\n =joint=: scale the parameters jointly."
         },
