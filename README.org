@@ -87,34 +87,33 @@ Technologies and Mobile Communications (IITM), 2016.
 
 The general TIPSY setup will contain a System-Under-Test (SUT) that runs
 the data plane to be evaluated, a Tester that feeds the SUT with a traffic
-trace and measures performance, and a Controller that sets up the static
-pipeline and, optionally, exercises the performance of the SUT under
-updates.  Drawing from telco practice, TIPSY distinguishes between the
-*uplink* direction (user-to-network direction) and the *downlink* direction
-(network-to-user direction); the downlink port is the attachment port for
-the access network (users) and the uplink port connects to the public
-Internet. In pratice, however, the uplink and downlink ports of the SUT are
-connected back-to-back to the same Tester device.
+trace and measures performance, and a Controller running on the SUT that
+sets up the static pipeline and, optionally, exercises the performance of
+the SUT under updates.  Drawing from telco practice, TIPSY distinguishes
+between the *uplink* direction (user-to-network direction) and the
+*downlink* direction (network-to-user direction); the downlink port is the
+attachment port for the access network (users) and the uplink port connects
+to the public Internet. In pratice, however, the uplink and downlink ports
+of the SUT are connected back-to-back to the same Tester device. A
+management access is also required between the two to let the Tester
+configure the SUT via Secure Shell.
 
-:                                  +---------------------+
-:                                  |                     |
-:                                  |    *Controller*     |
-:                                  |                     |
-:                                  +---------------------+
-:                                             A
-:                                             |
-:                                             V
 :   +----------------+             +---------------------+
+:   |                |             |                     |
 :   |                |             |                     |
 :   |     uplink_port|<----------->|downlink_port        |
 :   |                |             |                     |
 :   |                |             |                     |
 :   |    *Tester*    |             | *System Under Test* |
 :   |                |             |        (SUT)        |
+:   |                |             |          +          |
+:   |                |             |     *Controller*    |
 :   |                |             |                     |
 :   |                |             |                     |
 :   |   downlink_port|<----------->|uplink_port          |
 :   |                |             |                     |
+:   |                |             |                     |
+:   |                |<---mgmt---->|                     |
 :   +----------------+             +---------------------+
 
 Apart from static pipeline configurations, aimed for evaluating the SUT in
