@@ -11,18 +11,18 @@ TIPSY relies on a high-level main configuration file to perform reliable
 and reproducible benchmarks. The key to the flexibility of TIPSY is that
 this configuration allows to define a wide range of different tests, from
 stability tests to scalability and robustness measurements, using minimal
-configuration on the side of the user
+configuration on the side of the user.
 
 A sample configuration for TIPSY is given below.
 
 #+BEGIN_SRC javascript
 {
-    "benchmark":
-    [
+    "benchmark": [
         {
-	    "id": "test1"
+            "id": "test1",
             "scale": "outer",
-	    "pipeline": {
+            "pipeline": {
+		"core": 1,
 		"name": "mgw",
                 "user": [4,8],
                 "bst": 1,
@@ -33,28 +33,29 @@ A sample configuration for TIPSY is given below.
                 "fluct-user": 0,
                 "handover": 0,
                 "fluct-server": 4
-	    },
-	    "traffic": {
-                "pkt-size": 64,
-                "pkt-num": 1000000,
-                "dir": ["uplink", "downlink", "bidir"]
             },
-	    "sut": {
-		"type": "bess",
-                "cores": 4
-	    },
-	    "tester": {
-		"generator": "moongen",
-		"test-time": 30
-	    }
+            "traffic": {
+                "pkt-num": 10000,
+                "pkt-size": [64, 128],
+                "dir": ["uplink", "downlink", "bidir"]
+            }
         }
-    ]
+    ],
+    "environment": {
+        "sut": {
+            "type": "bess"
+        },
+        "tester": {
+            "type": "moongen",
+            "test-time": 30
+        }
+    },
+    "visualize": []
 }
 #+END_SRC
 
 The general rule is that when a configuration parameter is omitted, TIPSY
-chooses a sane built-in default. Exposing these defaults to the user is
-TODO at the moment.
+chooses a sane built-in default.
 
 * The =benchmark= section
 
@@ -68,15 +69,14 @@ Each benchmark in turn defines the following subsections:
   benchmark, like name, scaling mode, etc.
 - =pipeline=: pipeline-specific settings
 - =traffic=: traffic generator settings
-- =sut=: settings for the SUT
-- =tester=: settings for the tester
 
 * The =pipeline= section
 
 Pipeline specific settings. The =pipeline= section has a mandatory =name=
 parameter that defines the name for the pipeline to be configured for the
-benchmark.  Refer to the docs of the individual pipelines for the specific
-settings.
+benchmark. The =core= parameter defines the number of CPU
+cores/workers. For other specific settings consult the docs and JSON schema
+of the individual pipelines.
 
 * The =traffic= section
 
@@ -89,6 +89,17 @@ Tester. This section might contain the below parameters.
   - =uplink=: evaluate the upstream datapath
   - =downlink=: evaluate the downstream datapath
   - =bidir=: run test in both directions
+- =thread=: number of requested processing CPU threads. 0 means all of the
+  available cores.
+- =ascii=: dump generated packets in human readable ASCII form
+
+* The =environment= section
+
+Parameters of the testing environment, configuration of the SUT and of the
+Tester. We suppose these parameters are static during the benchmarks.
+
+- =sut=: SUT settings
+- =tester=: Tester settings
 
 * The =tester= section
 
@@ -96,12 +107,25 @@ Parameters for the Tester, among others, the traffic generator backend to
 be used for insert the traffic trace into the SUT and other Tester specific
 settings.
 
-- =generator=: packet generator for the Tester (=moongen= or =scapy=)
+- =type=: packet generator for the Tester (=moongen= or =scapy=)
 - =test-time=: runtime in seconds
+- =moongen-cmd=: absolute path of the MoonGen executable
+- =uplink_port= and =downlink_port=: port name ('eth1') or pci addr for
+  DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0').
 
 * The =sut= section
 
 Settings for the System-Under-Test (SUT).
 
-- =types=: SUT implementation (=bess= or =ovs=)
-- =cores=: number of CPU cores/workers
+- =type=: SUT implementation (=bess= or =ovs=)
+- =hostname=: hostname that can be used to ssh into SUT without a password
+  as 'ssh hostname'.  Edit ~/.ssh/config for more complicated scenarios.
+  See man page: ssh_config (5)
+- =bess-dir=: a directory on SUT in which BESS is installed
+- =tipsy-dir=: a directory on SUT in which TIPSY is installed
+- =uplink_port= and =downlink_port=: port name ('eth1') or pci addr for
+  DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0').
+- =setup_script=: absolute path of your custom SUT setup script. This
+  script is run when measurements starts with a new SUT implementation.
+- =teardown_script=: absolute path of your custom SUT teardown script. This
+  script is run when measurements are done with a SUT implementation.
