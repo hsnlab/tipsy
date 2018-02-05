@@ -290,7 +290,7 @@ The basic workflow is as follows.
             "scale": "outer",
             "pipeline": {
                 "name": "mgw",
-                "user": [1, 10, 100, 1000]
+                "user": [10, 100, 1000]
             },
             "traffic": {
                 "pkt-num": 10000,
@@ -300,7 +300,7 @@ The basic workflow is as follows.
     ],
     "environment": {
         "sut": {
-            "type": ["ovs", "bess],
+            "type": ["ovs", "bess"]
         },
         "tester": {
             "type": "moongen",
