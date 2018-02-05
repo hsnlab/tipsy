@@ -80,6 +80,11 @@
       "$ref": "definitions.json#/mac-address",
       "description": "Default gateway MAC address, downlink direction",
       "default": "aa:22:bb:44:cc:67"
+    },
+    "core": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "description": "number of CPU cores/workers running the pipeline",
+      "default": 1
     }
   },
   "required": ["name"],
