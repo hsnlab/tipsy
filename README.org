@@ -149,7 +149,7 @@ the TIPSY code.
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
 | Data Center GW (DCGW)                                | VXLAN       | L2/L3      | L2/L3    | -         | -        | x   |        |
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
-| [[./doc/README.mgw.org][Mobile GW (MGW)]]            | GTP         | L2/L3/L4   | L2/L3    | x         | -        | -   | ovs,bess |
+| [[./doc/README.mgw.org][Mobile GW (MGW)]]            | GTP         | L2/L3/L4   | L2/L3    | x         | -        | -   | ovs, bess |
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
 | [[./doc/README.bng.org][Broadband Network GW (BNG)]] | GRE         | L2/L3/L4   | L2/L3    | x         | x        | x   | ovs      |
 |------------------------------------------------------+-------------+------------+----------+-----------+----------+-----+--------|
@@ -204,7 +204,7 @@ base stations) as set in the =pipeline= section.
                 "user": [1,2],
                 "bst": [5,10],
             }
-        },
+        }
     ]
 }
 #+END_SRC
@@ -242,7 +242,7 @@ configuration with the default setting for each configurable parameter,
 use:
 
 #+BEGIN_SRC sh
-tipsy default-config <pipeline>
+tipsy init <pipeline>
 #+END_SRC
 
 You may then start to edit the resultant JSON configuration accordingly.
@@ -283,31 +283,32 @@ The basic workflow is as follows.
    number of users from 10 to 1000.
 
    #+BEGIN_SRC javascript
-     {
-         "benchmark":
-         [
-             {
-                 "id": "my_benchmark"
-                 "scale": "outer",
-                 "pipeline": {
-                     "name": "mgw",
-                     "user": [10, 100, 1000, 1000]
-                 },
-                 "traffic": {
-                     "pkt-size": [64, 128],
-                     "pkt-num": 10000
-                 },
-                 "sut": {
-                     "type": ["ovs", "bess"],
-                     "cores": 4
-                 },
-                 "tester": {
-                     "generator": "moongen",
-                     "test_time": 30
-                 }
-             }
-         ]
-     }
+{
+    "benchmark": [
+        {
+            "id": "my_benchmark",
+            "scale": "outer",
+            "pipeline": {
+                "name": "mgw",
+                "user": [1, 10, 100, 1000]
+            },
+            "traffic": {
+                "pkt-num": 10000,
+                "pkt-size": [64, 128]
+            }
+        }
+    ],
+    "environment": {
+        "sut": {
+            "type": ["ovs", "bess],
+        },
+        "tester": {
+            "type": "moongen",
+            "test-time": 30
+        }
+    },
+    "visualize": []
+}
    #+END_SRC
 
    See the detailed TIPSY configuration guide
