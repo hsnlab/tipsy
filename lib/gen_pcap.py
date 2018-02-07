@@ -117,6 +117,22 @@ def _gen_ul_pkt_l2fwd(pkt_size, conf):
     return _gen_pkt_l2fwd('upstream', pkt_size, conf)
 
 
+def _gen_pkt_l3fwd(dir, pkt_size, conf):
+    mac = getattr(conf.sut, '%sl_port_mac' % dir[0])
+    ip = random.choice(getattr(conf, '%s_l3_table' % dir)).ip
+    p = Ether(dst=mac) / IP(dst=ip)
+    p = add_payload(p, pkt_size)
+    return p
+
+
+def _gen_dl_pkt_l3fwd(pkt_size, conf):
+    return _gen_pkt_l3fwd('downstream', pkt_size, conf)
+
+
+def _gen_ul_pkt_l3fwd(pkt_size, conf):
+    return _gen_pkt_l3fwd('upstream', pkt_size, conf)
+
+
 def _gen_dl_pkt_mgw(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
