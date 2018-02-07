@@ -181,16 +181,24 @@ export PATH=$PWD:$PATH
 
 ** Main TIPSY benchmark configuration
 
-Input to TIPSY is a high-level description of the intended measurement,
-like the name of the pipeline to be coded into the SUT and the general
-parameters (number of users, number of Internet routes, etc.) and the
-output is a set of configurations/data-plane programs that can be loaded
-into the SUT and a set of traffic traces for each config.
+Input to TIPSY is a high-level description of the intended measurements and
+the measuring environment. The environment configuration involves the
+paramaters of the Tester (traffic generator, runtime of the measurement,
+etc.) and the SUT (pipeline implementation, custom setup/teardown scripts,
+etc.).
 
-Below is a sample configuration that defines a benchmark on the
-[[./doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=) pipeline, with
-pipeline-specific settings =user= (number of users) and =bst= (number of
-base stations) as set in the =pipeline= section.
+Descriptions of the measurements are the name and other general parameters
+(number of users, number of Internet routes, etc.) of the pipeline to be
+coded into the SUT. The high-level configurations are later transformed
+into a set of configurations/data-plane programs that can be loaded into
+the SUT and a set of traffic traces for each config.
+
+A detailed TIPSY configuration guide can be found [[./doc/README.config.org][here]].
+For the pipeline specific parameters, see the pipeline's
+documentation. Below is a sample configuration snippet that defines a
+benchmark on the [[./doc/README.mgw.org][Mobile Gateway (MGW)]] (=mgw=) pipeline,
+with pipeline-specific settings =user= (number of users) and =bst= (number
+of base stations) as set in the =pipeline= section.
 
 #+BEGIN_SRC javascript
 {
@@ -202,11 +210,16 @@ base stations) as set in the =pipeline= section.
             "pipeline": {
                 "name": "mgw",
                 "user": [1,2],
-                "bst": [5,10],
+                "bst": [5,10]
+            },
+            "traffic": {
+                "pkt-num": 10000,
+                "pkt-size": [64, 128],
+                "dir": ["uplink"]
             }
         }
-    ]
-}
+    ],
+
 #+END_SRC
 
 The =id= parameter sets a name for the benchmark and =scale= describes the
@@ -235,11 +248,33 @@ then to (2,5), and finally to (2,10).
 Setting =scale= to =none= ignores parameter lists and generates a single
 benchmark for the first scalar for each argument.
 
-A detailed TIPSY configuration guide can be found
-[[./doc/README.config.org][here]].  For the pipeline specific parameters,
-see the documentation for each pipeline. For generating an empty
-configuration with the default setting for each configurable parameter,
-use:
+The =traffic= section sets the test traffic parameters. TIPSY calculates
+the outer product of the scaled pipeline configurations and the traffic
+configurations in order to measure each scenario with all types of test
+traffic.
+
+In continuation of the example, the following snippet defines the
+environment of the mgw pipeline measurements.
+
+#+BEGIN_SRC javascript
+    "environment": {
+        "sut": {
+            "type": "bess"
+        },
+        "tester": {
+            "type": "moongen",
+            "test-time": 30
+        }
+    }
+}
+#+END_SRC
+
+The =environment= section is divided into two sections: parameters of the
+SUT and parameters of the Tester. Further details are in the
+[[./doc/README.config.org][detailed TIPSY configuration guide]].
+
+For generating an empty configuration with the default setting for each
+configurable parameter, use:
 
 #+BEGIN_SRC sh
 tipsy init <pipeline>
