@@ -86,7 +86,7 @@
       "description": "number of firewall rules",
       "default": 1
     },
-    "cores": {
+    "core": {
       "$ref": "definitions.json#/positive-integer",
       "description": "number of CPU cores/workers running the pipeline",
       "default": 1

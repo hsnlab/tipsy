@@ -54,7 +54,7 @@
       "default": 0,
       "description": "number of group-table-update events in the Group Table per sec"
     },
-    "cores": {
+    "core": {
       "$ref": "definitions.json#/positive-integer",
       "description": "number of CPU cores/workers running the pipeline",
       "default": 1

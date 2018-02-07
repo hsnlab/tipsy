@@ -75,7 +75,7 @@
       "description": "Default gateway MAC address, downlink direction",
       "default": "aa:22:bb:44:cc:67"
     },
-    "cores": {
+    "core": {
       "$ref": "definitions.json#/positive-integer",
       "description": "number of CPU cores/workers running the pipeline",
       "default": 1
