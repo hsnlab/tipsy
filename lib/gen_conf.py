@@ -63,6 +63,7 @@ class PL (object):
 
   def add_base (self):
     self.conf['name'] = self.args.name
+    self.conf['core'] = self.args.core
     self.conf['fakedrop'] = self.args.fakedrop
     self.conf['run_time'] = [] # Commands to be executed in every second
 
