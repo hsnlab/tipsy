@@ -30,7 +30,7 @@
       "description": "number of MAC table entry update events (table-update) per sec"
     },
     "core": {
-      "$ref": "definitions.json#/non-negative-integer",
+      "$ref": "definitions.json#/positive-integer",
       "description": "number of CPU cores/workers running the pipeline",
       "default": 1
     }

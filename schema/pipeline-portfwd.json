@@ -19,7 +19,7 @@
       "description": "if set, swap the source MAC address in the packets received from the uplink port before forwarding to the downlink port"
     },
     "cores": {
-      "$ref": "definitions.json#/non-negative-integer",
+      "$ref": "definitions.json#/positive-integer",
       "description": "number of CPU cores/workers running the pipeline",
       "default": 1
     }
