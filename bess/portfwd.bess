@@ -32,13 +32,13 @@ class ObjectView(object):
 
 bess_inport = int($inport!'0')
 bess_outport = int($outport!'0')
-bess_workers = int($workers!'1')
 conf_file = $config!'./portfwd.json'
 
 with open(conf_file, 'r') as f:
   conv_fn = lambda d: ObjectView(**d)
   conf = json.load(f, object_hook=conv_fn)
 
+bess_workers = conf.core
 portIn = PMDPort(port_id=bess_inport,
                  num_inc_q=bess_workers * 2,
                  num_out_q=bess_workers * 2)

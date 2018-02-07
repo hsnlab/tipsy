@@ -29,7 +29,6 @@ import subprocess
 
 bess_inport = int($inport!'0')
 bess_outport = int($outport!'0')
-bess_workers = int($workers!'1')
 conf_file = $config!'./mgw_u1_s1_b1_n1.json'
 
 
@@ -63,6 +62,7 @@ def mac_int_from_str(s):
 
 # ----------------------------------------------------------------------------------
 
+bess_workers = conf.core
 portIn = PMDPort(port_id=bess_inport,
                  num_inc_q=bess_workers,
                  num_out_q=bess_workers)
