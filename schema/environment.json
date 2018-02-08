@@ -7,7 +7,7 @@
       "properties": {
 	"type": {
 	  "type": "string",
-	  "enum": ["ovs", "bess"],
+	  "enum": ["ovs", "bess", "ofdpa"],
 	  "default": "ovs"
 	},
 	"hostname": {
