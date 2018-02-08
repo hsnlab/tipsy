@@ -278,8 +278,8 @@ class PL_l3fwd (PL):
       )
 
     for d in ['upstream', 'downstream']:
-      dprefix = {'upstream': 'aa:bb:bb:aa', 'downstream': 'ab:ba:ab:ba'}[d]
-      sprefix = {'upstream': 'ee:dd:dd:aa', 'downstream': 'ed:da:ed:da'}[d]
+      dprefix = {'upstream': 'aa:bb:bb:aa', 'downstream': 'aa:aa:ab:ba'}[d]
+      sprefix = {'upstream': 'ee:dd:dd:aa', 'downstream': 'ee:ee:ed:da'}[d]
       self.conf['%s_group_table' % d] = self.create_l2_table(
         size=self.get_arg('%s_group_table_size' %d),
         dmac_template='%s:%%02x:%%02x' % dprefix,
@@ -314,8 +314,8 @@ class PL_l3fwd (PL):
       dts = self.args.downstream_group_table_size
       fluct = self.args.fluct_group_table
       u_nhops = int(fluct * uts / (uts + dts))
-      dprefix = {'upstream': 'aa:bb:bb:ff', 'downstream': 'ab:ba:ab:ff'}[d]
-      sprefix = {'upstream': 'ee:dd:dd:ff', 'downstream': 'ed:da:ed:ff'}[d]
+      dprefix = {'upstream': 'aa:bb:bb:ff', 'downstream': 'aa:ab:ba:ff'}[d]
+      sprefix = {'upstream': 'ee:dd:dd:ff', 'downstream': 'ee:ed:da:ff'}[d]
       extra_nhops = self.create_l2_table(
         size={'upstream': u_nhops, 'downstream': (fluct - u_nhops)}[d],
         dmac_template='%s:%%02x:%%02x' % dprefix,
