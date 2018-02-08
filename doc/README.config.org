@@ -129,6 +129,6 @@ Settings for the System-Under-Test (SUT).
 - =uplink_port= and =downlink_port=: port name ('eth1') or pci addr for
   DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0').
 - =setup_script=: absolute path of your custom SUT setup script. This
-  script is run when measurements starts with a new SUT implementation.
+  script will run on the SUT before starting a measurement
 - =teardown_script=: absolute path of your custom SUT teardown script. This
-  script is run when measurements are done with a SUT implementation.
+  script will run on SUT after ending a measurement
