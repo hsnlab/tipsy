@@ -112,6 +112,9 @@ settings.
 - =moongen-cmd=: absolute path of the MoonGen executable
 - =uplink_port= and =downlink_port=: port name ('eth1') or pci addr for
   DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0').
+- =setup_script=: absolute path of your custom Tester setup script. Useful
+  for e.g. automating DPDK interface configuration.
+- =teardown_script=: absolute path of your custom Tester teardown script
 
 * The =sut= section
 

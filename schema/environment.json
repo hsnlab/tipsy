@@ -75,6 +75,16 @@
 	  "type": "string",
 	  "default": "/opt/MoonGen/build/MoonGen",
 	  "description": "Absolute path of the MoonGen executable"
+	},
+	"setup_script": {
+	  "type": "string",
+	  "default": "/dev/null",
+	  "description": "Absolute path of the custom Tester setup script"
+	},
+	"teardown_script": {
+	  "type": "string",
+	  "default": "/dev/null",
+	  "description": "Absolute path of the custom Tester teardown script"
 	}
       },
       "default": {}
