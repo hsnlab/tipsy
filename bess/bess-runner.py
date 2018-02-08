@@ -422,6 +422,11 @@ def signal_handler(signum, frame):
     updater.stop()
 
 
+def call_cmd(cmd):
+    print(' '.join(cmd))
+    return subprocess.call(cmd)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--bessdir', '-d', type=str,
@@ -432,7 +437,7 @@ if __name__ == '__main__':
                         default='./pipeline.json')
     args = parser.parse_args()
 
-    bessctl = Path(args.bessdir, 'bessctl', 'bessctl')
+    bessctl = str(Path(args.bessdir, 'bessctl', 'bessctl'))
 
     try:
         sys.path.insert(1, args.bessdir)
@@ -448,11 +453,13 @@ if __name__ == '__main__':
         print(('Error loading config from %s' % args.conf))
         raise
 
-    pipeline_bess = Path(__file__).parent.joinpath('%s.bess' % config.name)
-    bess_start_cmd = "%s daemon start -- run file %s \"config='%s'\"" % (
-        bessctl, pipeline_bess, args.conf.name)
-    print(bess_start_cmd)
-    ret_val = subprocess.call(bess_start_cmd, shell=True)
+    pipeline_bess = str(
+        Path(__file__).parent.joinpath('%s.bess' % config.name))
+    bess_start_cmd = [bessctl,
+                      'daemon', 'start',
+                      '--', 'run', 'file',
+                      pipeline_bess, 'config=\"%s\"' % args.conf.name]
+    ret_val = call_cmd(bess_start_cmd)
     try:
         url = 'http://localhost:9000/configured'
         requests.get(url)
@@ -471,6 +478,5 @@ if __name__ == '__main__':
 
         updater.start()
 
-    bess_stop_cmd = "%s daemon stop" % bessctl
-    print(bess_stop_cmd)
-    subprocess.call(bess_stop_cmd, shell=True)
+    bess_stop_cmd = [bessctl, 'daemon', 'stop']
+    call_cmd(bess_stop_cmd)
