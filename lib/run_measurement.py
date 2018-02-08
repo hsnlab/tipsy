@@ -88,6 +88,19 @@ class SUT(object):
         cmd = ['screen', '-S', self.screen_name, '-X', 'stuff', '^C']
         self.run_ssh_cmd(cmd)
 
+    def run_local_shell_script(self, script, path_sut):
+        if Path(script).is_file():
+            self.upload_to_remote(script, path_sut)
+            self.run_ssh_cmd(['sh', str(path_sut)])
+
+    def run_setup_script(self):
+        self.run_local_shell_script(self.conf.sut.setup_script,
+                                    Path('/tmp', 'setup.sh'))
+
+    def run_teardown_script(self):
+        self.run_local_shell_script(self.conf.sut.teardown_script,
+                                    Path('/tmp', 'teardown.sh'))
+
 
 class SUT_bess(SUT):
     def start(self):
@@ -125,12 +138,27 @@ class SUT_ovs(SUT):
         self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 class Tester(object):
+    def __init__(self, conf):
+        self.conf = conf
+
     def start(self, out_dir):
         raise NotImplementedError
+
+    def run_script(self, script):
+        if Path(script).is_file():
+            cmd = [str(o) for o in ['sh', script]]
+            subprocess.call(cmd)
+
+    def run_setup_script(self):
+        self.run_script(self.conf.tester.setup_script)
+
+    def run_teardown_script(self):
+        self.run_script(self.conf.tester.teardown_script)
 
 
 class Tester_moongen(Tester):
     def __init__(self, conf):
+        super().__init__(conf)
         self.txdev = conf.tester.uplink_port
         self.rxdev = conf.tester.downlink_port
         self.mg_cmd = conf.tester.moongen_cmd
@@ -151,17 +179,22 @@ class Tester_moongen(Tester):
         # TODO: curl http://sut:8080/exit
         super().stop()
 
+
 def run(defaults=None):
     cwd = Path().cwd()
     conf = Config(cwd.parent.parent / '.tipsy.json')
     sut = globals()['SUT_%s' % conf.sut.type](conf)
+
+    sut.run_setup_script()
     sut.start()
 
     tester = globals()['Tester_%s' % conf.tester.type](conf)
+    tester.run_setup_script()
     tester.start(cwd)
+    tester.run_teardown_script()
 
     sut.stop()
-
+    sut.run_teardown_script()
 
 if __name__ == "__main__":
     run()
