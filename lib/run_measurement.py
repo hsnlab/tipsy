@@ -137,6 +137,22 @@ class SUT_ovs(SUT):
         cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
         self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
+class SUT_ofdpa(SUT):
+    def __init__(self, conf):
+        super().__init__(conf)
+
+    def start(self):
+        remote_cmd = Path(self.conf.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
+        remote_pipeline = '/tmp/pipeline.json'
+        local_pipeline = Path().cwd() / 'pipeline.json'
+        self.upload_to_remote(local_pipeline, remote_pipeline)
+
+        cmd = self.get_screen_cmd(['sudo', str(remote_cmd)])
+        self.run_ssh_cmd(cmd)
+
+        cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
+        self.run_ssh_cmd([str(cmd)], '-t', '-t')
+
 class Tester(object):
     def __init__(self, conf):
         self.conf = conf
