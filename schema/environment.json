@@ -25,24 +25,24 @@
 	  "default": "/opt/bess",
 	  "description": "A directory on SUT in which bess is installed"
 	},
-	"uplink_port": {
+	"uplink-port": {
 	  "type": "string",
 	  "default": "0000:0b:00.0",
 	  "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
 	},
-	"downlink_port": {
+	"downlink-port": {
 	  "type": "string",
 	  "default": "0000:0b:00.1",
 	  "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0')  or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
 	},
-	"setup_script": {
+	"setup-script": {
 	  "type": "string",
-	  "default": "/dev/null",
+	  "default": "",
 	  "description": "Absolute path of the custom SUT setup script"
 	},
-	"teardown_script": {
+	"teardown-script": {
 	  "type": "string",
-	  "default": "/dev/null",
+	  "default": "",
 	  "description": "Absolute path of the custom SUT teardown script"
 	}
       },
@@ -61,12 +61,12 @@
 	  "description": "length of the measurement [s]",
 	  "default": 30
 	},
-	"uplink_port": {
+	"uplink-port": {
 	  "type": "string",
 	  "default": "0000:0c:00.1",
 	  "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
 	},
-	"downlink_port": {
+	"downlink-port": {
 	  "type": "string",
 	  "default": "0000:0c:00.0",
 	  "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0')  or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
@@ -76,14 +76,14 @@
 	  "default": "/opt/MoonGen/build/MoonGen",
 	  "description": "Absolute path of the MoonGen executable"
 	},
-	"setup_script": {
+	"setup-script": {
 	  "type": "string",
-	  "default": "/dev/null",
+	  "default": "",
 	  "description": "Absolute path of the custom Tester setup script"
 	},
-	"teardown_script": {
+	"teardown-script": {
 	  "type": "string",
-	  "default": "/dev/null",
+	  "default": "",
 	  "description": "Absolute path of the custom Tester teardown script"
 	}
       },

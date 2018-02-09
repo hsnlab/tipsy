@@ -32,7 +32,7 @@
     },
     "environment": {
       "$ref": "environment.json#/",
-      "default": {"sut": {}, "tester": {}}
+      "default": {}
     },
 	"visualize": {
 	  "type": "array",
