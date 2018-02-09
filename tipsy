@@ -49,6 +49,31 @@ target is either a filename, a PosixPath, or a file-like object.
     else:
         dump_to_file(obj, target)
 
+def conf_merge(dst, src):
+    if dst is None:
+        return src
+
+    if type(dst) in [int, str]:
+        return src
+
+    if type(dst) == list:
+        if type(src) == list:
+            return dst + src
+        else:
+            return dst + [src]
+
+    if isinstance(dst, dict):
+        if isinstance(src, dict):
+            for k, v in src.items():
+                dst[k] = conf_merge(dst.get(k), v)
+            return dst
+
+    if type(src) in [int, str]:
+        return src
+    
+    raise TypeError('incompatible types: cannot merge %s -> %s'
+                    % (type(src), type(dst)))
+
 
 class TipsyConfig(dict):
     def __init__(self, *args, **kwargs):
@@ -166,23 +191,13 @@ class TipsyManager(object):
                     # https://bugs.python.org/issue26096
                     config_files.append(str(f.name))
         self.tipsy_conf = conf_load({})
+        # add defaults to empty conf
+        validate.validate_data(self.tipsy_conf, schema_name="main")
         for config_file in config_files:
             print('Processing config file: %s' % config_file)
             with open(config_file, 'r') as cf:
                 new = json.load(cf, object_hook=conf_load)
-                old = self.tipsy_conf
-                for k, v in new.items():
-                    if old.get(k) is None:
-                        old[k] = v
-                    elif type(old[k]) == list:
-                        if type(v) == list:
-                            old[k] += v
-                        else:
-                            old[k].append(v)
-                    elif type(old[k]) == TipsyConfig:
-                        old[k].update(v)
-                    else:
-                        old[k] = v
+                conf_merge(self.tipsy_conf, new)
         self.validate_main()
         print('Saving config file    : %s' % self.fname_conf)
         json_dump(self.tipsy_conf, self.fname_conf)
