@@ -165,7 +165,7 @@ class Tester(object):
     def run_script(self, script):
         if Path(script).is_file():
             cmd = [str(o) for o in ['sh', script]]
-            subprocess.call(cmd)
+            subprocess.run(cmd, check=True)
 
     def run_setup_script(self):
         self.run_script(self.env.tester.setup_script)
