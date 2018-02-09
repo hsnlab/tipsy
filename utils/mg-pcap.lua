@@ -178,7 +178,7 @@ function measure_latency(txQueue, rxQueue, histfile, file, ofile)
    if ofile then
       file = io.open(ofile .. ".latency.csv", "w")
       file:write("Samples,Average,StdDev,1st_Quartiles,2nd_Quartiles,3rd_Quartiles\n")
-      file:write(string.format("%d,%.1f,%.1f,%.1f,%.1f.%.1f\n",
+      file:write(string.format("%d,%.1f,%.1f,%.1f,%.1f,%.1f\n",
                                hist.numSamples, hist.avg, hist.stdDev, unpack(hist.quarts)))
       file:close()
    end
