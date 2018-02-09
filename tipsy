@@ -23,6 +23,7 @@ import inspect
 import itertools
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path, PosixPath
@@ -100,6 +101,7 @@ class TipsyManager(object):
         self.fname_pl = 'pipeline.json'
         self.fname_pcap = 'traffic.pcap'
         self.fname_conf = '.tipsy.json'
+        self.meas_dir = 'measurements'
 
     def do_init(self):
         fname = 'main.json'
@@ -133,8 +135,8 @@ class TipsyManager(object):
                 self.validate_json_conf(fname)
         elif os.path.exists(self.fname_pl_in):
             self.validate_json_conf(self.fname_pl_in)
-        elif os.path.exists('measurements'):
-            p = join('measurements', '[0-9][0-9][0-9]', self.fname_pl_in)
+        elif os.path.exists(self.meas_dir):
+            p = join(self.meas_dir, '[0-9][0-9][0-9]', self.fname_pl_in)
             for fname in glob.glob(p):
                 self.validate_json_conf(fname)
         else:
@@ -218,14 +220,18 @@ class TipsyManager(object):
     def do_config(self):
         self.init_tipsyconfig(self.args.configs)
         self.tipsy_conf.gen_configs()
+        
+        if self.args.force and os.path.exists(self.meas_dir):
+            shutil.rmtree(self.meas_dir)
+
         try:
-            os.mkdir('measurements')
+            os.mkdir(self.meas_dir)
         except FileExistsError:
             pass
         self.write_main_makefile(Path.cwd())
         save = self.json_validate_and_dump
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
-            out_dir = Path('measurements', '%03d' % i)
+            out_dir = Path(self.meas_dir, '%03d' % i)
             out_dir.mkdir()
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
             save(config['traffic'], out_dir / 'traffic.json', 'traffic')
@@ -233,7 +239,7 @@ class TipsyManager(object):
             self.write_per_dir_makefile(out_dir)
 
     def do_traffic_gen(self):
-        meas_dir = Path('measurements')
+        meas_dir = Path(self.meas_dir)
         for out_dir in [f for f in meas_dir.iterdir() if f.is_dir()]:
             # NB: We cannot use gen_pcap as a lib, because
             # python3-scapy does not support VXLAN headers
@@ -276,8 +282,7 @@ class TipsyManager(object):
 
     def do_clean(self):
         os.remove(self.fname_conf)
-        import shutil
-        shutil.rmtree('measurements')
+        shutil.rmtree(self.meas_dir)
         # TODO
 
 
@@ -306,7 +311,10 @@ if __name__ == '__main__':
                       default=None)
     config = subparsers.add_parser('config', help='Configure TIPSY')
     config.add_argument('configs', type=str, nargs='*',
-                        help='Config JSON files')
+                        help='Compile main JSON config')
+    config.add_argument('--force', '-f',
+                        default=False, action="store_true",
+                        help='Delete measurement directories')
     tgen = subparsers.add_parser('traffic-gen', help='Generate traffic')
     run = subparsers.add_parser('run', help='Run benchmarks')
     eval = subparsers.add_parser('evaluate', help='Evaluate benchmark results')
