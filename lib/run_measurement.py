@@ -62,7 +62,8 @@ class Config(object):
 class SUT(object):
     def __init__(self, conf, **kw):
         self.conf = conf
-        self.cmd_prefix = ['ssh', conf.sut.hostname]
+        self.env = conf.environment
+        self.cmd_prefix = ['ssh', self.env.sut.hostname]
         self.screen_name = 'TIPSY_SUT'
 
     def run_ssh_cmd(self, cmd, *extra_cmd):
@@ -76,7 +77,7 @@ class SUT(object):
 
     def upload_to_remote(self, src, dst):
         "scp one file to SUT"
-        dst = '%s:%s' % (self.conf.sut.hostname, dst)
+        dst = '%s:%s' % (self.env.sut.hostname, dst)
         cmd = [str(c) for c in ['scp', src, dst]]
         print(' '.join(cmd))
         subprocess.run(cmd, check=True)
@@ -94,11 +95,11 @@ class SUT(object):
             self.run_ssh_cmd(['sh', str(path_sut)])
 
     def run_setup_script(self):
-        self.run_local_shell_script(self.conf.sut.setup_script,
+        self.run_local_shell_script(self.env.sut.setup_script,
                                     Path('/tmp', 'setup.sh'))
 
     def run_teardown_script(self):
-        self.run_local_shell_script(self.conf.sut.teardown_script,
+        self.run_local_shell_script(self.env.sut.teardown_script,
                                     Path('/tmp', 'teardown.sh'))
 
 
@@ -108,15 +109,15 @@ class SUT_bess(SUT):
         dst = Path('/tmp') / 'pipeline.json'
         self.upload_to_remote(local_pipeline, dst)
         cmd = [
-            Path(self.conf.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
-            '-d', self.conf.sut.bess_dir,
+            Path(self.env.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
+            '-d', self.env.sut.bess_dir,
             '-c', dst,
         ]
 
         cmd = self.get_screen_cmd([str(c) for c in cmd])
         self.run_ssh_cmd(cmd)
 
-        cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
+        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
         self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 
@@ -125,7 +126,7 @@ class SUT_ovs(SUT):
         super().__init__(conf)
 
     def start(self):
-        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
+        remote_ryu_dir = Path(self.env.sut.tipsy_dir) / 'ryu'
         remote_pipeline = remote_ryu_dir / 'pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
         self.upload_to_remote(local_pipeline, remote_pipeline)
@@ -134,7 +135,7 @@ class SUT_ovs(SUT):
         cmd = self.get_screen_cmd(['sudo', str(cmd)])
         self.run_ssh_cmd(cmd)
 
-        cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
+        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
         self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 class SUT_ofdpa(SUT):
@@ -142,7 +143,7 @@ class SUT_ofdpa(SUT):
         super().__init__(conf)
 
     def start(self):
-        remote_cmd = Path(self.conf.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
+        remote_cmd = Path(self.env.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
         remote_pipeline = '/tmp/pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
         self.upload_to_remote(local_pipeline, remote_pipeline)
@@ -150,12 +151,13 @@ class SUT_ofdpa(SUT):
         cmd = self.get_screen_cmd(['sudo', str(remote_cmd)])
         self.run_ssh_cmd(cmd)
 
-        cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
+        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
         self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 class Tester(object):
     def __init__(self, conf):
         self.conf = conf
+        self.env = conf.environment
 
     def start(self, out_dir):
         raise NotImplementedError
@@ -166,20 +168,21 @@ class Tester(object):
             subprocess.call(cmd)
 
     def run_setup_script(self):
-        self.run_script(self.conf.tester.setup_script)
+        self.run_script(self.env.tester.setup_script)
 
     def run_teardown_script(self):
-        self.run_script(self.conf.tester.teardown_script)
+        self.run_script(self.env.tester.teardown_script)
 
 
 class Tester_moongen(Tester):
     def __init__(self, conf):
         super().__init__(conf)
-        self.txdev = conf.tester.uplink_port
-        self.rxdev = conf.tester.downlink_port
-        self.mg_cmd = conf.tester.moongen_cmd
+        tester = conf.environment.tester
+        self.txdev = tester.uplink_port
+        self.rxdev = tester.downlink_port
+        self.mg_cmd = tester.moongen_cmd
         self.script = Path(__file__).parent.parent / 'utils' / 'mg-pcap.lua'
-        self.runtime = conf.tester.test_time
+        self.runtime = tester.test_time
 
     def start(self, out_dir):
         pcap = out_dir / 'traffic.pcap'
@@ -199,12 +202,13 @@ class Tester_moongen(Tester):
 def run(defaults=None):
     cwd = Path().cwd()
     conf = Config(cwd.parent.parent / '.tipsy.json')
-    sut = globals()['SUT_%s' % conf.sut.type](conf)
+    env = conf.environment
+    sut = globals()['SUT_%s' % env.sut.type](conf)
 
     sut.run_setup_script()
     sut.start()
 
-    tester = globals()['Tester_%s' % conf.tester.type](conf)
+    tester = globals()['Tester_%s' % env.tester.type](conf)
     tester.run_setup_script()
     tester.start(cwd)
     tester.run_teardown_script()
