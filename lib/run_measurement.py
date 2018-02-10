@@ -71,9 +71,15 @@ class SUT(object):
         print(' '.join(command))
         subprocess.run(command, check=True)
 
+    def run_async_ssh_cmd(self, cmd):
+        command = self.cmd_prefix + ['-t'] + cmd
+        command = self.get_screen_cmd(command)
+        print(' '.join(command))
+        subprocess.run(command, check=True)
+
     def get_screen_cmd(self, cmd):
         return ['screen', '-c', '/dev/null', '-d', '-m',
-                '-S', self.screen_name] + cmd
+                '-L', '-S', self.screen_name] + cmd
 
     def upload_to_remote(self, src, dst):
         "scp one file to SUT"
@@ -87,7 +93,7 @@ class SUT(object):
 
     def stop(self, *args):
         cmd = ['screen', '-S', self.screen_name, '-X', 'stuff', '^C']
-        self.run_ssh_cmd(cmd)
+        subprocess.run(cmd, check=True)
 
     def run_local_shell_script(self, script, path_sut):
         if Path(script).is_file():
@@ -102,6 +108,10 @@ class SUT(object):
         self.run_local_shell_script(self.env.sut.teardown_script,
                                     Path('/tmp', 'teardown.sh'))
 
+    def wait_for_callback(self):
+        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
+        self.run_ssh_cmd([str(cmd)], '-t', '-t')
+
 
 class SUT_bess(SUT):
     def start(self):
@@ -113,12 +123,8 @@ class SUT_bess(SUT):
             '-d', self.env.sut.bess_dir,
             '-c', dst,
         ]
-
-        cmd = self.get_screen_cmd([str(c) for c in cmd])
-        self.run_ssh_cmd(cmd)
-
-        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
-        self.run_ssh_cmd([str(cmd)], '-t', '-t')
+        self.run_async_ssh_cmd([str(c) for c in cmd])
+        self.wait_for_callback()
 
 
 class SUT_ovs(SUT):
@@ -132,11 +138,9 @@ class SUT_ovs(SUT):
         self.upload_to_remote(local_pipeline, remote_pipeline)
 
         cmd = remote_ryu_dir / 'start-ryu'
-        cmd = self.get_screen_cmd(['sudo', str(cmd)])
-        self.run_ssh_cmd(cmd)
+        self.run_async_ssh_cmd(['sudo', str(cmd)])
+        self.wait_for_callback()
 
-        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
-        self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 class SUT_ofdpa(SUT):
     def __init__(self, conf):
@@ -147,12 +151,9 @@ class SUT_ofdpa(SUT):
         remote_pipeline = '/tmp/pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
         self.upload_to_remote(local_pipeline, remote_pipeline)
+        self.run_async_ssh_cmd(['sudo', str(remote_cmd)])
+        self.wait_for_callback()
 
-        cmd = self.get_screen_cmd(['sudo', str(remote_cmd)])
-        self.run_ssh_cmd(cmd)
-
-        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
-        self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 class Tester(object):
     def __init__(self, conf):
