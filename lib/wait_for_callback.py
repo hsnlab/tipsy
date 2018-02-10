@@ -39,15 +39,21 @@ def wait_for_request(host_name, port_number, url):
   httpd = HTTPServer((host_name, port_number), MyHandler)
   httpd.RequestHandlerClass.w_url = url
   httpd.RequestHandlerClass.httpd = httpd
+  interrupted = False
   try:
     httpd.serve_forever()
   except KeyboardInterrupt:
-    pass
-  httpd.server_close()
+    interrupted = True
+  finally:
+    httpd.server_close()
+  return not interrupted
 
 
 if __name__ == '__main__':
   params = ('127.0.0.1', 9000, '/configured')
   print('Waiting for %s:%s%s' % params)
-  wait_for_request(*params)
-  print('Got it.')
+  if wait_for_request(*params):
+    print('Got it')
+  else:
+    print('Failed')
+    exit(-1)
