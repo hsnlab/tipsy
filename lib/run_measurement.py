@@ -89,24 +89,29 @@ class SUT(object):
         subprocess.run(cmd, check=True)
 
     def start(self, *args):
+        self.run_setup_script()
+        self._start(*args)
+
+    def _start(self, *args):
         raise NotImplementedError
 
     def stop(self, *args):
         cmd = ['screen', '-S', self.screen_name, '-X', 'stuff', '^C']
         subprocess.run(cmd, check=True)
+        self.run_teardown_script()
 
     def run_local_shell_script(self, script, path_sut):
         if Path(script).is_file():
             self.upload_to_remote(script, path_sut)
-            self.run_ssh_cmd(['sh', str(path_sut)])
+            self.run_ssh_cmd([str(path_sut)])
 
     def run_setup_script(self):
         self.run_local_shell_script(self.env.sut.setup_script,
-                                    Path('/tmp', 'setup.sh'))
+                                    Path('/tmp', 'sut_setup'))
 
     def run_teardown_script(self):
         self.run_local_shell_script(self.env.sut.teardown_script,
-                                    Path('/tmp', 'teardown.sh'))
+                                    Path('/tmp', 'sut_teardown'))
 
     def wait_for_callback(self):
         cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
@@ -114,7 +119,7 @@ class SUT(object):
 
 
 class SUT_bess(SUT):
-    def start(self):
+    def _start(self):
         local_pipeline = Path().cwd() / 'pipeline.json'
         dst = Path('/tmp') / 'pipeline.json'
         self.upload_to_remote(local_pipeline, dst)
@@ -131,7 +136,7 @@ class SUT_ovs(SUT):
     def __init__(self, conf):
         super().__init__(conf)
 
-    def start(self):
+    def _start(self):
         remote_ryu_dir = Path(self.env.sut.tipsy_dir) / 'ryu'
         remote_pipeline = remote_ryu_dir / 'pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
@@ -146,7 +151,7 @@ class SUT_ofdpa(SUT):
     def __init__(self, conf):
         super().__init__(conf)
 
-    def start(self):
+    def _start(self):
         remote_cmd = Path(self.env.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
         remote_pipeline = '/tmp/pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
@@ -161,12 +166,16 @@ class Tester(object):
         self.env = conf.environment
 
     def start(self, out_dir):
+        self.run_setup_script()
+        self._start(out_dir)
+        self.run_teardown_script()
+
+    def _start(self, out_dir):
         raise NotImplementedError
 
     def run_script(self, script):
         if Path(script).is_file():
-            cmd = [str(o) for o in ['sh', script]]
-            subprocess.run(cmd, check=True)
+            subprocess.run([str(script)], check=True)
 
     def run_setup_script(self):
         self.run_script(self.env.tester.setup_script)
@@ -185,7 +194,7 @@ class Tester_moongen(Tester):
         self.script = Path(__file__).parent.parent / 'utils' / 'mg-pcap.lua'
         self.runtime = tester.test_time
 
-    def start(self, out_dir):
+    def _start(self, out_dir):
         pcap = out_dir / 'traffic.pcap'
         pfix = out_dir / 'mg'
         hfile = out_dir / 'mg.histogram.csv'
@@ -205,17 +214,13 @@ def run(defaults=None):
     conf = Config(cwd.parent.parent / '.tipsy.json')
     env = conf.environment
     sut = globals()['SUT_%s' % env.sut.type](conf)
-
-    sut.run_setup_script()
     sut.start()
 
     tester = globals()['Tester_%s' % env.tester.type](conf)
-    tester.run_setup_script()
     tester.start(cwd)
-    tester.run_teardown_script()
 
     sut.stop()
-    sut.run_teardown_script()
+
 
 if __name__ == "__main__":
     run()
