@@ -173,8 +173,8 @@ class TipsyManager(object):
     def validate_main(self):
         # We cannot fully validate a configuration until we generate
         # the exact config with the "scale" property.  But some errors
-        # can be catched if allow a property to be either its original
-        # type or an array of the type.
+        # can be catched if we allow a property to be either its
+        # original type or an array of the type.
         try:
             validate.validate_data(self.tipsy_conf,
                                    schema_name='main',
