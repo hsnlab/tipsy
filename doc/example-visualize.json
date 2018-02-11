@@ -1,0 +1,32 @@
+{
+  "benchmark": [
+    {
+      "pipeline": {
+        "name": "portfwd"
+      },
+      "scale": "outer",
+      "traffic": {
+        "pkt-num": 100,
+        "pkt-size": [64, 128, 256]
+      }
+    }
+  ],
+  "environment": {
+    "sut": {
+      "type": "ovs"
+    }
+  },
+  "visualize": [
+    { "x-axis": "traffic.pkt-size",
+      "y-axis": [
+        "mg.throughput.RX.PacketRate",
+        "mg.throughput.TX.PacketRate"
+      ],
+      "title": "{pipeline.name} - OVS v{sut.version}"
+    },
+    { "x-axis": "traffic.pkt-size",
+      "y-axis": "mg.throughput.TX.Mbit",
+      "title": "{pipeline.name} - OVS v{sut.version}"
+    }
+  ]
+}

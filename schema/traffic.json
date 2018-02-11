@@ -54,6 +54,6 @@
       "description": "Dump generated packets in human readable ASCII form"
     }
   },
-  "required": ["conf"],
+  "required": [],
   "additionalProperties": false
 }
