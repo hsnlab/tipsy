@@ -36,6 +36,6 @@
   "hierarchical-property-name": {
     "title": "hierarchical property name (e.g., mg.throughput.RX.Mbit)",
     "type": "string",
-    "pattern": "^[-a-zA-Z0-9.]*$"
+    "pattern": "^[-_a-zA-Z0-9.]*$"
   }
 }

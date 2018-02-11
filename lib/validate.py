@@ -106,10 +106,13 @@ def extend_with_property_array (validator_class):
 
   def allow_property_array(validator, properties, instance, schema):
     for property, subschema in properties.items():
-      if type(instance.get(property)) == list and subschema.get('type') != 'array':
-        new_schema = {"type": "array", "items": deepcopy(subschema)}
-        subschema.clear()
-        subschema.update(new_schema)
+      if type(instance.get(property)) != list:
+        continue
+      if subschema.get('type') == 'array' or subschema.get('anyOf'):
+        continue
+      new_schema = {"type": "array", "items": deepcopy(subschema)}
+      subschema.clear()
+      subschema.update(new_schema)
 
     for error in orig(validator, properties, instance, schema):
       yield error

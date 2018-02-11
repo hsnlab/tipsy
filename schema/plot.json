@@ -13,8 +13,15 @@
       "description": "variable of the x-axis"
     },
     "y-axis": {
-      "$ref": "definitions.json#/hierarchical-property-name",
-      "description": "variable of the y-axis"
+      "anyOf": [
+        { "type": "string",
+          "$ref": "definitions.json#/hierarchical-property-name"
+        },
+        { "type": "array",
+          "items": {"$ref": "definitions.json#/hierarchical-property-name"}
+        }
+      ],
+      "description": "variable or a list of variables to plot"
     },
     "group-by": {
       "$ref": "definitions.json#/hierarchical-property-name",

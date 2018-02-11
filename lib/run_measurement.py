@@ -32,15 +32,20 @@ except ImportError:
 
 __all__ = ["run"]
 
-class Config(object):
+class Config(dict):
     def __init__(self, *files, **kwargs):
-        kw = {k.replace('-', '_'): v for k, v in kwargs.items()}
-        self.__dict__.update(kw)
+        self.update(kwargs)
         for f in files:
             self.load(f)
 
-    def __repr__(self):
-        return self.__dict__.__repr__()
+    def __getattr__(self, name):
+        return self[name.replace('_', '-')]
+
+    def __setattr__(self, name, value):
+        self[name.replace('_', '-')] = value
+
+    def __delattr__(self, name):
+        del self[name.replace('_', '-')]
 
     def load(self, file):
         """Update dict with json encode data from `file`.
@@ -57,7 +62,7 @@ class Config(object):
         except Exception as e:
             print(e)
             exit(-1)
-        self.__dict__.update(**data.__dict__)
+        self.update(**data)
 
 
 class SUT(object):
@@ -251,7 +256,11 @@ def run(defaults=None):
 
     sut.stop()
 
-    result = {'sut': sut.result}
+    result = {
+        'sut': sut.result,
+        'pipeline': Config('pipeline-in.json'),
+        'traffic': Config('traffic.json'),
+    }
     result.update(tester.result)
     with open('results.json', 'w') as f:
         json.dump(result, f, sort_keys=True, indent=4)

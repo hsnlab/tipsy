@@ -27,6 +27,7 @@ class ObjectView(object):
         self.__dict__.update(**tmp)
 
     def __getitem__(self, x):
+        x = x.replace('-', '_')
         if '.' in x:
             [head, tail] = x.split('.', 1)
             return self.__dict__[head][tail]
@@ -48,23 +49,30 @@ class Plot_simple(Plot):
         super().__init__(conf)
 
     def plot(self, raw_data):
+        y_axis = self.conf.y_axis
+        if type(y_axis) != list:
+            y_axis = [y_axis]
         x = []
-        y = []
+        y = {}
         for row in raw_data:
             x.append(row[self.conf.x_axis])
-            y.append(row[self.conf.y_axis])
+            for var_name in y_axis:
+                val = float(row[var_name])
+                y[var_name] = y.get(var_name, []) + [val]
             title = self.conf.title.format(**row.__dict__)
 
         import matplotlib.pyplot as plt
-        plt.scatter(x, y)
+        for var_name in y_axis:
+            plt.plot(x, y[var_name], '-o', label=var_name)
         plt.title(title)
         plt.xlabel(self.conf.x_axis)
-        plt.ylabel(self.conf.x_axis)
+        plt.legend()
         plt.savefig('fig.png')
 
         with open('out.json', 'w') as f:
-            for points in zip(x, y):
-                f.write("%s\t%s\n" % points)
+            b = [y[var_name] for var_name in y_axis]
+            for val in zip(x, *b):
+                f.write("%s\n" % "\t".join([str(v) for v in val]))
 
 
 def json_load(file):
