@@ -1,0 +1,8 @@
+tipsy=@tipsy@
+tipsy_lib=$(dir $(tipsy))lib
+plot=$(tipsy_lib)/plot.py
+
+.DELETE_ON_ERROR:
+out.json: plot.json
+	$(plot)
+

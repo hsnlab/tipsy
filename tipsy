@@ -70,7 +70,7 @@ def conf_merge(dst, src):
 
     if type(src) in [int, str]:
         return src
-    
+
     raise TypeError('incompatible types: cannot merge %s -> %s'
                     % (type(src), type(dst)))
 
@@ -127,6 +127,7 @@ class TipsyManager(object):
         self.fname_pcap = 'traffic.pcap'
         self.fname_conf = '.tipsy.json'
         self.meas_dir = 'measurements'
+        self.plot_dir = 'plots'
 
     def do_init(self):
         fname = 'main.json'
@@ -196,7 +197,11 @@ class TipsyManager(object):
         for config_file in config_files:
             print('Processing config file: %s' % config_file)
             with open(config_file, 'r') as cf:
-                new = json.load(cf, object_hook=conf_load)
+                try:
+                    new = json.load(cf, object_hook=conf_load)
+                except json.decoder.JSONDecodeError as e:
+                    print('Failed to load file (%s):\n%s' % (config_file, e))
+                    exit(-1)
                 conf_merge(self.tipsy_conf, new)
         self.validate_main()
         print('Saving config file    : %s' % self.fname_conf)
@@ -208,14 +213,8 @@ class TipsyManager(object):
             content = content.replace('@%s@' % old, new)
         dst.write_text(content)
 
-    def write_per_dir_makefile(self, out_dir):
-        src = Path(__file__).parent / 'lib' / 'per-dir-makefile.in'
-        dst = out_dir / 'Makefile'
-        replacements = {'tipsy': str(Path(__file__).resolve())}
-        self.create_file_from_template(src, dst, replacements)
-
-    def write_main_makefile(self, out_dir):
-        src = Path(__file__).parent / 'lib' / 'main-makefile.in'
+    def write_makefile(self, out_dir, template):
+        src = Path(__file__).parent / 'lib' / template
         dst = out_dir / 'Makefile'
         replacements = {'tipsy': str(Path(__file__).resolve())}
         self.create_file_from_template(src, dst, replacements)
@@ -235,15 +234,13 @@ class TipsyManager(object):
     def do_config(self):
         self.init_tipsyconfig(self.args.configs)
         self.tipsy_conf.gen_configs()
-        
-        if self.args.force and os.path.exists(self.meas_dir):
-            shutil.rmtree(self.meas_dir)
 
-        try:
-            os.mkdir(self.meas_dir)
-        except FileExistsError:
-            pass
-        self.write_main_makefile(Path.cwd())
+        for dir in [self.meas_dir, self.plot_dir]:
+            if self.args.force and os.path.exists(dir):
+                shutil.rmtree(dir)
+            os.mkdir(dir)
+
+        self.write_makefile(Path.cwd(), 'main-makefile.in')
         save = self.json_validate_and_dump
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
             out_dir = Path(self.meas_dir, '%03d' % i)
@@ -251,7 +248,12 @@ class TipsyManager(object):
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
             save(config['traffic'], out_dir / 'traffic.json', 'traffic')
             json_dump(gen_conf(config['pipeline']), out_dir / self.fname_pl)
-            self.write_per_dir_makefile(out_dir)
+            self.write_makefile(out_dir, 'per-dir-makefile.in')
+        for i, config in enumerate(self.tipsy_conf.visualize, start=1):
+            out_dir = Path(self.plot_dir, '%03d' % i)
+            out_dir.mkdir()
+            save(config, out_dir / 'plot.json', 'plot')
+            self.write_makefile(out_dir, 'plot-makefile.in')
 
     def do_traffic_gen(self):
         meas_dir = Path(self.meas_dir)

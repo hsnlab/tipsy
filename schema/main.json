@@ -34,13 +34,11 @@
       "$ref": "environment.json#/",
       "default": {}
     },
-	"visualize": {
-	  "type": "array",
-	  "items": {
-	    "type": "object"
-	  },
-	  "default": []
-	}
+    "visualize": {
+      "type": "array",
+      "items": { "$ref": "plot.json#/" },
+      "default": []
+    }
   },
   "required": [],
   "additionalProperties": false

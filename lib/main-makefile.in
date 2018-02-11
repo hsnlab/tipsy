@@ -1,13 +1,18 @@
 tipsy=@tipsy@
 m_dir := $(sort $(wildcard measurements/[0-9][0-9][0-9]))
 results := $(foreach dir,$(m_dir),$(dir)/results.json)
+p_dir := $(sort $(wildcard plots/[0-9][0-9][0-9]))
+plots := $(foreach dir,$(p_dir),$(dir)/out.json)
 
 .PHONY: all
 
-all: measurements/result.json
+all: $(plots)
+
+$(plots): measurements/result.json
+	$(MAKE) -C $(dir $@) || exit
 
 .ONESHELL:
-measurements/result.json: results
+measurements/result.json: $(results)
 	@sep=""
 	echo '[' > $@
 	for r in $(results); do
@@ -22,4 +27,3 @@ $(results): .tipsy.json
 
 .tipsy.json: *.json
 	$(tipsy) config $^
-

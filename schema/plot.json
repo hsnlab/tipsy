@@ -1,0 +1,32 @@
+{
+  "title": "Definition of one plot",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["simple"],
+      "default": "simple",
+      "description": "Name of algorithm that generates the plot"
+    },
+    "x-axis": {
+      "$ref": "definitions.json#/hierarchical-property-name",
+      "description": "variable of the x-axis"
+    },
+    "y-axis": {
+      "$ref": "definitions.json#/hierarchical-property-name",
+      "description": "variable of the y-axis"
+    },
+    "group-by": {
+      "$ref": "definitions.json#/hierarchical-property-name",
+      "default": "",
+      "description": "(this property is currently ignored)"
+    },
+    "title": {
+      "type": "string",
+      "default": "",
+      "description": "The format string used for title, e.g., 'Throught of ovs version {sut.version}'"
+    }
+  },
+  "required": ["x-axis", "y-axis"],
+  "additionalProperties": false
+}
