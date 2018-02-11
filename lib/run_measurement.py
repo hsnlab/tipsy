@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import csv
 import json
 import subprocess
 from pathlib import Path, PosixPath
@@ -63,13 +64,14 @@ class SUT(object):
     def __init__(self, conf, **kw):
         self.conf = conf
         self.env = conf.environment
+        self.result = {}
         self.cmd_prefix = ['ssh', self.env.sut.hostname]
         self.screen_name = 'TIPSY_SUT'
 
-    def run_ssh_cmd(self, cmd, *extra_cmd):
+    def run_ssh_cmd(self, cmd, *extra_cmd, **kw):
         command = self.cmd_prefix + list(extra_cmd) + cmd
         print(' '.join(command))
-        subprocess.run(command, check=True)
+        return subprocess.run(command, check=True, **kw)
 
     def run_async_ssh_cmd(self, cmd):
         command = self.cmd_prefix + ['-t'] + cmd
@@ -137,6 +139,10 @@ class SUT_ovs(SUT):
         super().__init__(conf)
 
     def _start(self):
+        v = self.run_ssh_cmd(['ovs-vsctl', '--version'], stdout=subprocess.PIPE)
+        first_line = v.stdout.decode('utf8').split("\n")[0]
+        self.result['version'] = first_line.split(' ')[-1]
+
         remote_ryu_dir = Path(self.env.sut.tipsy_dir) / 'ryu'
         remote_pipeline = remote_ryu_dir / 'pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
@@ -164,13 +170,18 @@ class Tester(object):
     def __init__(self, conf):
         self.conf = conf
         self.env = conf.environment
+        self.result = {}
 
-    def start(self, out_dir):
+    def run(self, out_dir):
         self.run_setup_script()
-        self._start(out_dir)
+        self._run(out_dir)
         self.run_teardown_script()
+        self.collect_results()
 
-    def _start(self, out_dir):
+    def _run(self, out_dir):
+        raise NotImplementedError
+
+    def collect_results(self):
         raise NotImplementedError
 
     def run_script(self, script):
@@ -194,7 +205,7 @@ class Tester_moongen(Tester):
         self.script = Path(__file__).parent.parent / 'utils' / 'mg-pcap.lua'
         self.runtime = tester.test_time
 
-    def _start(self, out_dir):
+    def _run(self, out_dir):
         pcap = out_dir / 'traffic.pcap'
         pfix = out_dir / 'mg'
         hfile = out_dir / 'mg.histogram.csv'
@@ -203,6 +214,25 @@ class Tester_moongen(Tester):
         cmd = [ str(o) for o in cmd ]
         print(' '.join(cmd))
         subprocess.call(cmd)
+
+    def collect_results(self):
+        with open('mg.latency.csv') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                latency = row
+        latency['unit'] = 'ns'
+
+        throughput = {}
+        with open('mg.throughput.csv') as f:
+            # The last rows describe for the overall performance
+            reader = csv.DictReader(f)
+            for row  in reader:
+                d = row.pop('Direction')
+                throughput[d] = row
+        self.result['mg'] = {
+            'latency': latency,
+            'throughput': throughput
+        }
 
     def stop(self):
         # TODO: curl http://sut:8080/exit
@@ -217,9 +247,14 @@ def run(defaults=None):
     sut.start()
 
     tester = globals()['Tester_%s' % env.tester.type](conf)
-    tester.start(cwd)
+    tester.run(cwd)
 
     sut.stop()
+
+    result = {'sut': sut.result}
+    result.update(tester.result)
+    with open('results.json', 'w') as f:
+        json.dump(result, f, sort_keys=True, indent=4)
 
 
 if __name__ == "__main__":

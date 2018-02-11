@@ -2,7 +2,7 @@ tipsy=@tipsy@
 tipsy_lib=$(dir $(tipsy))lib
 gen_pcap=$(tipsy_lib)/gen_pcap.py
 
-results: traffic.pcap
+results.json: traffic.pcap
 	$(tipsy_lib)/run_measurement.py
 
 .DELETE_ON_ERROR:
