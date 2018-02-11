@@ -17,7 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import collections
 import json
+
 from pathlib import Path
 
 
@@ -45,34 +47,35 @@ class Plot(object):
         raise NotImplementedError
 
 class Plot_simple(Plot):
-    def __init__(self, conf):
-        super().__init__(conf)
-
     def plot(self, raw_data):
         y_axis = self.conf.y_axis
         if type(y_axis) != list:
             y_axis = [y_axis]
-        x = []
-        y = {}
+        series = collections.defaultdict(list)
         for row in raw_data:
-            x.append(row[self.conf.x_axis])
+            x = row[self.conf.x_axis]
             for var_name in y_axis:
-                val = float(row[var_name])
-                y[var_name] = y.get(var_name, []) + [val]
+                y = float(row[var_name])
+                if self.conf.group_by:
+                    group = row[self.conf.group_by]
+                    key = '%s/%s' % (group, var_name)
+                else:
+                    key = var_name
+                series[key].append((x, y))
             title = self.conf.title.format(**row.__dict__)
 
         import matplotlib.pyplot as plt
-        for var_name in y_axis:
-            plt.plot(x, y[var_name], '-o', label=var_name)
+        for name, points in series.items():
+            x = [p[0] for p in points]
+            y = [p[1] for p in points]
+            plt.plot(x, y, '-o', label=name)
         plt.title(title)
         plt.xlabel(self.conf.x_axis)
         plt.legend()
         plt.savefig('fig.png')
 
         with open('out.json', 'w') as f:
-            b = [y[var_name] for var_name in y_axis]
-            for val in zip(x, *b):
-                f.write("%s\n" % "\t".join([str(v) for v in val]))
+            json.dump(series, f, indent=1)
 
 
 def json_load(file):

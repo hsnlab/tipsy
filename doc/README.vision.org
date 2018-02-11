@@ -25,14 +25,16 @@ it becomes ready.
 
    #+BEGIN_SRC javascript
      {
-         "benchmark": {
-             "id": "test1"
-             "scale": "outer",
-             "pipeline": {
-                 "name": "mgw",
-                 "user": [10, 100, 1000, 1000]
+         "benchmark": [
+             {
+                 "id": "test1"
+                 "scale": "outer",
+                 "pipeline": {
+                     "name": "mgw",
+                     "user": [10, 100, 1000, 1000]
+                 }
              }
-         },
+         ],
          "traffic": {
              "pkt-size": 64
          },
@@ -46,9 +48,9 @@ it becomes ready.
          "visualize":
          [
              {
-                 "x_axis": "mgw.user",
-                 "y_axis": "packet_rate",
-                 "curve": ["ovs", "bess"]
+                 "x_axis": "pipeline.user",
+                 "y_axis": "mg.throughput.RX.PacketRate",
+                 "group-by": "sut.type"
              }
          ]
      }
@@ -119,10 +121,11 @@ it becomes ready.
    tipsy visualize
    #+END_SRC
 
-   In the above config, this will use the system default visualization tool
-   (like Gnuplot) to create a single plot that will compare the packet rate
-   as produced by the BESS and the OVS backends as the function of the
-   scaling parameter (the number of users).
+   In the above config, this will use the system default visualization
+   tool (matplotlib of python) to create a single plot that will
+   compare the packet rate as produced by the BESS and the OVS
+   backends as the function of the scaling parameter (the number of
+   users).
 
 9. Optionally, you can issue a single command that will do all the above
    steps for you.

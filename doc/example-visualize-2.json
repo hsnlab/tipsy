@@ -1,0 +1,20 @@
+{
+  "benchmark": [{
+      "scale": "outer",
+      "pipeline": {
+        "name": "mgw",
+        "user": [1, 1000]
+      },
+      "traffic": {
+        "pkt-num": 10,
+        "pkt-size": [64, 128, 256]
+      }
+  }],
+  "visualize": [{
+      "type": "simple",
+      "title": "{pipeline.name} - OVS v{sut.version}",
+      "group-by": "pipeline.user",
+      "x-axis": "traffic.pkt-size",
+      "y-axis": "mg.throughput.RX.PacketRate"
+  }]
+}
