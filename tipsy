@@ -124,6 +124,7 @@ class TipsyManager(object):
         self.args = args
         self.fname_pl_in = 'pipeline-in.json'
         self.fname_pl = 'pipeline.json'
+        self.fname_pcap_in = 'traffic.json'
         self.fname_pcap = 'traffic.pcap'
         self.fname_conf = '.tipsy.json'
         self.meas_dir = 'measurements'
@@ -246,7 +247,7 @@ class TipsyManager(object):
             out_dir = Path(self.meas_dir, '%03d' % i)
             out_dir.mkdir()
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
-            save(config['traffic'], out_dir / 'traffic.json', 'traffic')
+            save(config['traffic'], out_dir / self.fname_pcap_in, 'traffic')
             json_dump(gen_conf(config['pipeline']), out_dir / self.fname_pl)
             self.write_makefile(out_dir, 'per-dir-makefile.in')
         for i, config in enumerate(self.tipsy_conf.visualize, start=1):
@@ -266,13 +267,13 @@ class TipsyManager(object):
                 args = {
                     'output': out_dir.joinpath(self.fname_pcap),
                     'conf': out_dir.joinpath(self.fname_pl),
-                    'json': out_dir.joinpath(self.fname_pl_in),
+                    'json': out_dir.joinpath(self.fname_pcap_in),
                 }
                 gen_pcap(args)
             else:
                 gen_pcap = self.tipsy_dir.joinpath("lib", "gen_pcap.py")
                 out_pcap = out_dir.joinpath(self.fname_pcap)
-                tmp_file = out_dir.joinpath(self.fname_pl_in)
+                tmp_file = out_dir.joinpath(self.fname_pcap_in)
                 conf_file = out_dir.joinpath(self.fname_pl)
                 cmd = [gen_pcap, '--json', tmp_file,
                        '--conf', conf_file, '--output', out_pcap]
