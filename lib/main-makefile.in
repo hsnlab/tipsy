@@ -6,7 +6,7 @@ plots := $(foreach dir,$(p_dir),$(dir)/out.json)
 
 .PHONY: all
 
-all: $(plots)
+all: $(plots) measurements/result.json
 
 $(plots): measurements/result.json
 	$(MAKE) -C $(dir $@) || exit
