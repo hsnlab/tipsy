@@ -265,6 +265,9 @@ def gen_pcap(defaults=None):
     args = parse_args(defaults)
     conf = json_load(args.conf, object_hook=lambda x: ObjectView(**x))
 
+    if args.random_seed:
+        random.seed(args.random_seed)
+
     dir = '%sl' % args.dir[0]
     wargs = []
     worker_num = min(args.pkt_num, args.thread)

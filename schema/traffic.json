@@ -47,6 +47,11 @@
       "description":
         "Number of requested processing CPU threads. 0 means all of the available cores."
     },
+    "random-seed": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 1,
+      "description": "Seed to initialize the random generator with. 0 means the current system time"
+    },
     "ascii": {
       "type": "boolean",
       "short_opt": "-a",
