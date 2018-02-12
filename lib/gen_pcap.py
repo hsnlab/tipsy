@@ -63,6 +63,9 @@ class ObjectView(object):
     def __repr__(self):
         return self.__dict__.__repr__()
 
+    def as_dict(self):
+        return self.__dict__
+
 
 def byte_seq(template, seq):
     return template % (int(seq / 254), (seq % 254) + 1)
@@ -252,7 +255,8 @@ def parse_args(defaults=None):
         pa_args = []
     args = parser.parse_args(pa_args)
     if args.json:
-        new_defaults = json_load(args.json)
+        new_defaults = json_load(args.json,
+                                 lambda x: ObjectView(**x)).as_dict()
         parser.set_defaults(**new_defaults)
         args = parser.parse_args(pa_args)
     if args.thread == 0:
