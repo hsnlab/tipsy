@@ -123,7 +123,7 @@ class PL (object):
     # NB: this requirement is not checked.
     nat = []
     pub_ip_format_str = '200.1.%d.%d'  # TODO: Make this configurable
-    max_port = 65534
+    max_port = 65023
     for user in self.users:
       priv_ip = user['ip']
       for c in range(self.args.user_conn):

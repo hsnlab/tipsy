@@ -37,7 +37,7 @@
     "user-conn": {
       "$ref": "definitions.json#/positive-integer",
       "description":
-        "number of connections for each user (max: 65535)",
+        "number of connections for each user (max: 65023)",
       "default": 1
     },
     "fakedrop": {
