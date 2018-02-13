@@ -127,6 +127,16 @@ class SUT(object):
 
 class SUT_bess(SUT):
     def _start(self):
+        self.result['versions'] = {}
+        cmd = [str(Path(self.env.sut.bess_dir) / 'bin' / 'bessd'), '-t']
+        v = self.run_ssh_cmd(cmd, stdout=subprocess.PIPE)
+        for line in v.stdout.decode('utf-8').split("\n"):
+            if line.startswith(' '):
+                break
+            [var, val] = line.split(' ')
+            self.result['versions'][var] = val
+        self.result['version'] = self.result['versions'].get('bessd', 'n/a')
+
         local_pipeline = Path().cwd() / 'pipeline.json'
         dst = Path('/tmp') / 'pipeline.json'
         self.upload_to_remote(local_pipeline, dst)
