@@ -64,8 +64,10 @@ class PL (object):
   def add_base (self):
     self.conf['name'] = self.args.name
     self.conf['core'] = self.args.core
-    self.conf['fakedrop'] = self.args.fakedrop
     self.conf['run_time'] = [] # Commands to be executed in every second
+
+  def add_fakedrop (self):
+    self.conf['fakedrop'] = self.args.fakedrop
 
   def add_bsts (self):
     bsts = []
@@ -214,12 +216,10 @@ class PL_portfwd (PL):
   "L2 Port Forwarding pipeline"
   def __init__ (self, args):
     super().__init__(args)
-    self.components = ['portfwd']
+    self.components += ['portfwd']
 
   def add_portfwd (self):
-    self.conf['name'] = self.args.name
-    self.conf['run_time'] = []
-    for arg in ['name', 'mac_swap_upstream', 'mac_swap_downstream']:
+    for arg in ['mac_swap_upstream', 'mac_swap_downstream']:
       self.conf[arg] = self.get_arg(arg)
 
 
@@ -228,6 +228,7 @@ class PL_l2fwd (PL):
 
   def __init__ (self, args):
     super().__init__(args)
+    self.components += ['fakedrop']
     self.components += ['l2']
 
   def add_l2 (self):
@@ -267,6 +268,7 @@ class PL_l3fwd (PL):
 
   def __init__ (self, args):
     super().__init__(args)
+    self.components += ['fakedrop']
     self.components += ['l3', 'sut_mac_addresses']
 
   def add_l3 (self):
@@ -332,6 +334,7 @@ class PL_mgw (PL):
 
   def __init__ (self, args):
     super().__init__(args)
+    self.components += ['fakedrop']
     self.components += ['gw', 'bsts', 'servers', 'nhops', 'users',
                         'handover', 'fluct_server', 'fluct_user']
 
@@ -354,6 +357,7 @@ class PL_vmgw (PL_mgw):
 
   def __init__ (self, args):
     super().__init__(args)
+    self.components += ['fakedrop']
     self.components += ['dcgw', 'fw', 'apps']
 
   def add_apps (self):
@@ -367,6 +371,7 @@ class PL_bng (PL):
 
   def __init__ (self, args):
     super().__init__(args)
+    self.components += ['fakedrop']
     self.components += ['fw', 'cpe', 'gw', 'users', 'nat',
                         'servers', 'nhops', 'fluct_server', 'fluct_user']
 
