@@ -137,7 +137,7 @@ class TipsyManager(object):
         json_dump(data, fname)
         print(inspect.cleandoc("""
           The sample config file ({fname}) has been created.
-          Edit it, then run: "{prg} config"
+          Edit it, then run: {prg} config
         """.format(fname=fname, prg=sys.argv[0])))
 
     def validate_json_conf(self, fname, data=None):
@@ -149,9 +149,8 @@ class TipsyManager(object):
         except Exception as e:
             print('Validation failed for: %s' % fname)
             # We should tell the exact command to run
-            print('For details run something like: '
-                  'validate.py -s schema/pipeline-mgw.json %s' % fname)
-            exit(-1)
+            sys.exit('For details run something like: '
+                     'validate.py -s schema/pipeline-mgw.json %s' % fname)
 
     def do_validate(self, cli_args=None):
         # TODO: set cli_args in the caller
@@ -181,8 +180,7 @@ class TipsyManager(object):
                                    schema_name='main',
                                    extension='property_array')
         except Exception as e:
-            print("Validation failed for: %s\n%s" % (self.fname_conf, e))
-            exit(-1)
+            sys.exit("Validation failed for: %s\n%s" % (self.fname_conf, e))
 
     def init_tipsyconfig(self, config_files=None):
         def conf_load(d): return TipsyConfig(**d)
@@ -201,8 +199,7 @@ class TipsyManager(object):
                 try:
                     new = json.load(cf, object_hook=conf_load)
                 except json.decoder.JSONDecodeError as e:
-                    print('Failed to load file (%s):\n%s' % (config_file, e))
-                    exit(-1)
+                    sys.exit('Failed to load file (%s):\n%s' % (config_file, e))
                 conf_merge(self.tipsy_conf, new)
         self.validate_main()
         print('Saving config file    : %s' % self.fname_conf)
@@ -228,8 +225,7 @@ class TipsyManager(object):
         try:
             validate.validate_data(data, schema_name=schema_name)
         except Exception as e:
-            print("Failed validating %s:\n%s" % (outfile, e))
-            exit(-1)
+            sys.exit("Failed validating %s:\n%s" % (outfile, e))
         json_dump(data, outfile)
 
     def do_config(self):
@@ -255,6 +251,7 @@ class TipsyManager(object):
             out_dir.mkdir()
             save(config, out_dir / 'plot.json', 'plot')
             self.write_makefile(out_dir, 'plot-makefile.in')
+        print('\nTo start the measurements, run: make')
 
     def do_traffic_gen(self):
         meas_dir = Path(self.meas_dir)
