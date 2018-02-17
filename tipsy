@@ -130,6 +130,7 @@ class TipsyManager(object):
         self.fname_pl_in = 'pipeline-in.json'
         self.fname_pl = 'pipeline.json'
         self.fname_pcap_in = 'traffic.json'
+        self.fname_bm = 'benchmark.json'
         self.fname_pcap = 'traffic.pcap'
         self.fname_conf = '.tipsy.json'
         self.meas_dir = 'measurements'
@@ -197,15 +198,14 @@ class TipsyManager(object):
                     # https://bugs.python.org/issue26096
                     config_files.append(str(f.name))
         self.tipsy_conf = conf_load({})
-        # add defaults to empty conf
-        validate.validate_data(self.tipsy_conf, schema_name="main")
         for config_file in config_files:
             print('Processing config file: %s' % config_file)
             with open(config_file, 'r') as cf:
                 try:
                     new = json.load(cf, object_hook=conf_load)
                 except json.decoder.JSONDecodeError as e:
-                    sys.exit('Failed to load file (%s):\n%s' % (config_file, e))
+                    sys.exit('Failed to load file (%s):\n%s' %
+                             (config_file, e))
                 conf_merge(self.tipsy_conf, new)
         self.validate_main()
         print('Saving config file    : %s' % self.fname_conf)
@@ -250,6 +250,7 @@ class TipsyManager(object):
             out_dir.mkdir()
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
             save(config['traffic'], out_dir / self.fname_pcap_in, 'traffic')
+            save(config, out_dir / self.fname_bm, 'benchmark')
             json_dump(gen_conf(config['pipeline']), out_dir / self.fname_pl)
             self.write_makefile(out_dir, 'per-dir-makefile.in')
         for i, config in enumerate(self.tipsy_conf.visualize, start=1):
@@ -282,7 +283,6 @@ class TipsyManager(object):
                        '--conf', conf_file, '--output', out_pcap]
                 cmd = [str(x) for x in cmd]
                 subprocess.call(cmd)
-
 
     def run_tester(self, dir):
         tester = getattr(sys.modules[__name__],
