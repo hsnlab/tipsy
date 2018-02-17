@@ -35,19 +35,15 @@ A sample configuration for TIPSY is given below.
                 "fluct-server": 4
             },
             "traffic": {
-                "pkt-num": 10000,
                 "pkt-size": [64, 128],
                 "dir": ["uplink", "downlink", "bidir"]
             }
         }
     ],
-    "environment": {
-        "sut": {
-            "type": "bess"
-        },
-        "tester": {
-            "type": "moongen",
-            "test-time": 30
+    "default": {
+            "traffic": {
+                "pkt-num": 10000,
+            }
         }
     },
     "visualize": []
@@ -69,6 +65,8 @@ Each benchmark in turn defines the following subsections:
   benchmark, like name, scaling mode, etc.
 - =pipeline=: pipeline-specific settings
 - =traffic=: traffic generator settings
+- =sut=: SUT settings
+- =tester=: Tester settings
 
 * The =pipeline= section
 
@@ -92,14 +90,6 @@ Tester. This section might contain the below parameters.
 - =thread=: number of requested processing CPU threads. 0 means all of the
   available cores.
 - =ascii=: dump generated packets in human readable ASCII form
-
-* The =environment= section
-
-Parameters of the testing environment, configuration of the SUT and of the
-Tester. We suppose these parameters are static during the benchmarks.
-
-- =sut=: SUT settings
-- =tester=: Tester settings
 
 * The =tester= section
 
@@ -132,3 +122,8 @@ Settings for the System-Under-Test (SUT).
   script will run on the SUT before starting a measurement
 - =teardown_script=: absolute path of your custom SUT teardown script. This
   script will run on SUT after ending a measurement
+
+* The =default= section
+
+The default section provides an interface to apply benchmark
+parameters for every benchmark.

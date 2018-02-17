@@ -217,6 +217,13 @@ of base stations) as set in the =pipeline= section.
                 "pkt-num": 10000,
                 "pkt-size": [64, 128],
                 "dir": ["uplink"]
+            },
+            "sut": {
+                "type": "bess"
+            },
+            "tester": {
+                "type": "moongen",
+                "test-time": 30
             }
         }
     ],
@@ -254,11 +261,31 @@ the outer product of the scaled pipeline configurations and the traffic
 configurations in order to measure each scenario with all types of test
 traffic.
 
-In continuation of the example, the following snippet defines the
-environment of the mgw pipeline measurements.
+The =sut= and the =tester= section contains parameters of the SUT and
+the Tester respectively.
+
+In continuation of the example, the following snippet presents the
+=default= section of the TIPSY configuration. It can contain the same
+parameters as the benchmarks. The purpose of the =default= section is
+to simplify the definition of recurring parameters of benchmarks.
+
+Further details are in the [[./doc/README.config.org][detailed TIPSY configuration guide]].
 
 #+BEGIN_SRC javascript
-    "environment": {
+    "default":
+        {
+	"id": "my_benchmark",
+        "scale": "joint",
+        "pipeline": {
+             "name": "mgw",
+             "user": [1,2],
+             "bst": [5,10]
+        },
+        "traffic": {
+            "pkt-num": 10000,
+            "pkt-size": [64, 128],
+            "dir": ["uplink"]
+        },
         "sut": {
             "type": "bess"
         },
@@ -269,10 +296,6 @@ environment of the mgw pipeline measurements.
     }
 }
 #+END_SRC
-
-The =environment= section is divided into two sections: parameters of the
-SUT and parameters of the Tester. Further details are in the
-[[./doc/README.config.org][detailed TIPSY configuration guide]].
 
 For generating an empty configuration with the default setting for each
 configurable parameter, use:
@@ -339,9 +362,25 @@ The basic workflow is as follows.
                 "pkt-num": 10000,
                 "pkt-size": [64, 128]
             }
+            "sut": {
+                "type": ["ovs", "bess"]
+            },
+            "tester": {
+                "type": "moongen",
+                "test-time": 30
+            }
         }
     ],
-    "environment": {
+    "default": {
+        "scale": "outer",
+        "pipeline": {
+            "name": "mgw",
+            "user": [10, 100, 1000]
+        },
+        "traffic": {
+            "pkt-num": 10000,
+            "pkt-size": [64, 128]
+        }
         "sut": {
             "type": ["ovs", "bess"]
         },
