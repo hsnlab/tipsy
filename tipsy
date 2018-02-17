@@ -113,7 +113,8 @@ class TipsyConfig(dict):
 
     def _scale_joint(self, conf_dict):
         min_len = min([len(v)
-                       for k, v in conf_dict.items() if type(v) == list])
+                       for k, v in conf_dict.items() if type(v) == list]
+                      or [1])
         ret_list = []
         for i in range(min_len):
             ret_list.append({k: v[i] if type(v) == list else v
