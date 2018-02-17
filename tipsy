@@ -92,12 +92,15 @@ class TipsyConfig(dict):
         assert self.benchmark
         self.configs = []
         for benchmark in self.benchmark:
+            tmp = TipsyConfig(self.default.__dict__)
+            conf_merge(tmp, benchmark)
+            benchmark = tmp
             scale = getattr(self, '_scale_%s' % benchmark.scale)
-            pipelines = scale(benchmark.pipeline)
-            traffics = self._scale_outer(benchmark.traffic)
-            self.configs.extend([{'pipeline': l[0], 'traffic': l[1]}
-                                 for l in
-                                 itertools.product(pipelines, traffics)])
+            segments = [x for x in benchmark.keys() if x != 'scale']
+            confs = {}
+            for segment in segments:
+                confs[segment] = scale(getattr(benchmark, segment))
+            self.configs.extend(self._scale_outer(confs))
 
     def _scale_none(self, conf_dict):
         return [{k: v[0] if type(v) == list else v
@@ -132,7 +135,8 @@ class TipsyManager(object):
 
     def do_init(self):
         fname = 'main.json'
-        data = {'benchmark': [{'pipeline': {'name': self.args.pipeline}}]}
+        data = {'benchmark': [{'pipeline': {'name': self.args.pipeline}}],
+                'default': {'pipeline': {'name': self.args.pipeline}}}
         validate.validate_data(data, schema_name='main')
         json_dump(data, fname)
         print(inspect.cleandoc("""

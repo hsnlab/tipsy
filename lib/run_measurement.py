@@ -68,9 +68,8 @@ class Config(dict):
 class SUT(object):
     def __init__(self, conf, **kw):
         self.conf = conf
-        self.env = conf.environment
         self.result = {}
-        self.cmd_prefix = ['ssh', self.env.sut.hostname]
+        self.cmd_prefix = ['ssh', self.conf.sut.hostname]
         self.screen_name = 'TIPSY_SUT'
 
     def run_ssh_cmd(self, cmd, *extra_cmd, **kw):
@@ -90,7 +89,7 @@ class SUT(object):
 
     def upload_to_remote(self, src, dst):
         "scp one file to SUT"
-        dst = '%s:%s' % (self.env.sut.hostname, dst)
+        dst = '%s:%s' % (self.conf.sut.hostname, dst)
         cmd = [str(c) for c in ['scp', src, dst]]
         print(' '.join(cmd))
         subprocess.run(cmd, check=True)
@@ -113,22 +112,22 @@ class SUT(object):
             self.run_ssh_cmd([str(path_sut)])
 
     def run_setup_script(self):
-        self.run_local_shell_script(self.env.sut.setup_script,
+        self.run_local_shell_script(self.conf.sut.setup_script,
                                     Path('/tmp', 'sut_setup'))
 
     def run_teardown_script(self):
-        self.run_local_shell_script(self.env.sut.teardown_script,
+        self.run_local_shell_script(self.conf.sut.teardown_script,
                                     Path('/tmp', 'sut_teardown'))
 
     def wait_for_callback(self):
-        cmd = Path(self.env.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
+        cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
         self.run_ssh_cmd([str(cmd)], '-t', '-t')
 
 
 class SUT_bess(SUT):
     def _start(self):
         self.result['versions'] = {}
-        cmd = [str(Path(self.env.sut.bess_dir) / 'bin' / 'bessd'), '-t']
+        cmd = [str(Path(self.conf.sut.bess_dir) / 'bin' / 'bessd'), '-t']
         v = self.run_ssh_cmd(cmd, stdout=subprocess.PIPE)
         for line in v.stdout.decode('utf-8').split("\n"):
             if line.startswith(' '):
@@ -141,8 +140,8 @@ class SUT_bess(SUT):
         dst = Path('/tmp') / 'pipeline.json'
         self.upload_to_remote(local_pipeline, dst)
         cmd = [
-            Path(self.env.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
-            '-d', self.env.sut.bess_dir,
+            Path(self.conf.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
+            '-d', self.conf.sut.bess_dir,
             '-c', dst,
         ]
         self.run_async_ssh_cmd([str(c) for c in cmd])
@@ -158,7 +157,7 @@ class SUT_ovs(SUT):
         first_line = v.stdout.decode('utf8').split("\n")[0]
         self.result['version'] = first_line.split(' ')[-1]
 
-        remote_ryu_dir = Path(self.env.sut.tipsy_dir) / 'ryu'
+        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
         remote_pipeline = remote_ryu_dir / 'pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
         self.upload_to_remote(local_pipeline, remote_pipeline)
@@ -173,7 +172,7 @@ class SUT_ofdpa(SUT):
         super().__init__(conf)
 
     def _start(self):
-        remote_cmd = Path(self.env.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
+        remote_cmd = Path(self.conf.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
         remote_pipeline = '/tmp/pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
         self.upload_to_remote(local_pipeline, remote_pipeline)
@@ -184,7 +183,6 @@ class SUT_ofdpa(SUT):
 class Tester(object):
     def __init__(self, conf):
         self.conf = conf
-        self.env = conf.environment
         self.result = {}
 
     def run(self, out_dir):
@@ -204,16 +202,16 @@ class Tester(object):
             subprocess.run([str(script)], check=True)
 
     def run_setup_script(self):
-        self.run_script(self.env.tester.setup_script)
+        self.run_script(self.conf.tester.setup_script)
 
     def run_teardown_script(self):
-        self.run_script(self.env.tester.teardown_script)
+        self.run_script(self.conf.tester.teardown_script)
 
 
 class Tester_moongen(Tester):
     def __init__(self, conf):
         super().__init__(conf)
-        tester = conf.environment.tester
+        tester = conf.tester
         self.txdev = tester.uplink_port
         self.rxdev = tester.downlink_port
         self.mg_cmd = tester.moongen_cmd
@@ -244,10 +242,10 @@ class Tester_moongen(Tester):
             for row  in reader:
                 d = row.pop('Direction')
                 throughput[d] = row
-        self.result['mg'] = {
+        self.result.update({
             'latency': latency,
             'throughput': throughput
-        }
+        })
 
     def stop(self):
         # TODO: curl http://sut:8080/exit
@@ -256,22 +254,18 @@ class Tester_moongen(Tester):
 
 def run(defaults=None):
     cwd = Path().cwd()
-    conf = Config(cwd.parent.parent / '.tipsy.json')
-    env = conf.environment
-    sut = globals()['SUT_%s' % env.sut.type](conf)
+    conf = Config(cwd / 'benchmark.json')
+    sut = globals()['SUT_%s' % conf.sut.type](conf)
     sut.start()
 
-    tester = globals()['Tester_%s' % env.tester.type](conf)
+    tester = globals()['Tester_%s' % conf.tester.type](conf)
     tester.run(cwd)
 
     sut.stop()
 
-    result = {
-        'sut': sut.result,
-        'pipeline': Config('pipeline-in.json'),
-        'traffic': Config('traffic.json'),
-    }
-    result.update(tester.result)
+    result = conf
+    result['out'] = {'sut': sut.result}
+    result['out'].update(tester.result)
     with open('results.json', 'w') as f:
         json.dump(result, f, sort_keys=True, indent=4)
 
