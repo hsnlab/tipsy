@@ -167,6 +167,7 @@ On SUT:
 On Tester:
 - ssh,
 - python-jsonschema,
+- matplotlib,
 - scapy.
 
 TIPSY does not require explicit installation but the =tipsy= executable
