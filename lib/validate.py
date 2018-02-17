@@ -110,7 +110,10 @@ def extend_with_property_array (validator_class):
         continue
       if subschema.get('type') == 'array' or subschema.get('anyOf'):
         continue
-      new_schema = {"type": "array", "items": deepcopy(subschema)}
+      new_schema = {"anyOf": [
+        deepcopy(subschema),
+        {"type": "array", "items": deepcopy(subschema)}
+      ]}
       subschema.clear()
       subschema.update(new_schema)
 
