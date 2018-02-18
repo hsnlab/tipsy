@@ -137,12 +137,16 @@ class SUT_bess(SUT):
         self.result['version'] = self.result['versions'].get('bessd', 'n/a')
 
         local_pipeline = Path().cwd() / 'pipeline.json'
-        dst = Path('/tmp') / 'pipeline.json'
-        self.upload_to_remote(local_pipeline, dst)
+        local_benchmark = Path().cwd() / 'benchmark.json'
+        remote_pipeline = Path('/tmp') / 'pipeline.json'
+        remote_benchmark = Path('/tmp') / 'benchmark.json'
+        self.upload_to_remote(local_pipeline, remote_pipeline)
+        self.upload_to_remote(local_benchmark, remote_benchmark)
         cmd = [
             Path(self.conf.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
             '-d', self.conf.sut.bess_dir,
-            '-c', dst,
+            '-p', remote_pipeline,
+            '-b', remote_benchmark
         ]
         self.run_async_ssh_cmd([str(c) for c in cmd])
         self.wait_for_callback()

@@ -23,22 +23,26 @@ def mac_int_from_str(s):
   return int("0x%s" % ''.join(s.split(':')), 16)
 
 class ObjectView(object):
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
+  def __init__(self, **kwargs):
+    tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
+    self.__dict__.update(**tmp)
 
-    def __repr__(self):
-      return self.__dict__.__repr__()
+  def __repr__(self):
+    return self.__dict__.__repr__()
 
+def conv_fn(d): return ObjectView(**d)
 
-bess_inport = int($inport!'0')
-bess_outport = int($outport!'0')
-conf_file = $config!'./portfwd.json'
-
-with open(conf_file, 'r') as f:
-  conv_fn = lambda d: ObjectView(**d)
+pl_conf_file = $pl_config!'./portfwd.json'
+bm_conf_file = $bm_config!'./benchmark.json'
+with open(pl_conf_file, 'r') as f:
   conf = json.load(f, object_hook=conv_fn)
+with open(bm_conf_file, 'r') as f:
+  bm_conf = json.load(f, object_hook=conv_fn)
 
-bess_workers = conf.core
+bess_inport = int(bm_conf.sut.downlink_port)
+bess_outport = int(bm_conf.sut.uplink_port)
+bess_workers = int(conf.core)
+
 portIn = PMDPort(port_id=bess_inport,
                  num_inc_q=bess_workers * 2,
                  num_out_q=bess_workers * 2)

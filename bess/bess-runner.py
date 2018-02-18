@@ -432,8 +432,11 @@ if __name__ == '__main__':
     parser.add_argument('--bessdir', '-d', type=str,
                         help='BESS root directory',
                         default='~/bess', required=True)
-    parser.add_argument('--conf', '-c', type=argparse.FileType('r'),
+    parser.add_argument('--pl-conf', '-p', type=argparse.FileType('r'),
                         help='Pipeline config JSON file',
+                        default='./pipeline.json')
+    parser.add_argument('--bm-conf', '-b', type=argparse.FileType('r'),
+                        help='Benchmark config JSON file',
                         default='./pipeline.json')
     args = parser.parse_args()
 
@@ -448,17 +451,19 @@ if __name__ == '__main__':
 
     try:
         def conv_fn(d): return ObjectView(**d)
-        config = json.load(args.conf, object_hook=conv_fn)
+        pl_config = json.load(args.pl_conf, object_hook=conv_fn)
+        bm_config = json.load(args.bm_conf, object_hook=conv_fn)
     except:
-        print(('Error loading config from %s' % args.conf))
         raise
 
     pipeline_bess = str(
-        Path(__file__).parent.joinpath('%s.bess' % config.name))
+        Path(__file__).parent.joinpath('%s.bess' % pl_config.name))
     bess_start_cmd = [bessctl,
-                      'daemon', 'start',
-                      '--', 'run', 'file',
-                      pipeline_bess, 'config=\"%s\"' % args.conf.name]
+                      'daemon', 'start', '--',
+                      'run', 'file',
+                      pipeline_bess,
+                      'pl_config=\"%s\",bm_config=\"%s\"' %
+                      (args.pl_conf.name, args.bm_conf.name)]
     ret_val = call_cmd(bess_start_cmd)
     try:
         url = 'http://localhost:9000/configured'
@@ -469,10 +474,10 @@ if __name__ == '__main__':
 
         try:
             uclass = getattr(sys.modules[__name__],
-                             'BessUpdater%s' % config.name.title())
-            updater = uclass(config)
+                             'BessUpdater%s' % pl_config.name.title())
+            updater = uclass(pl_config)
         except:
-            updater = BessUpdaterDummy(config)
+            updater = BessUpdaterDummy(pl_config)
 
         signal.signal(signal.SIGINT, signal_handler)
 
