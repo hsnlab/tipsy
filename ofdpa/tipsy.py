@@ -47,7 +47,8 @@ import sys
 sys.path.append('/usr/bin')
 from OFDPA_python import *
 
-conf_file = '/tmp/pipeline.json'
+pl_conf_file = '/tmp/pipeline.json'
+bm_conf_file = '/tmp/benchmark.json'
 webhook_configured = 'http://localhost:9000/configured'
 client_purge = '/usr/bin/client_cfg_purge'
 
@@ -508,27 +509,30 @@ class Tipsy(object):
         super(Tipsy, self).__init__(*args, **kwargs)
         Tipsy._instance = self
 
-        self.conf_file = conf_file
-        self.ul_port = 1 # TODO
-        self.dl_port = 2 # TODO
+        self.conf = self.get_config_from_file(pl_conf_file)
+        self.bm_conf = self.get_config_from_file(bm_conf_file)
 
-        print("conf_file: %s" % self.conf_file)
+        self.ul_port = self.bm_conf.sut.uplink_port
+        self.dl_port = self.bm_conf.sut.downlink_port
 
         try:
-            with open(self.conf_file, 'r') as f:
-                conv_fn = lambda d: ObjectView(**d)
-                self.pl_conf = json.load(f, object_hook=conv_fn)
-        except IOError as e:
-            print('Failed to load cfg file (%s): %s' % (self.conf_file, e))
-            raise(e)
-        except ValueError as e:
-            print('Failed to parse cfg file (%s): %s' % (self.conf_file, e))
-            raise(e)
-        try:
-            self.pl = globals()['PL_%s' % self.pl_conf.name](self, self.pl_conf)
+            self.pl = globals()['PL_%s' % self.conf.name](self, self.conf)
         except (KeyError, NameError) as e:
             print('Failed to instanciate pipeline (%s): %s' %
-                  (self.pl_conf.name, e))
+                  (self.conf.name, e))
+            raise(e)
+
+    def get_config_from_file(self, conf_file):
+        try:
+            with open(conf_file, 'r') as f:
+                conv_fn = lambda d: ObjectView(**d)
+                conf = json.load(f, object_hook=conv_fn)
+                return conf
+        except IOError as e:
+            print('Failed to load cfg file (%s): %s' % (conf_file, e))
+            raise(e)
+        except ValueError as e:
+            print('Failed to parse cfg file (%s): %s' % (conf_file, e))
             raise(e)
 
     def initialize_datapath(self):
@@ -558,4 +562,3 @@ if __name__ == "__main__":
     Tipsy().configure()
     print('configured')
     signal.pause()
-

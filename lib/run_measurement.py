@@ -177,9 +177,12 @@ class SUT_ofdpa(SUT):
 
     def _start(self):
         remote_cmd = Path(self.conf.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
-        remote_pipeline = '/tmp/pipeline.json'
         local_pipeline = Path().cwd() / 'pipeline.json'
+        local_benchmark = Path().cwd() / 'benchmark.json'
+        remote_pipeline = Path('/tmp') / 'pipeline.json'
+        remote_benchmark = Path('/tmp') / 'benchmark.json'
         self.upload_to_remote(local_pipeline, remote_pipeline)
+        self.upload_to_remote(local_benchmark, remote_benchmark)
         self.run_async_ssh_cmd(['sudo', str(remote_cmd)])
         self.wait_for_callback()
 
