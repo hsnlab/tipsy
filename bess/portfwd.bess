@@ -54,14 +54,15 @@ else:
                     num_inc_q=bess_workers * 2,
                     num_out_q=bess_workers * 2)
 
-for wid in range(0, bess_workers * 2, 2):
+for wid in range(bess_workers):
+  wid2 = bess_workers + wid
   bess.add_worker(wid, wid)
-  bess.add_worker(wid+1, wid+1)
+  bess.add_worker(wid2, wid2)
 
   # uplink
   in_u = QueueInc(port=portIn.name, qid=wid)
   out_u = QueueOut(port=portOut.name, qid=wid)
-  buf_u = Buffer(name='out_buf_%d' % wid)
+  buf_u = Buffer(name='out_buf_u_%d' % wid)
   buf_u -> out_u
   mac_addr_up = conf.mac_swap_upstream
   if mac_addr_up:
@@ -74,9 +75,9 @@ for wid in range(0, bess_workers * 2, 2):
   bess.attach_task(in_u.name, wid=wid)
 
   # downlink
-  in_d = QueueInc(port=portOut.name, qid=wid+1)
-  out_d = QueueOut(port=portIn.name, qid=wid+1)
-  buf_d = Buffer(name='out_buf_%d' % int(wid+1))
+  in_d = QueueInc(port=portOut.name, qid=wid)
+  out_d = QueueOut(port=portIn.name, qid=wid)
+  buf_d = Buffer(name='out_buf_d_%d' % wid)
   buf_d -> out_d
   mac_addr_down = conf.mac_swap_downstream
   if mac_addr_down:
@@ -86,7 +87,7 @@ for wid in range(0, bess_workers * 2, 2):
     in_d -> update -> buf_d
   else:
     in_d -> buf_d
-  bess.attach_task(in_d.name, wid=wid+1)
+  bess.attach_task(in_d.name, wid=wid2)
 
 bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
 bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)

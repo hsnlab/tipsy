@@ -164,7 +164,8 @@ class BessUpdaterL2Fwd(BessUpdater):
 
     def mod_table(self, action, cmd, table, entry):
         self._config_mod_table(action, cmd, table, entry)
-        for wid in range(0, self.workers_num, 2):
+        for wid in range(self.conf.core):
+            wid2 = self.conf.core + wid
             name = 'mac_table_%s_%d' % (table[0], wid)
             buf = 'out_buf_%s_%d' % (table[0], wid)
             if table[0] == 'u':
@@ -173,7 +174,7 @@ class BessUpdaterL2Fwd(BessUpdater):
                 ogate = entry.out_port or len(self.conf.downstream_table) + 1
             try:
                 self.bess.pause_worker(wid)
-                self.bess.pause_worker(wid + 1)
+                self.bess.pause_worker(wid2)
                 if cmd == 'add':
                     self.bess.run_module_command(name,
                                                  'add', 'ExactMatchCommandAddArg',
@@ -194,7 +195,7 @@ class BessUpdaterL2Fwd(BessUpdater):
                 raise
             finally:
                 self.bess.resume_worker(wid)
-                self.bess.resume_worker(wid + 1)
+                self.bess.resume_worker(wid2)
 
 
 class BessUpdaterL3Fwd(BessUpdater):
@@ -209,10 +210,11 @@ class BessUpdaterL3Fwd(BessUpdater):
             self.mod_group_table(cmd, table, entry)
 
     def mod_l3_table(self, cmd, table, entry):
-        for wid in range(0, self.workers_num, 2):
+        for wid in range(self.conf.core):
             try:
+                wid2 = self.conf.core + wid
                 self.bess.pause_worker(wid)
-                self.bess.pause_worker(wid + 1)
+                self.bess.pause_worker(wid2)
                 name = 'l3fib_%s_%d' % (table[0], wid)
                 ip = re.sub(r'\.[^.]+$', '.0', entry.ip)
                 gat = entry.nhop + 1
@@ -231,18 +233,20 @@ class BessUpdaterL3Fwd(BessUpdater):
                 raise
             finally:
                 self.bess.resume_worker(wid)
-                self.bess.resume_worker(wid + 1)
+                self.bess.resume_worker(wid2)
 
     def mod_group_table(self, cmd, table, entry):
-        for wid in range(0, self.workers_num, 2):
+        for wid in range(self.conf.core):
+            wid2 = self.conf.core + wid
             try:
                 self.bess.pause_worker(wid)
-                self.bess.pause_worker(wid + 1)
+                self.bess.pause_worker(wid2)
                 l3fib = 'l3fib_%s_%d' % (table[0], wid)
                 ip_chk = 'ip_chk_%s_%d' % (table[0], wid)
                 tab = getattr(self.conf, '%s_group_table' % table)
                 i_tab = enumerate(tab, start=1)
-                uid = next((i for (i, v) in i_tab if v.dmac == entry.dmac), 1)
+                uid = next((i for (i, v) in i_tab if v.dmac == entry.dmac),
+                           len(tab))
                 if cmd == 'add':
                     name = 'up_dmac_x_%d_%s_%d' % (uid, table[0], wid)
                     self.bess.create_module('Update', name,
@@ -258,7 +262,7 @@ class BessUpdaterL3Fwd(BessUpdater):
                 raise
             finally:
                 self.bess.resume_worker(wid)
-                self.bess.resume_worker(wid + 1)
+                self.bess.resume_worker(wid2)
 
 
 class BessUpdaterMgw(BessUpdater):
