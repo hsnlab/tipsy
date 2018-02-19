@@ -97,7 +97,7 @@ Parameters for the Tester, among others, the traffic generator backend to
 be used for insert the traffic trace into the SUT and other Tester specific
 settings.
 
-- =type=: packet generator for the Tester (=moongen= or =scapy=)
+- =type=: packet generator for the Tester (=moongen= or =moongen-rfc2544=)
 - =test-time=: runtime in seconds
 - =moongen-cmd=: absolute path of the MoonGen executable
 - =uplink_port= and =downlink_port=: port name ('eth1') or pci addr for
