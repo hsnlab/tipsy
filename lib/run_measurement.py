@@ -259,13 +259,45 @@ class Tester_moongen(Tester):
         super().stop()
 
 
+class Tester_moongen_rfc2544(Tester):
+    def __init__(self, conf):
+        super().__init__(conf)
+        tester = conf.tester
+        self.txdev = tester.uplink_port
+        self.rxdev = tester.downlink_port
+        self.mg_cmd = tester.moongen_cmd
+        self.script = Path(__file__).parent.parent / 'utils' / 'mg-rfc2544.lua'
+        self.runtime = tester.test_time
+
+    def _run(self, out_dir):
+        pcap = out_dir / 'traffic.pcap'
+        ofile = out_dir / 'mg.rfc2544.csv'
+        precision = 5
+        cmd = ['sudo', self.mg_cmd, self.script, self.txdev, self.rxdev, pcap,
+               '-r', self.runtime, '-p', precision, '-o', ofile]
+        cmd = [ str(o) for o in cmd ]
+        print(' '.join(cmd))
+        subprocess.call(cmd)
+
+    def collect_results(self):
+        data = 'nan'
+        with open('mg.rfc2544.csv') as f:
+            data = {'Mbit': f.readline().rstrip()}
+        self.result.update({'rfc2544': data })
+
+    def stop(self):
+        # TODO: curl http://sut:8080/exit
+        super().stop()
+
+
 def run(defaults=None):
     cwd = Path().cwd()
     conf = Config(cwd / 'benchmark.json')
     sut = globals()['SUT_%s' % conf.sut.type](conf)
     sut.start()
 
-    tester = globals()['Tester_%s' % conf.tester.type](conf)
+    tester_type = conf.tester.type.replace('-','_')
+    tester = globals()['Tester_%s' % tester_type](conf)
     tester.run(cwd)
 
     sut.stop()
