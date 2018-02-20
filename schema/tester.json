@@ -23,6 +23,11 @@
       "default": "0000:0c:00.0",
       "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0')  or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
     },
+    "core": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "number of CPU cores to use",
+      "default": 1
+    },
     "moongen-cmd": {
       "type": "string",
       "default": "/opt/MoonGen/build/MoonGen",

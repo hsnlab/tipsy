@@ -231,7 +231,10 @@ class Tester_moongen(Tester):
     def __init__(self, conf):
         super().__init__(conf)
         tester = conf.tester
-        self.txdev = tester.uplink_port
+        if tester.core == 1:
+            self.txdev = tester.uplink_port
+        else:
+            self.txdev = "%s:%s" % (tester.uplink_port, tester.core)
         self.rxdev = tester.downlink_port
         self.mg_cmd = tester.moongen_cmd
         self.script = Path(__file__).parent.parent / 'utils' / 'mg-pcap.lua'
@@ -270,15 +273,10 @@ class Tester_moongen(Tester):
         })
 
 
-class Tester_moongen_rfc2544(Tester):
+class Tester_moongen_rfc2544(Tester_moongen):
     def __init__(self, conf):
         super().__init__(conf)
-        tester = conf.tester
-        self.txdev = tester.uplink_port
-        self.rxdev = tester.downlink_port
-        self.mg_cmd = tester.moongen_cmd
         self.script = Path(__file__).parent.parent / 'utils' / 'mg-rfc2544.lua'
-        self.runtime = tester.test_time
 
     def _run(self, out_dir):
         pcap = out_dir / 'traffic.pcap'
