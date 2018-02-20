@@ -158,11 +158,14 @@ def _gen_dl_pkt_vmgw(pkt_size, conf):
 def _gen_dl_pkt_bng(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
-    proto = random.choice([TCP(), UDP()])
+    u = random.choice([e for e in conf.nat_table
+                       if e.priv_ip == user.ip])
+    protos = {'6': TCP, '17': UDP}
+    proto = protos[str(u.proto)]
     p = (
         Ether(dst=conf.gw.mac) /
-        IP(src=server.ip, dst=user.ip) /
-        proto
+        IP(src=server.ip, dst=u.pub_ip) /
+        proto(sport=u.pub_port, dport=u.pub_port)
     )
     p = add_payload(p, pkt_size)
     return p
@@ -195,7 +198,10 @@ def _gen_ul_pkt_vmgw(pkt_size, conf):
 def _gen_ul_pkt_bng(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
-    proto = random.choice([TCP(), UDP()])
+    u = random.choice([e for e in conf.nat_table
+                       if e.priv_ip == user.ip])
+    protos = {'6': TCP, '17': UDP}
+    proto = protos[str(u.proto)]
     cpe = conf.cpe[user.tun_end]
     p = (
         Ether(src=cpe.mac, dst=conf.gw.mac, type=0x0800) /
@@ -204,7 +210,7 @@ def _gen_ul_pkt_bng(pkt_size, conf):
         VXLAN(vni=user.teid, flags=0x08) /
         Ether(dst=conf.gw.mac, type=0x0800) /
         IP(src=user.ip, dst=server.ip) /
-        proto
+        proto(sport=u.priv_port, dport=u.priv_port)
     )
     p = add_payload(p, pkt_size)
     return p
