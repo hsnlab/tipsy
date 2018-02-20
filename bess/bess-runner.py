@@ -395,10 +395,13 @@ class BessUpdaterMgw(BessUpdater):
                 self.bess.resume_worker(wid)
 
 
-class BessUpdaterBng(BessUpdater):
+class BessUpdaterBng(BessUpdaterMgw):
     def __init__(self, conf):
         super(BessUpdaterBng, self).__init__(conf)
-        raise NotImplementedError
+        self.conf.bsts = self.conf.cpe
+
+    def handover(self, user, new_bst):
+        pass
 
 
 class ObjectView(object):
