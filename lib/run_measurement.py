@@ -231,11 +231,16 @@ class Tester_moongen(Tester):
     def __init__(self, conf):
         super().__init__(conf)
         tester = conf.tester
-        if tester.core == 1:
+        if conf.traffic.dir == 'uplink':
             self.txdev = tester.uplink_port
+            self.rxdev = tester.downlink_port
+        elif conf.traffic.dir == 'downlink':
+            self.txdev = tester.downlink_port
+            self.rxdev = tester.uplink_port
         else:
-            self.txdev = "%s:%s" % (tester.uplink_port, tester.core)
-        self.rxdev = tester.downlink_port
+            raise Exception("unavailable traffic.dir: %s" % conf.traffic.dir)
+        if tester.core != 1:
+            self.txdev = "%s:%s" % (self.txdev, tester.core)
         self.mg_cmd = tester.moongen_cmd
         self.script = Path(__file__).parent.parent / 'utils' / 'mg-pcap.lua'
         self.runtime = tester.test_time
