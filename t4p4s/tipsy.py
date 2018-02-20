@@ -101,14 +101,16 @@ class PL_l2fwd(PL):
         # Create a config file for t4p4s controller
         with open(t4p4s_conf_l2fwd, 'w') as conf_file:
             for entry in self.conf.upstream_table:
-                conf_file.write("%s %d\n" % (entry.mac, entry.out_port))
+                out_port = entry.out_port or 0
+                conf_file.write("%s %d\n" % (entry.mac, out_port))
 
             for entry in self.conf.downstream_table:
-                conf_file.write("%s %d\n" % (entry.mac, entry.out_port))
-	
+                out_port = entry.out_port or 1
+                conf_file.write("%s %d\n" % (entry.mac, out_port))
+
 class PL_portfwd(PL):
     """Port Forwarding
-    
+
     TBA
     """
 
