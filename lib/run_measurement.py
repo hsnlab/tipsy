@@ -186,6 +186,18 @@ class SUT_ofdpa(SUT):
         self.run_async_ssh_cmd(['sudo', str(remote_cmd)])
         self.wait_for_callback()
 
+class SUT_t4p4s(SUT):
+    def __init__(self, conf):
+        super().__init__(conf)
+
+    def _start(self):
+        local_pipeline = Path().cwd() / 'pipeline.json'
+        dst = Path('/tmp') / 'pipeline.json'
+        self.upload_to_remote(local_pipeline, dst)
+        remote_cmd = Path(self.env.sut.tipsy_dir) / 't4p4s' / 'tipsy.py'
+        self.run_async_ssh_cmd([str(remote_cmd)])
+        self.wait_for_callback()
+
 
 class Tester(object):
     def __init__(self, conf):
