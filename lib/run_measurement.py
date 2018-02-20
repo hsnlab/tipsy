@@ -236,6 +236,7 @@ class Tester_moongen(Tester):
         self.mg_cmd = tester.moongen_cmd
         self.script = Path(__file__).parent.parent / 'utils' / 'mg-pcap.lua'
         self.runtime = tester.test_time
+        self.rate_limit = 0
 
     def _run(self, out_dir):
         pcap = out_dir / 'traffic.pcap'
@@ -243,6 +244,8 @@ class Tester_moongen(Tester):
         hfile = out_dir / 'mg.histogram.csv'
         cmd = ['sudo', self.mg_cmd, self.script, self.txdev, self.rxdev, pcap,
                '-l', '-t', '-r', self.runtime, '-o', pfix, '--hfile', hfile]
+        if self.rate_limit:
+            cmd += ['--rate-limit', self.rate_limit]
         cmd = [ str(o) for o in cmd ]
         print(' '.join(cmd))
         subprocess.call(cmd)
@@ -265,10 +268,6 @@ class Tester_moongen(Tester):
             'latency': latency,
             'throughput': throughput
         })
-
-    def stop(self):
-        # TODO: curl http://sut:8080/exit
-        super().stop()
 
 
 class Tester_moongen_rfc2544(Tester):
@@ -294,12 +293,29 @@ class Tester_moongen_rfc2544(Tester):
     def collect_results(self):
         data = 'nan'
         with open('mg.rfc2544.csv') as f:
-            data = {'Mbit': f.readline().rstrip()}
+            reader = csv.DictReader(f)
+            for row in reader:
+                data = row
         self.result.update({'rfc2544': data })
 
-    def stop(self):
-        # TODO: curl http://sut:8080/exit
-        super().stop()
+
+class Tester_moongen_combined(Tester):
+    def __init__(self, conf):
+        super().__init__(conf)
+        self.rfc2544 = Tester_moongen_rfc2544(conf)
+        self.latency = Tester_moongen(conf)
+
+    def _run(self, out_dir):
+        self.rfc2544._run(out_dir)
+        self.rfc2544.collect_results()
+        limit = self.rfc2544.result['rfc2544']['limit']
+        self.latency.rate_limit = limit
+        self.latency._run(out_dir)
+
+    def collect_results(self):
+        self.latency.collect_results()
+        self.result.update(self.rfc2544.result)
+        self.result.update(self.latency.result)
 
 
 def run(defaults=None):

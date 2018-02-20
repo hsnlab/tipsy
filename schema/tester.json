@@ -4,8 +4,9 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["moongen", "moongen-rfc2544"],
-      "default": "moongen"
+      "enum": ["moongen", "moongen-rfc2544", "moongen-combined"],
+      "default": "moongen",
+      "description": "Type of the traffic generator/measurement tool.  (moongen-combined first runs an rfc2544-style measurement then calls the latency measurement limiting the tx rate to the result of the rfc2544 limit)"
     },
     "test-time": {
       "$ref": "definitions.json#/non-negative-integer",
