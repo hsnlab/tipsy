@@ -6,10 +6,17 @@
 
 #+TITLE: Broadband Nerwork Gateway (BNG)
 
+The broadband network gateway pipeline (name: =bng=) implements the
+following scenario:
+
+#+ATTR_LATEX: :centering :width 10cm :caption BNG setup
+[[./fig/bng.png]]
+
 * Static pipeline
 
-#+ATTR_LATEX: :centering :width 10cm :caption BNG setup 
-[[./fig/bng.png]]
+#+ATTR_LATEX: :centering :width 10cm :caption BNG pipeline
+[[./fig/bng_pipeline.png]]
+
 
 * Dynamic scenarios
 
