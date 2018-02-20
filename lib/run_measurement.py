@@ -194,7 +194,7 @@ class SUT_t4p4s(SUT):
         local_pipeline = Path().cwd() / 'pipeline.json'
         dst = Path('/tmp') / 'pipeline.json'
         self.upload_to_remote(local_pipeline, dst)
-        remote_cmd = Path(self.env.sut.tipsy_dir) / 't4p4s' / 'tipsy.py'
+        remote_cmd = Path(self.conf.sut.tipsy_dir) / 't4p4s' / 'tipsy.py'
         self.run_async_ssh_cmd([str(remote_cmd)])
         self.wait_for_callback()
 
