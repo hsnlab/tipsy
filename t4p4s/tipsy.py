@@ -24,6 +24,7 @@ Run as:
 
 """
 
+import requests
 import json
 import os
 import signal
@@ -31,6 +32,7 @@ import socket
 import struct
 import subprocess
 import sys
+import time
 from subprocess import Popen
 
 conf_file = '/tmp/pipeline.json'
@@ -38,6 +40,7 @@ t4p4s_conf_l2fwd = '/tmp/l2fwd_conf.txt'
 t4p4s_conf_portfwd = '/tmp/portfwd_conf.txt'
 t4p4s_conf_l3fwd = '/tmp/l3fwd_conf.txt'
 
+webhook_configured = 'http://localhost:9000/configured'
 
 ###########################################################################
 
@@ -65,7 +68,7 @@ class PL(object):
         self.cont_config = None
         self.p4_source = None
         self.p4_version = 'v14'
-        self.t4p4s_home = '/home/p4/t4p4s-16/'
+        self.t4p4s_home = '/home/eptevor/t4p4s16/t4p4s-16/'
 	self._process = None
 
     def compile_and_start(self):
@@ -200,6 +203,12 @@ class Tipsy(object):
 
     def start_datapath(self):
         self.pl.compile_and_start()
+
+        time.sleep(60)
+        try:
+            requests.get(webhook_configured)
+        except requests.ConnectionError:
+            pass
 
     def stop_datapath(self):
         self.pl.stop()
