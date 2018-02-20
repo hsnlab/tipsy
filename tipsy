@@ -92,10 +92,9 @@ class TipsyConfig(dict):
     def gen_configs(self):
         assert self.benchmark
         self.configs = []
-        for benchmark in self.benchmark:
-            tmp = TipsyConfig(self.default.__dict__)
-            conf_merge(tmp, benchmark)
-            benchmark = tmp
+        for b in self.benchmark:
+            benchmark = TipsyConfig(self.default)
+            conf_merge(benchmark, b)
             scale = getattr(self, '_scale_%s' % benchmark.scale)
             segments = [x for x in benchmark.keys() if x != 'scale']
             confs = {}
