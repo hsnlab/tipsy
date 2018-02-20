@@ -18,18 +18,12 @@
 TIPSY: Telco pIPeline benchmarking SYstem
 
 Run as:
-    $ ryu-manager --log-config-file path/to/log.cfg path/to/tipsy.py
-or:
     $ cd path/to/tipsy.py
     $ ryu-manager --config-dir .
 
 The setup is similar to the left side of the figure in
 http://docs.openvswitch.org/en/latest/howto/userspace-tunneling/
-
-# ovsdb
-~/ryu$ cat ryu/doc/source/library_ovsdb_manager.rst
 """
-
 
 import datetime
 import json
@@ -62,23 +56,16 @@ from ryu.services.protocols.bgp.utils.evtlet import LoopingCall
 import ip
 import sw_conf_vsctl as sw_conf
 
-conf_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                        'conf.json')
+fdir = os.path.dirname(os.path.realpath(__file__))
+pipeline_conf = os.path.join(fdir, 'pipeline.json')
+benchmark_conf = os.path.join(fdir, 'benchmark.json')
 cfg.CONF.register_opts([
-  cfg.StrOpt('conf_file', default=conf_file,
-             help='json formatted configuration file of the TIPSY measurment'),
-
-  # in_port means ofp.OFPP_IN_PORT, i.e., send to where it came from
-  # downlink: towards the base-stations and user equipments.
-  # uplink  : towards the servers (internet) via next-hop routers.
-  cfg.StrOpt('dl_port', default='in_port',
-             help='name of the downlink port (default: in_port)'),
-  cfg.StrOpt('ul_port', default='in_port',
-             help='name of the downlink port (default: in_port)'),
-
+  cfg.StrOpt('pipeline_conf', default=pipeline_conf,
+             help='json formatted configuration file of the pipeline'),
+  cfg.StrOpt('benchmark_conf', default=benchmark_conf,
+             help='configuration of the whole benchmark (in json)'),
   cfg.StrOpt('webhook_configured', default='http://localhost:8888/configured',
              help='URL to request when the sw is configured'),
-
 ], group='tipsy')
 CONF = cfg.CONF['tipsy']
 
@@ -92,6 +79,9 @@ class ObjectView(object):
 
   def __repr__(self):
     return self.__dict__.__repr__()
+
+  def __getattr__(self, name):
+    return self.__dict__[name.replace('_', '-')]
 
   def get (self, attr, default=None):
     return self.__dict__.get(attr, default)
@@ -511,29 +501,20 @@ class Tipsy(app_manager.RyuApp):
     Tipsy._instance = self
     self.logger.debug(" __init__()")
 
-    self.conf_file = CONF['conf_file']
     self.lock = False
     self.dp_id = None
     self.configured = False
-    self.dl_port = None
-    self.ul_port = None
+    self.dl_port = None # port numbers in the OpenFlow switch
+    self.ul_port = None #
     self.status = 'init'
 
     self.logger.debug("%s, %s" % (args, kwargs))
-    self.logger.info("conf_file: %s" % self.conf_file)
 
-    try:
-      with open(self.conf_file, 'r') as f:
-        conv_fn = lambda d: ObjectView(**d)
-        self.pl_conf = json.load(f, object_hook=conv_fn)
-    except IOError as e:
-      self.logger.error('Failed to load cfg file (%s): %s' %
-                        (self.conf_file, e))
-      raise(e)
-    except ValueError as e:
-      self.logger.error('Failed to parse cfg file (%s): %s' %
-                        (self.conf_file, e))
-      raise(e)
+    self.parse_conf('pl_conf', CONF['pipeline_conf'])
+    self.parse_conf('bm_conf', CONF['benchmark_conf'])
+    # port "names" used to configure the OpenFlow switch
+    self.dl_port_name = self.bm_conf.sut.downlink_port
+    self.ul_port_name = self.bm_conf.sut.uplink_port
     try:
       self.pl = globals()['PL_%s' % self.pl_conf.name](self, self.pl_conf)
     except (KeyError, NameError) as e:
@@ -557,6 +538,23 @@ class Tipsy(app_manager.RyuApp):
 
     self.initialize_datapath()
     self.change_status('wait')  # Wait datapath to connect
+
+  def parse_conf(self, var_name, fname):
+    self.logger.info("conf_file: %s" % fname)
+
+    try:
+      with open(fname, 'r') as f:
+        conv_fn = lambda d: ObjectView(**d)
+        config = json.load(f, object_hook=conv_fn)
+    except IOError as e:
+      self.logger.error('Failed to load cfg file (%s): %s' %
+                        (fname, e))
+      raise(e)
+    except ValueError as e:
+      self.logger.error('Failed to parse cfg file (%s): %s' %
+                        (fname, e))
+      raise(e)
+    setattr(self, var_name, config)
 
   def change_status(self, new_status):
     self.logger.info("status: %s -> %s" % (self.status, new_status))
@@ -610,8 +608,8 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.set_datapath_type(br_name, 'netdev')
     sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
     sw_conf.set_fail_mode(br_name, 'secure')
-    self.add_port(br_name, 'ul_port', CONF['ul_port'])
-    self.add_port(br_name, 'dl_port', CONF['dl_port'])
+    self.add_port(br_name, 'ul_port', self.ul_port_name)
+    self.add_port(br_name, 'dl_port', self.dl_port_name)
 
   def stop_dp_simple(self):
     sw_conf.del_bridge('br-main')
@@ -623,13 +621,13 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.set_datapath_type(br_name, 'netdev')
     sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
     sw_conf.set_fail_mode(br_name, 'secure')
-    self.add_port(br_name, 'ul_port', CONF['ul_port'])
+    self.add_port(br_name, 'ul_port', self.ul_port_name)
 
     br_name = 'br-phy'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
     sw_conf.set_datapath_type(br_name, 'netdev')
-    self.add_port(br_name, 'dl_port', CONF['dl_port'])
+    self.add_port(br_name, 'dl_port', self.dl_port_name)
     ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
 
     ip.add_veth('veth-phy', 'veth-main')
@@ -709,9 +707,9 @@ class Tipsy(app_manager.RyuApp):
   def handle_port_desc_stats_reply(self, ev):
     ofp = self.dp.ofproto
 
-    # Map port names in cfg to actual port numbers
-    if CONF['dl_port'] == CONF['ul_port']:
-      CONF['dl_port'] = CONF['ul_port'] = 'in_port'
+    # Map port names in cfg to actual OF port numbers
+    if self.dl_port_name == self.ul_port_name:
+      self.dl_port_name = self.ul_port_name = 'in_port'
     self.ports = {'in_port': ofp.OFPP_IN_PORT}
     for port in ev.msg.body:
       self.ports[port.name] = port.port_no
@@ -723,7 +721,7 @@ class Tipsy(app_manager.RyuApp):
     else:
       ports = ['ul_port', 'dl_port']
     for spec_port in ports:
-      port_name = CONF[spec_port]
+      port_name = getattr(self, '%s_name' % spec_port)
       if self.ports.get(port_name):
         # kernel interface -> OF returns the interface name as port_name
         port_no = self.ports[port_name]

@@ -161,10 +161,10 @@ class SUT_ovs(SUT):
         first_line = v.stdout.decode('utf8').split("\n")[0]
         self.result['version'] = first_line.split(' ')[-1]
 
+        cwd = Path().cwd()
         remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
-        remote_pipeline = remote_ryu_dir / 'pipeline.json'
-        local_pipeline = Path().cwd() / 'pipeline.json'
-        self.upload_to_remote(local_pipeline, remote_pipeline)
+        for f in ['pipeline.json', 'benchmark.json']:
+            self.upload_to_remote(cwd / f, remote_ryu_dir / f)
 
         cmd = remote_ryu_dir / 'start-ryu'
         self.run_async_ssh_cmd(['sudo', str(cmd)])
