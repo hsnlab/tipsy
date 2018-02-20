@@ -139,11 +139,11 @@ def _gen_ul_pkt_l3fwd(pkt_size, conf):
 def _gen_dl_pkt_mgw(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
-    proto = random.choice([TCP(), UDP()])
+    proto = random.choice([TCP, UDP])
     p = (
         Ether(dst=conf.gw.mac) /
         IP(src=server.ip, dst=user.ip) /
-        proto
+        proto()
     )
     p = add_payload(p, pkt_size)
     return p
@@ -171,7 +171,7 @@ def _gen_dl_pkt_bng(pkt_size, conf):
 def _gen_ul_pkt_mgw(pkt_size, conf):
     server = random.choice(conf.srvs)
     user = random.choice(conf.users)
-    proto = random.choice([TCP(), UDP()])
+    proto = random.choice([TCP, UDP])
     bst = conf.bsts[user.tun_end]
     p = (
         Ether(src=bst.mac, dst=conf.gw.mac, type=0x0800) /
@@ -180,7 +180,7 @@ def _gen_ul_pkt_mgw(pkt_size, conf):
         VXLAN(vni=user.teid, flags=0x08) /
         Ether(dst=conf.gw.mac, type=0x0800) /
         IP(src=user.ip, dst=server.ip) /
-        proto
+        proto()
     )
     p = add_payload(p, pkt_size)
     return p
@@ -219,7 +219,7 @@ def add_payload(p, pkt_size):
 
 
 def vwrap(pkt, conf):
-    'Add VXLAN header for infra processing in case of a virtual mgw.'
+    'Add VXLAN header for infra processing'
     vxlanpkt = (
         Ether(src=conf.dcgw.mac, dst=conf.gw.mac) /
         IP(src=conf.dcgw.ip, dst=conf.gw.ip) /
