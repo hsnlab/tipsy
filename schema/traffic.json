@@ -29,10 +29,10 @@
       "description": "Direction: uplink, downlink, or bidir"
     },
     "pkt-num": {
-      "$ref": "definitions.json#/positive-integer",
+      "$ref": "definitions.json#/non-negative-integer",
       "short_opt": "-n",
       "default": 10,
-      "description": "Number of packets"
+      "description": "Number of packets (0: determined by the pipeline 'size')"
     },
     "pkt-size": {
       "$ref": "definitions.json#/positive-integer",

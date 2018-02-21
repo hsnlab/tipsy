@@ -88,6 +88,46 @@ def gen_packets(params_tuple):
     return pkts[:pkt_num]
 
 
+def _get_auto_portfwd_pktnum(conf, dir):
+    return 10
+
+
+def _get_auto_l2fwd_pktnum(conf, dir):
+    if 'd' in dir:  # downstream
+        return len(conf.downstream_table)
+    elif 'u' in dir:  # upstream
+        return len(conf.upstream_table)
+    elif 'b' in dir:  # bidir
+        return max(len(conf.upstream_table),
+                   len(conf.downstream_table))
+    else:
+        raise ValueError
+
+
+def _get_auto_l3fwd_pktnum(conf, dir):
+    if 'd' in dir:  # downstream
+        return len(conf.downstream_l3_table)
+    elif 'u' in dir:  # upstream
+        return len(conf.upstream_l3_table)
+    elif 'b' in dir:  # bidir
+        return max(len(conf.upstream_l3_table),
+                   len(conf.downstream_l3_table))
+    else:
+        raise ValueError
+
+
+def _get_auto_mgw_pktnum(conf, dir):
+    return len(conf.users)
+
+
+def _get_auto_vmgw_pktnum(conf, dir):
+    return len(conf.users)
+
+
+def _get_auto_bng_pktnum(conf, dir):
+    return len(conf.nat_table)
+
+
 def _gen_pkt_portfwd(pkt_size, conf):
     smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65023))
     dmac = byte_seq('aa:cc:dd:cc:%02x:%02x', random.randrange(1, 65023))
@@ -279,6 +319,15 @@ def gen_pcap(defaults=None):
 
     if args.random_seed:
         random.seed(args.random_seed)
+
+    if args.pkt_num == 0:
+        try:
+            get_pktnum = getattr(sys.modules[__name__],
+                                 '_get_auto_%s_pktnum' % conf.name)
+            args.pkt_num = get_pktnum(conf, args.dir)
+        except AttributeError:
+            sys.exit("Error: auto pkt-num is not supported by '%s'.\n"
+                     % conf.name)
 
     dir = '%sl' % args.dir[0]
     wargs = []
