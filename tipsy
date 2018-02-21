@@ -102,6 +102,12 @@ class TipsyConfig(dict):
                 confs[segment] = scale(getattr(benchmark, segment))
             self.configs.extend(self._scale_outer(confs))
 
+        # Oder should not matter, but we need to reboot the SUT if
+        # sut.type changes, so it makes sense to minimize the number
+        # of reboots by conducting similar measurements next to each
+        # other.
+        self.configs.sort(key=lambda x: x.get('sut', {}).get('type', ''))
+
     def _scale_none(self, conf_dict):
         return [{k: v[0] if type(v) == list else v
                  for k, v in conf_dict.items()}]
