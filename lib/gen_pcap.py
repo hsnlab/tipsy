@@ -91,7 +91,8 @@ def gen_packets(params_tuple):
 def _gen_pkt_portfwd(pkt_size, conf):
     smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65023))
     dmac = byte_seq('aa:cc:dd:cc:%02x:%02x', random.randrange(1, 65023))
-    p = Ether(dst=dmac, src=smac)
+    dip = byte_seq('3.3.%d.%d', random.randrange(1, 255))
+    p = Ether(dst=dmac, src=smac) / IP(dst=dip)
     p = add_payload(p, pkt_size)
     return p
 
@@ -107,7 +108,8 @@ def _gen_ul_pkt_portfwd(pkt_size, conf):
 def _gen_pkt_l2fwd(dir, pkt_size, conf):
     smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65023))
     dmac = random.choice(getattr(conf, '%s_table' % dir)).mac
-    p = Ether(dst=dmac, src=smac)
+    dip = byte_seq('3.3.%d.%d', random.randrange(1, 255))
+    p = Ether(dst=dmac, src=smac) / IP(dst=dip)
     p = add_payload(p, pkt_size)
     return p
 
