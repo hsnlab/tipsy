@@ -106,18 +106,15 @@ class SUT(object):
         subprocess.run(cmd, check=True)
         self.run_teardown_script()
 
-    def run_local_shell_script(self, script, path_sut):
+    def run_script(self, script):
         if Path(script).is_file():
-            self.upload_to_remote(script, path_sut)
-            self.run_ssh_cmd([str(path_sut)])
+            subprocess.run([str(script)], check=True)
 
     def run_setup_script(self):
-        self.run_local_shell_script(self.conf.sut.setup_script,
-                                    Path('/tmp', 'sut_setup'))
+        self.run_script(self.conf.sut.setup_script)
 
     def run_teardown_script(self):
-        self.run_local_shell_script(self.conf.sut.teardown_script,
-                                    Path('/tmp', 'sut_teardown'))
+        self.run_script(self.conf.sut.teardown_script)
 
     def wait_for_callback(self):
         cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
