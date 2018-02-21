@@ -580,15 +580,18 @@ class Tipsy(app_manager.RyuApp):
 
     self.lock = False
 
-  def add_port(self, br_name, port_name, iface):
+  def add_port(self, br_name, port_name, iface, core=1):
     """Add a new port to an ovs bridge.
     iface can be a PCI address (type => dpdk), or
     a kernel interface name (type => system)
     """
+    opt = {}
+    if core != 1:
+      opt['n_rxq'] = core
     # We could be smarter here, but this will do
     if iface.find(':') > 0:
-      sw_conf.add_port(br_name, port_name, type='dpdk',
-                       options={'dpdk-devargs': iface})
+      opt['dpdk-devargs'] = iface
+      sw_conf.add_port(br_name, port_name, type='dpdk', options=opt)
     else:
       sw_conf.add_port(br_name, port_name, type='system', name=iface)
 
@@ -608,26 +611,28 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.set_datapath_type(br_name, 'netdev')
     sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
     sw_conf.set_fail_mode(br_name, 'secure')
-    self.add_port(br_name, 'ul_port', self.ul_port_name)
-    self.add_port(br_name, 'dl_port', self.dl_port_name)
+    core = self.bm_conf.pipeline.core
+    self.add_port(br_name, 'ul_port', self.ul_port_name, core=core)
+    self.add_port(br_name, 'dl_port', self.dl_port_name, core=core)
 
   def stop_dp_simple(self):
     sw_conf.del_bridge('br-main')
 
   def initialize_dp_tunneled(self):
+    core = self.bm_conf.pipeline.core
     br_name = 'br-main'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, dp_desc=br_name)
     sw_conf.set_datapath_type(br_name, 'netdev')
     sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
     sw_conf.set_fail_mode(br_name, 'secure')
-    self.add_port(br_name, 'ul_port', self.ul_port_name)
+    self.add_port(br_name, 'ul_port', self.ul_port_name, core=core)
 
     br_name = 'br-phy'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
     sw_conf.set_datapath_type(br_name, 'netdev')
-    self.add_port(br_name, 'dl_port', self.dl_port_name)
+    self.add_port(br_name, 'dl_port', self.dl_port_name, core=core)
     ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
 
     ip.add_veth('veth-phy', 'veth-main')
