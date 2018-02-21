@@ -52,33 +52,41 @@ with open(pl_conf_file, 'r') as f:
 with open(bm_conf_file, 'r') as f:
   bm_conf = json.load(f, object_hook=conv_fn)
 
-bess_inport = int(bm_conf.sut.downlink_port)
-bess_outport = int(bm_conf.sut.uplink_port)
+bess_dlport = int(bm_conf.sut.downlink_port)
+bess_ulport = int(bm_conf.sut.uplink_port)
 bess_workers = int(conf.core)
 
-portIn = PMDPort(port_id=bess_inport,
+portDL = PMDPort(port_id=bess_dlport,
                  num_inc_q=bess_workers,
                  num_out_q=bess_workers)
 
-if bess_inport == bess_outport:
-  portOut = portIn
+if bess_dlport == bess_ulport:
+  portUL = portDL
 else:
-  portOut = PMDPort(port_id=bess_outport,
+  portUL = PMDPort(port_id=bess_ulport,
                     num_inc_q=bess_workers,
                     num_out_q=bess_workers)
 
 
 for wid in range(bess_workers):
-  input = QueueInc(port=portIn.name, qid=wid)
-  output = QueueOut(port=portOut.name, qid=wid)
-  buf = Buffer(name='out_buf_%d' % wid)
+  wid2 = bess_workers + wid
+  dl_input = QueueInc(name="dl_inport_%d" % wid, port=portDL.name, qid=wid)
+  dl_output = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
+  ul_input = QueueInc(name="ul_inport_%d" % wid, port=portUL.name, qid=wid)
+  ul_output = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
+
+  buf_u = Buffer(name='out_buf_u_%d' % wid)
+  buf_d = Buffer(name='out_buf_d_%d' % wid)
 
   if conf.fakedrop:
-    drop = buf
+    drop_u = buf_u
+    drop_d = buf_d
   else:
-    drop = Sink()
+    drop_u = Sink()
+    drop_d = Sink()
 
   bess.add_worker(wid, wid)
+  bess.add_worker(wid2, wid2)
 
   l2_fwd = ExactMatch(name='l2_fwd_%d' % wid,
                       fields=[{'offset': 0, 'num_bytes': 6}]) # dst MAC
@@ -121,7 +129,8 @@ for wid in range(bess_workers):
     q.attach_task(parent=name)
     teid_split:teid -> q -> buf2
 
-  uttl = UpdateTTL(name='uttl_%d' % wid) # Bring before ip_lookup?
+  uttl_u = UpdateTTL(name='uttl_u_%d' % wid) # Bring before ip_lookup?
+  uttl_d = UpdateTTL(name='uttl_d_%d' % wid) # Bring before ip_lookup?
   nhop_split = Split(name='nhop_split_%d' % wid,
                      attribute='nhop', size=4)
 
@@ -140,12 +149,12 @@ for wid in range(bess_workers):
     update_d_mac = Update(name='u_nhop%d_dmac_%d' % (i, wid),
                           fields=[{'offset': 0, 'size': 6,
                                    'value': mac_int_from_str(nhop.dmac)}])
-    nhop_split:i -> update_s_mac -> update_d_mac -> uttl
+    nhop_split:i -> update_s_mac -> update_d_mac -> uttl_u
 
   # downlink
   ue_selector = ExactMatch(name='ue_selector_%d' % wid,
                            fields=[{'offset': 30, 'num_bytes': 4}]) # dst IP
-
+  ue_selector.set_default_gate(gate=0)
   vxlan_encap = VXLANEncap(name='vxlan_encap_%d' % wid)
   for user in conf.users:
     ue_selector.add(fields=[{'value_bin': aton(user.ip)}],
@@ -168,27 +177,35 @@ for wid in range(bess_workers):
     update_d_mac = Update(name='u_bst%d_dmac_%d' % (bst.id, wid),
                           fields=[{'offset': 0, 'size': 6,
                                    'value': mac_int_from_str(bst.mac)}])
-    ip_lookup:i -> update_s_mac -> update_d_mac -> uttl
+    ip_lookup:i -> update_s_mac -> update_d_mac -> uttl_d
 
-  input -> l2_fwd
+  q = Queue(name='input_q_%d' % wid)
+  bess.attach_task(q.name, wid=wid)
+
+  dl_input -> q
+  ul_input -> q
+  q -> l2_fwd
 
   l2_fwd:0 -> ethertype
-  l2_fwd:1 -> drop
+  l2_fwd:1 -> drop_d
 
   ethertype:0 -> dir_selector
-  ethertype:1 -> buf # arp, infraCP (not implemented)
+  ethertype:1 -> drop_d  # arp, infraCP (not implemented)
 
   dir_selector:0 -> vxlan_decap -> teid_split
   dir_selector:1 -> ue_selector
+  ue_selector -> drop_d
 
-  ip_lookup:0 -> drop
+  ip_lookup:0 -> drop_u
   buf2 -> ip_lookup
 
   vxlan_encap -> IPEncap() -> EtherEncap() -> teid_split
 
-  uttl -> buf -> output
+  uttl_u -> buf_u -> ul_output
+  uttl_d -> buf_d -> dl_output
 
-  bess.attach_task(input.name, wid=wid)
+  bess.attach_task(dl_input.name, wid=wid)
+  bess.attach_task(ul_input.name, wid=wid2)
 
 bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
 bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
