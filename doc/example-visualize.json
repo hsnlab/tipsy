@@ -22,11 +22,11 @@
         "out.throughput.RX.PacketRate",
         "out.throughput.TX.PacketRate"
       ],
-      "title": "{pipeline.name} - OVS v{sut.version}"
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
     },
     { "x-axis": "traffic.pkt-size",
       "y-axis": "out.throughput.TX.Mbit",
-      "title": "{pipeline.name} - OVS v{sut.version}"
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
     }
   ]
 }

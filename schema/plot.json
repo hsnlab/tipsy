@@ -24,9 +24,16 @@
       "description": "variable or a list of variables to plot"
     },
     "group-by": {
-      "$ref": "definitions.json#/hierarchical-property-name",
-      "default": "",
-      "description": "(this property is currently ignored)"
+      "anyOf": [
+        { "type": "string",
+          "$ref": "definitions.json#/hierarchical-property-name"
+        },
+        { "type": "array",
+          "items": {"$ref": "definitions.json#/hierarchical-property-name"}
+        }
+      ],
+      "default": [],
+      "description": "Group x-values by a variable"
     },
     "title": {
       "type": "string",

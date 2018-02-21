@@ -22,6 +22,12 @@ import json
 
 from pathlib import Path
 
+def ensure_list(object_or_list):
+    if type(object_or_list) == list:
+        return object_or_list
+    else:
+        return [object_or_list]
+
 
 class ObjectView(object):
     def __init__(self, fname=None, **kwargs):
@@ -48,19 +54,17 @@ class Plot(object):
 
 class Plot_simple(Plot):
     def plot(self, raw_data):
-        y_axis = self.conf.y_axis
-        if type(y_axis) != list:
-            y_axis = [y_axis]
+        y_axis = ensure_list(self.conf.y_axis)
         series = collections.defaultdict(list)
         for row in raw_data:
             x = row[self.conf.x_axis]
+            groups = ensure_list(self.conf.group_by)
             for var_name in y_axis:
                 y = float(row[var_name])
-                if self.conf.group_by:
-                    group = row[self.conf.group_by]
-                    key = '%s/%s' % (group, var_name)
-                else:
-                    key = var_name
+                key = var_name
+                for group in groups:
+                    group_val = row[group]
+                    key += '/%s' % group_val
                 series[key].append((x, y))
             title = self.conf.title.format(**row.__dict__)
 
