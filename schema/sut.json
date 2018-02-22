@@ -46,7 +46,7 @@
       "$ref": "definitions.json#/hex-string",
       "default": "0x3",
       "description": "Hexadecimal portmask as string.  Supported by t4p4s.  Required by t4p4as."
-    }
+    },
     "setup-script": {
       "type": "string",
       "default": "",
