@@ -94,6 +94,13 @@ class SUT(object):
         print(' '.join(cmd))
         subprocess.run(cmd, check=True)
 
+    def upload_conf_files(self, dst_dir):
+        src_dir = Path().cwd()
+        dst_dir = Path(dst_dir)
+
+        for fname in ['pipeline.json', 'benchmark.json']:
+            self.upload_to_remote(src_dir / fname, dst_dir / fname)
+
     def start(self, *args):
         self.run_setup_script()
         self._start(*args)
@@ -133,12 +140,7 @@ class SUT_bess(SUT):
             self.result['versions'][var] = val
         self.result['version'] = self.result['versions'].get('bessd', 'n/a')
 
-        local_pipeline = Path().cwd() / 'pipeline.json'
-        local_benchmark = Path().cwd() / 'benchmark.json'
-        remote_pipeline = Path('/tmp') / 'pipeline.json'
-        remote_benchmark = Path('/tmp') / 'benchmark.json'
-        self.upload_to_remote(local_pipeline, remote_pipeline)
-        self.upload_to_remote(local_benchmark, remote_benchmark)
+        self.upload_conf_files('/tmp')
         cmd = [
             Path(self.conf.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
             '-d', self.conf.sut.bess_dir,
@@ -158,11 +160,9 @@ class SUT_ovs(SUT):
         first_line = v.stdout.decode('utf8').split("\n")[0]
         self.result['version'] = first_line.split(' ')[-1]
 
-        cwd = Path().cwd()
-        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
-        for f in ['pipeline.json', 'benchmark.json']:
-            self.upload_to_remote(cwd / f, remote_ryu_dir / f)
+        self.upload_conf_files(self.conf.sut.tipsy_dir)
 
+        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
         cmd = remote_ryu_dir / 'start-ryu'
         self.run_async_ssh_cmd(['sudo', str(cmd)])
         self.wait_for_callback()
@@ -174,23 +174,17 @@ class SUT_ofdpa(SUT):
 
     def _start(self):
         remote_cmd = Path(self.conf.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
-        local_pipeline = Path().cwd() / 'pipeline.json'
-        local_benchmark = Path().cwd() / 'benchmark.json'
-        remote_pipeline = Path('/tmp') / 'pipeline.json'
-        remote_benchmark = Path('/tmp') / 'benchmark.json'
-        self.upload_to_remote(local_pipeline, remote_pipeline)
-        self.upload_to_remote(local_benchmark, remote_benchmark)
+        self.upload_conf_files('/tmp')
         self.run_async_ssh_cmd(['sudo', str(remote_cmd)])
         self.wait_for_callback()
+
 
 class SUT_t4p4s(SUT):
     def __init__(self, conf):
         super().__init__(conf)
 
     def _start(self):
-        local_pipeline = Path().cwd() / 'pipeline.json'
-        dst = Path('/tmp') / 'pipeline.json'
-        self.upload_to_remote(local_pipeline, dst)
+        self.upload_conf_files('/tmp')
         remote_cmd = Path(self.conf.sut.tipsy_dir) / 't4p4s' / 'tipsy.py'
         self.run_async_ssh_cmd([str(remote_cmd)])
         self.wait_for_callback()
