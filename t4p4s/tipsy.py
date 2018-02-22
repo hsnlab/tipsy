@@ -28,14 +28,16 @@ import requests
 import json
 import os
 import signal
-import socket
-import struct
 import subprocess
 import sys
 import time
 from subprocess import Popen
 
+sys.path.append(os.path.dirname(__file__) + '/../lib')
+from object_with_config import ObjectWithConfig
+
 conf_file = '/tmp/pipeline.json'
+bm_conf_file = '/tmp/benchmark.json'
 t4p4s_conf_l2fwd = '/tmp/l2fwd_conf.txt'
 t4p4s_conf_portfwd = '/tmp/portfwd_conf.txt'
 t4p4s_conf_l3fwd = '/tmp/l3fwd_conf.txt'
@@ -49,18 +51,6 @@ def call_cmd(cmd):
     return subprocess.call(cmd)
 
 
-class ObjectView(object):
-    def __init__(self, **kwargs):
-        kw = {k.replace('-', '_'): v for k, v in kwargs.items()}
-        self.__dict__.update(kw)
-
-    def __repr__(self):
-        return self.__dict__.__repr__()
-
-    def get (self, attr, default=None):
-        return self.__dict__.get(attr, default)
-
-
 class PL(object):
     def __init__(self, parent, conf):
         self.conf = conf
@@ -68,7 +58,8 @@ class PL(object):
         self.cont_config = None
         self.p4_source = None
         self.p4_version = 'v14'
-        self.t4p4s_home = '/home/eptevor/t4p4s16/t4p4s-16/'
+        # '/home/eptevor/t4p4s16/t4p4s-16/'
+        self.t4p4s_home = parent.bm_conf.sut.t4p4s_dir
         self._process = None
         self.dpdk_config = '-c 0x3 -n 4 - --log-level 3 -- -p 0x3 --config "(0,0,0),(1,0,0)"'
         self.controller = 'dpdk_controller'
@@ -76,8 +67,10 @@ class PL(object):
     def compile_and_start(self):
         cmd = './launch.sh'
         p4src = os.path.join(self.t4p4s_home, self.p4_source)
-        print([cmd, p4src, self.controller, self.cont_config, '--', self.dpdk_config], 'cwd=', self.t4p4s_home)
-        self._process = subprocess.Popen([cmd, p4src, self.controller, self.cont_config, '--', self.dpdk_config], cwd = self.t4p4s_home)
+        cmd = [cmd, p4src, self.controller, self.cont_config, '--', self.dpdk_config]
+        cmd = ['sudo'] + cmd
+        print(cmd, 'cwd=', self.t4p4s_home)
+        self._process = subprocess.Popen(cmd, cwd = self.t4p4s_home)
 
     def stop(self):
         if self._process:
@@ -91,7 +84,7 @@ class PL_new(object):
         self.cont_config = None
         self.p4_source = None
         self.p4_version = 'v14'
-        self.t4p4s_home = '/home/p4/t4p4s-16/'
+        self.t4p4s_home = parent.bm_conf.sut.t4p4s_dir # '/home/p4/t4p4s-16/'
         self._process = None
 
     def compile_and_start(self):
@@ -199,26 +192,16 @@ class PL_l3fwd(PL):
             conf_file.write("M %s\n" % self.conf.sut.ul_port_mac)
 
 
-class Tipsy(object):
+class Tipsy(ObjectWithConfig):
 
     def __init__(self, *args, **kwargs):
         super(Tipsy, self).__init__(*args, **kwargs)
         Tipsy._instance = self
 
         self.conf_file = conf_file
+        self.parse_conf('pl_conf', conf_file)
+        self.parse_conf('bm_conf', bm_conf_file)
 
-        print("conf_file: %s" % self.conf_file)
-
-        try:
-            with open(self.conf_file, 'r') as f:
-                conv_fn = lambda d: ObjectView(**d)
-                self.pl_conf = json.load(f, object_hook=conv_fn)
-        except IOError as e:
-            print('Failed to load cfg file (%s): %s' % (self.conf_file, e))
-            raise(e)
-        except ValueError as e:
-            print('Failed to parse cfg file (%s): %s' % (self.conf_file, e))
-            raise(e)
         try:
             self.pl = globals()['PL_%s' % self.pl_conf.name](self, self.pl_conf)
         except (KeyError, NameError) as e:
