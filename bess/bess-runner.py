@@ -271,14 +271,15 @@ class BessUpdaterMgw(BessUpdater):
 
     def add_user(self, user):
         self._config_add_user(user)
-        for wid in range(self.workers_num):
+        for wid in range(self.conf.core):
             try:
+                wid2 = self.conf.core + wid
                 self.bess.pause_worker(wid)
+                self.bess.pause_worker(wid2)
                 self.bess.run_module_command('ue_selector_%d' % wid,
                                              'add', 'ExactMatchCommandAddArg',
                                              {'fields': [{'value_bin': aton(user.ip)}],
                                               'gate': user.teid})
-                self.bess.resume_worker(wid)
                 md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
                 tun_ip_dst = self.conf.bsts[user.tun_end].ip
                 self.bess.create_module('SetMetadata', md_name,
@@ -309,12 +310,15 @@ class BessUpdaterMgw(BessUpdater):
                 raise
             finally:
                 self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid2)
 
     def del_user(self, user):
         self._config_del_user(user)
-        for wid in range(self.workers_num):
+        for wid in range(self.conf.core):
             try:
+                wid2 = self.conf.core + wid
                 self.bess.pause_worker(wid)
+                self.bess.pause_worker(wid2)
                 self.bess.run_module_command('ue_selector_%d' % wid,
                                              'delete', 'ExactMatchCommandDeleteArg',
                                              {'fields': [{'value_bin': aton(user.ip)}]})
@@ -326,10 +330,11 @@ class BessUpdaterMgw(BessUpdater):
                 raise
             finally:
                 self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid2)
 
     def handover(self, user, new_bst):
         self._config_handover(user, new_bst)
-        for wid in range(self.workers_num):
+        for wid in range(self.conf.core):
             try:
                 tun_ip_dst = self.conf.bsts[user.tun_end].ip
                 md_name = 'setmd_dl_%d_%d' % (user.teid, wid)
@@ -353,36 +358,40 @@ class BessUpdaterMgw(BessUpdater):
 
     def add_server(self, server):
         self._config_add_server(server)
-        for wid in range(self.workers_num):
+        for wid in range(self.conf.core):
             try:
+                wid2 = self.conf.core + wid
                 ip = re.sub(r'\.[^.]+$', '.0', server.ip)
                 id = self.__get_id_from_ip(ip)
                 ogate = len(self.conf.srvs) + id
                 self.bess.pause_worker(wid)
+                self.bess.pause_worker(wid2)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
                                              'add', 'IPLookupCommandAddArg',
                                              {'prefix': ip, 'prefix_len': 24,
                                               'gate': ogate})
-                self.bess.resume_worker(wid)
                 md_name = 'setmd_srv%d_%d' % (ogate, wid)
                 self.bess.create_module('SetMetadata', md_name,
                                         {'attrs': [{'name': 'nhop', 'size': 4,
                                                     'value_int': server.nhop}]})
-                self.bess.connect_modules('ip_lookup_%d' % wid, md_name,
-                                          ogate, 0)
+                # self.bess.connect_modules('ip_lookup_%d' % wid, md_name,
+                #                           ogate, 0)
             except BESS.Error:
                 raise
             finally:
                 self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid2)
 
     def del_server(self, server):
         self._config_del_server(server)
-        for wid in range(self.workers_num):
+        for wid in range(self.conf.core):
             try:
+                wid2 = self.conf.core + wid
                 ip = re.sub(r'\.[^.]+$', '.0', server.ip)
                 id = self.__get_id_from_ip(ip)
                 ogate = len(self.conf.srvs) + id + 1
                 self.bess.pause_worker(wid)
+                self.bess.pause_worker(wid2)
                 self.bess.run_module_command('ip_lookup_%d' % wid,
                                              'delete', 'IPLookupCommandDeleteArg',
                                              {'prefix': ip, 'prefix_len': 24})
@@ -393,6 +402,7 @@ class BessUpdaterMgw(BessUpdater):
                 raise
             finally:
                 self.bess.resume_worker(wid)
+                self.bess.resume_worker(wid2)
 
 
 class BessUpdaterBng(BessUpdaterMgw):
