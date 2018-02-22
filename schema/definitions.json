@@ -7,6 +7,10 @@
     "type": "integer",
     "minimum": 0
   },
+  "hex-string": {
+    "type": "string",
+    "pattern": "^0[xX][0-9a-fA-F]*$"
+  }
   "readable-file": {
     "type": "string"
   },

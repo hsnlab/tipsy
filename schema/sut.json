@@ -37,6 +37,16 @@
       "default": "0000:0b:00.1",
       "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0')  or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
     },
+    "coremask": {
+      "$ref": "definitions.json#/hex-string",
+      "default": "0x3f03f",
+      "description": "Hexadecimal coremask as string.  Supported by bess, ovs, t4p4s.  Required by t4p4as.  (This defines the availabilty of the cores.  The actual number of cores is defined by pipeline.core)"
+    },
+    "portmask": {
+      "$ref": "definitions.json#/hex-string",
+      "default": "0x3",
+      "description": "Hexadecimal portmask as string.  Supported by t4p4s.  Required by t4p4as."
+    }
     "setup-script": {
       "type": "string",
       "default": "",

@@ -42,10 +42,6 @@ t4p4s_conf_l2fwd = '/tmp/l2fwd_conf.txt'
 t4p4s_conf_portfwd = '/tmp/portfwd_conf.txt'
 t4p4s_conf_l3fwd = '/tmp/l3fwd_conf.txt'
 
-############### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #############################
-dpdk_cpumask = '0x3f03f'
-dpdk_portmask = '0x3'
-
 webhook_configured = 'http://localhost:9000/configured'
 
 ###########################################################################
@@ -54,7 +50,7 @@ def call_cmd(cmd):
     print(' '.join(cmd))
     return subprocess.call(cmd)
 
-def gen_t4p4s_config(cpumask,portmask,cores):
+def gen_t4p4s_config(cpumask, portmask, cores):
     cpum = int(cpumask, 16) ## given in hexa
     portm = int(portmask, 16)
 
@@ -82,7 +78,8 @@ class PL(object):
         self.t4p4s_home = parent.bm_conf.sut.t4p4s_dir
         self._process = None
         # '-c 0x3 -n 4 - --log-level 3 -- -p 0x3 --config "(0,0,0),(1,0,0)"'
-        self.dpdk_config = gen_t4p4s_config(dpdk_cpumask, dpdk_portmask, conf.core)
+        self.dpdk_config = gen_t4p4s_config(
+            parent.bm_conf.sut.coremask, parent.bm_conf.sut.portmask, conf.core)
         self.controller = 'dpdk_controller'
 
     def compile_and_start(self):
