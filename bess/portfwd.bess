@@ -18,9 +18,14 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import json
+import sys
 
 def mac_int_from_str(s):
   return int("0x%s" % ''.join(s.split(':')), 16)
+
+def coremask_to_corelist(coremask):
+  cpum = int(coremask, 16)
+  return [i for i in range(32) if (cpum >> i) & 1 == 1]
 
 class ObjectView(object):
   def __init__(self, **kwargs):
@@ -42,6 +47,7 @@ with open(bm_conf_file, 'r') as f:
 bess_dlport = int(bm_conf.sut.downlink_port)
 bess_ulport = int(bm_conf.sut.uplink_port)
 bess_workers = int(conf.core)
+corelist = coremask_to_corelist(bm_conf.sut.coremask)
 
 portDL = PMDPort(port_id=bess_dlport,
                  num_inc_q=bess_workers,
@@ -56,8 +62,11 @@ else:
 
 for wid in range(bess_workers):
   wid2 = bess_workers + wid
-  bess.add_worker(wid, wid)
-  bess.add_worker(wid2, wid2)
+  try:
+    bess.add_worker(wid, corelist[wid])
+    bess.add_worker(wid2, corelist[wid2])
+  except IndexError:
+    sys.exit('ERROR: Insufficient number of cores available.')
 
   # uplink
   in_u = QueueInc(name="ul_inport_%d" % wid, port=portUL.name, qid=wid)
