@@ -96,7 +96,12 @@ for wid in range(bess_workers):
   update_s_mac_u = Update(name='u_smac_u_%d' % wid,
                           fields=[{'offset': 6, 'size': 6,
                                    'value': mac_int_from_str(umac)}])
-  l3fib_u = IPLookup(name='l3fib_u_%d' % wid)
+  fluct_l3_u = len([True for a in conf.run_time
+                    if 'downstream' in a.table
+                    and 'l3' in a.action
+                    and 'add' in a.cmd])
+  fibsize_u = len(conf.downstream_l3_table) + fluct_l3_u
+  l3fib_u = IPLookup(name='l3fib_u_%d' % wid, max_rules=fibsize_u)
   l3fib_u.add(prefix='0.0.0.0', prefix_len=0, gate=0)
   for entry in conf.upstream_l3_table:
     gat = entry.nhop + 1
@@ -136,7 +141,12 @@ for wid in range(bess_workers):
   update_s_mac_d = Update(name='u_smac_d_%d' % wid,
                           fields=[{'offset': 6, 'size': 6,
                                    'value': mac_int_from_str(dmac)}])
-  l3fib_d = IPLookup(name='l3fib_d_%d' % wid)
+  fluct_l3_d = len([True for a in conf.run_time
+                    if 'downstream' in a.table
+                    and 'l3' in a.action
+                    and 'add' in a.cmd])
+  fibsize_d = 1 + len(conf.downstream_l3_table) + fluct_l3_d
+  l3fib_d = IPLookup(name='l3fib_d_%d' % wid, max_rules=fibsize_d)
   l3fib_d.add(prefix='0.0.0.0', prefix_len=0, gate=0)
   for entry in conf.downstream_l3_table:
     gat = entry.nhop + 1

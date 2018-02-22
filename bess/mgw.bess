@@ -113,8 +113,11 @@ for wid in range(bess_workers):
   teid_split = Split(name='teid_split_%d' % wid,
                      attribute='tun_id', size=4)
 
+  fluct_srv_num = len([True for a in conf.run_time
+                    if 'add_server' in a.action])
+  fibsize = 1 + len(conf.srvs) + len(conf.bsts) + fluct_srv_num
   ip_lookup = IPLookup(name='ip_lookup_%d' % wid,
-                       max_rules=8192)
+                       max_rules=fibsize)
   ip_lookup.add(prefix='0.0.0.0', prefix_len=0, gate=0)
 
   buf2 = Buffer(name='prel3_buf_%d' % wid)
