@@ -69,7 +69,30 @@ class PL(object):
         self.p4_source = None
         self.p4_version = 'v14'
         self.t4p4s_home = '/home/eptevor/t4p4s16/t4p4s-16/'
-	self._process = None
+        self._process = None
+        self.dpdk_config = '-c 0x3 -n 4 - --log-level 3 -- -p 0x3 --config "(0,0,0),(1,0,0)"'
+        self.controller = 'dpdk_controller'
+
+    def compile_and_start(self):
+        cmd = './launch.sh'
+        p4src = os.path.join(self.t4p4s_home, self.p4_source)
+        print([cmd, p4src, self.controller, self.cont_config, '--', self.dpdk_config], 'cwd=', self.t4p4s_home)
+        self._process = subprocess.Popen([cmd, p4src, self.controller, self.cont_config, '--', self.dpdk_config], cwd = self.t4p4s_home)
+
+    def stop(self):
+        if self._process:
+            self._process.terminate()
+
+
+class PL_new(object):
+    def __init__(self, parent, conf):
+        self.conf = conf
+        self.parent = parent
+        self.cont_config = None
+        self.p4_source = None
+        self.p4_version = 'v14'
+        self.t4p4s_home = '/home/p4/t4p4s-16/'
+        self._process = None
 
     def compile_and_start(self):
         cmd = './t4p4s.sh'
@@ -122,6 +145,7 @@ class PL_portfwd(PL):
         self.p4_source = 'examples/portfwd.p4'
         self.p4_version = 'v14'
         self.cont_config = t4p4s_conf_portfwd
+        self.controller = 'dpdk_portfwd_controller'
 
     def config_switch(self):
         # Create a config file for t4p4s controller
@@ -137,7 +161,7 @@ class PL_portfwd(PL):
 
 class PL_l3fwd(PL):
     """L3 Forwarding
-    
+
     TBA
     """
 
@@ -146,6 +170,7 @@ class PL_l3fwd(PL):
         self.p4_source = 'examples/l3fwd.p4'
         self.p4_version = 'v14'
         self.cont_config = t4p4s_conf_l3fwd
+        self.controller = 'dpdk_l3fwd_controller'
 
     def config_switch(self):
         # Create a config file for t4p4s controller
@@ -157,11 +182,11 @@ class PL_l3fwd(PL):
                 nhg_idx += 1
 
             nhg_offset = nhg_idx #len(self.conf.downstream_group_table)
-            
+
             for nhg in self.conf.upstream_group_table:
                 conf_file.write("N %d %d %s %s\n" % (nhg_idx, nhg.port, nhg.smac, nhg.dmac))
                 nhg_idx += 1
-            
+
             # Filling L3fwd tables
             for l3entry in self.conf.downstream_l3_table:
                 conf_file.write("E %s %d %d\n" % (l3entry.ip, l3entry.prefix_len, l3entry.nhop))
