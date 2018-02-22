@@ -140,12 +140,13 @@ class SUT_bess(SUT):
             self.result['versions'][var] = val
         self.result['version'] = self.result['versions'].get('bessd', 'n/a')
 
-        self.upload_conf_files('/tmp')
+        remote_dir = Path('/tmp')
+        self.upload_conf_files(remote_dir)
         cmd = [
             Path(self.conf.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
             '-d', self.conf.sut.bess_dir,
-            '-p', remote_pipeline,
-            '-b', remote_benchmark
+            '-p', remote_dir / 'pipeline.json',
+            '-b', remote_dir / 'benchmark.json',
         ]
         self.run_async_ssh_cmd([str(c) for c in cmd])
         self.wait_for_callback()
@@ -160,9 +161,9 @@ class SUT_ovs(SUT):
         first_line = v.stdout.decode('utf8').split("\n")[0]
         self.result['version'] = first_line.split(' ')[-1]
 
-        self.upload_conf_files(self.conf.sut.tipsy_dir)
-
         remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
+        self.upload_conf_files(remote_ryu_dir)
+
         cmd = remote_ryu_dir / 'start-ryu'
         self.run_async_ssh_cmd(['sudo', str(cmd)])
         self.wait_for_callback()
