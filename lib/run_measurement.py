@@ -206,6 +206,15 @@ class Tester(object):
         self.conf = conf
         self.result = {}
 
+        cwd = str(Path(__file__).parent)
+        cmd = ['git', 'describe', '--dirty', '--always', '--tags']
+        try:
+            v = subprocess.run(cmd, stdout=subprocess.PIPE, cwd=cwd, check=True)
+            self.result['tipsy-version'] = v.stdout.decode().strip()
+        except Exception as e:
+            self.result['tipsy-version'] = 'n/a'
+            self.result['tipsy-version-error-msg'] = str(e)
+
     def run(self, out_dir):
         self.run_setup_script()
         self._run(out_dir)
