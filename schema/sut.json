@@ -27,6 +27,11 @@
       "default": "/opt/t4p4s16/t4p4s-16",
       "description": "A directory on SUT in which t4p4s is installed"
     },
+    "erfs-dir": {
+      "type": "string",
+      "default": "/opt/erfs",
+      "description": "A directory on SUT in which erfs is installed"
+    },
     "uplink-port": {
       "type": "string",
       "default": "0000:0b:00.0",
