@@ -41,8 +41,13 @@ def set_defaults(parser, **defaults):
   defaults = {k.replace('-', '_'): v for k, v in defaults.items()}
   parser.set_defaults(**defaults)
 
-def byte_seq (template, seq):
-  return template % (int(seq / 254), (seq % 254) + 1)
+def byte_seq (template, seq, offset_first=1):
+  try:
+    return template % (int(seq / 64516) + offset_first,
+                       int(seq % 64516 / 254),
+                       (seq % 254) + 1)
+  except TypeError:
+    return template % (int(seq / 254), (seq % 254) + 1)
 
 
 class PL (object):
@@ -192,11 +197,11 @@ class PL (object):
 
     self.conf['run_time'] = fl_s_add + self.conf['run_time'] + fl_s_del
 
-  def create_l3_table (self, size, nhops, addr_template):
+  def create_l3_table (self, size, nhops, addr_template, offset_first=1):
     table = []
     for i in range(size):
       table.append({
-        'ip': byte_seq(addr_template, i),
+        'ip': byte_seq(addr_template, i, offset_first=offset_first),
         'prefix_len': 24,       # TODO: should vary
         'nhop': i % nhops
       })
@@ -276,7 +281,8 @@ class PL_l3fwd (PL):
       self.conf['%s_l3_table' % d] = self.create_l3_table(
         size=self.get_arg('%s_l3_table_size' % d),
         nhops=self.get_arg('%s_group_table_size' % d),
-        addr_template='%d.%%d.%%d.2' % (2 + i)
+        addr_template='%d.%d.%d.2',
+        offset_first=50+i*100
       )
 
     for d in ['upstream', 'downstream']:
@@ -302,7 +308,8 @@ class PL_l3fwd (PL):
       temp_table = self.create_l3_table(
         size=size,
         nhops=self.get_arg('%s_group_table_size' % d),
-        addr_template='%d.%%d.%%d.2' % (5 + i)
+        addr_template='%d.%d.%d.2',
+        offset_first=1+i*20
       )
       for entry in temp_table:
         add_rules = add_rules + [make_rule('add', entry, d)]
