@@ -162,10 +162,13 @@ necessary to install the following:
 
 On SUT:
 - sudo,
+- ssh
 - screen.
 
 On Tester:
+- make,
 - ssh,
+- sudo,
 - python-jsonschema,
 - matplotlib,
 - scapy.
