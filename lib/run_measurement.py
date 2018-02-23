@@ -169,6 +169,16 @@ class SUT_ovs(SUT):
         self.wait_for_callback()
 
 
+class SUT_erfs(SUT):
+    def _start(self):
+        remote_dir = Path(self.conf.sut.tipsy_dir) / 'erfs'
+        self.upload_conf_files(remote_dir)
+
+        cmd = remote_dir / 'start-ryu'
+        self.run_async_ssh_cmd(['sudo', str(cmd)])
+        self.wait_for_callback()
+
+
 class SUT_ofdpa(SUT):
     def __init__(self, conf):
         super().__init__(conf)
