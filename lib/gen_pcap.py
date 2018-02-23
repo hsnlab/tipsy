@@ -72,20 +72,24 @@ def byte_seq(template, seq):
 
 
 def gen_packets(params_tuple):
-    (dir, pkt_num, pkt_size, conf) = params_tuple
-    pl = conf.name
-    pkts = []
-    if dir[0] == 'b':
-        dir = ('dl', 'ul')
-    else:
-        dir = (dir, dir)
-    for i in range(pkt_num // 2 + 1):
-        for d in dir:
-            pkt_gen_func = getattr(sys.modules[__name__],
-                                   '_gen_%s_pkt_%s' % (d, pl))
-            p = pkt_gen_func(pkt_size, conf)
-            pkts.append(PicklablePacket(p))
-    return pkts[:pkt_num]
+    try:
+        (dir, pkt_num, pkt_size, conf) = params_tuple
+        pl = conf.name
+        pkts = []
+        if dir[0] == 'b':
+            dir = ('dl', 'ul')
+        else:
+            dir = (dir, dir)
+        for i in range(pkt_num // 2 + 1):
+            for d in dir:
+                pkt_gen_func = getattr(sys.modules[__name__],
+                                       '_gen_%s_pkt_%s' % (d, pl))
+                p = pkt_gen_func(pkt_size, conf)
+                pkts.append(PicklablePacket(p))
+        return pkts[:pkt_num]
+    except:
+        import traceback
+        traceback.print_exc()
 
 
 def _get_auto_portfwd_pktnum(conf, dir):
