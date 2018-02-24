@@ -1,0 +1,95 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\usepackage{tikz}
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+OPTIONS: toc:nil ^:nil num:nil
+
+#+TITLE: The TIPSY Workflow
+
+TIPSY was designed for those who would like to do *scalability studies*. It
+requires a pre-configured environment consisting of a *Tester* and a *SUT*
+(System Under Test). TIPSY already offers numerous pipeline implementations
+on various platforms. Due to its modular infrastructure it is easy to
+implement additional *pipelines* or to support new platforms.
+
+But, a typical TIPSY session involves only a small amount of user
+efforts. Namely, to provide a high-level description of the *benchmarks*:
+configuration of the environment, scaling parameters of the pipeline and
+configuration of the visualisation. The typical TIPSY workflow is the
+following.
+
+0. Install TIPSY on the Tester and on the SUT. Configure the network
+   interfaces, passwordless SSH access. The following steps are done on the
+   Tester.
+
+1. Create a directory for your scalability study. This folder will
+   contain all of the files (configurations, traffic traces, figures)
+   related to your study.
+
+   #+BEGIN_SRC sh
+   mkdir my_bng_study cd my_bng_study
+   #+END_SRC
+
+2. Initialise a new high-level TIPSY configuration or copy your old
+   one.
+
+   TIPSY can generate an initial configuration containing all of the
+   available parameters -- in many cases it might contain more parameters
+   than you would like to specify.
+
+   #+BEGIN_SRC sh
+   tipsy init mgw
+   #+END_SRC
+
+
+3. Edit the main TIPSY configuration file according to your needs
+   (e.g.: adjust pipeline parameters or SUT config).  For details check the
+   [[./doc/README.config.org][TIPSY configuration guide]].
+
+   It is a good practice to split your configuration file to multiple
+   files. This way you can reuse e.g. Tester and SUT configuration among
+   scalability studies.
+
+   If your are unsure about the validity of your configuration file, TIPSY
+   can check your configuration:
+
+   #+BEGIN_SRC sh
+   tipsy validate main.json
+   #+END_SRC
+
+4. Generate the configuration for the individual test cases that make up
+   the benchmark, that is, a separate test for all settings benchmark
+   parameters, with each test case configuration placed into a separate
+   directory. Plus a main Makefile that will execute the measurements.
+
+   #+BEGIN_SRC sh
+   tipsy config
+   #+END_SRC
+
+   This call will set the benchmark configuration from your JSON files,
+   setting each parameter that was not explicitly specified there to a sane
+   default value.
+
+   Optionally, you can force TIPSY to override existing measurement
+   configurations and results too (!) with the following command.
+
+   #+BEGIN_SRC sh
+   tipsy config -f
+   #+END_SRC
+
+5. Let TIPSY do the cumbersome parts:
+   - Generate sample traffic traces that will be fed to the SUT during
+     the benchmark (this may take a while).
+   - Run the benchmarks (this may take an even longer while).
+   - Visualize benchmark results.
+
+   #+BEGIN_SRC sh
+   make
+   #+END_SRC
+
+6. Finally, clean up the benchmark directory by removing all temporary
+   files (pcaps, logs, etc.).
+
+   #+BEGIN_SRC sh
+    tipsy clean
+   #+END_SRC
