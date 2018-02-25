@@ -94,7 +94,6 @@ class TipsyConfig(dict):
         return copy.deepcopy(dict(self))
 
     def gen_configs(self):
-        assert self.benchmark
         self.configs = []
         for b in self.benchmark:
             benchmark = TipsyConfig(copy.deepcopy(self.default))
@@ -243,16 +242,42 @@ class TipsyManager(object):
             sys.exit("Failed validating %s:\n%s" % (outfile, e))
         json_dump(data, outfile)
 
-    def do_config(self):
-        self.init_tipsyconfig(self.args.configs)
-        self.tipsy_conf.gen_configs()
-
-        for dir in [self.meas_dir, self.plot_dir]:
-            if self.args.force and os.path.exists(dir):
-                shutil.rmtree(dir)
+    def create_dir(self, dir):
+        if self.args.force and os.path.exists(dir):
+            shutil.rmtree(dir)
+        try:
             os.mkdir(dir)
+        except FileExistsError as e:
+            print(e)
+            print('(You can use the --force argument: tipsy config --help)')
+            exit()
 
-        self.write_makefile(Path.cwd(), 'main-makefile.in')
+    def config_plots(self):
+        self.create_dir(self.plot_dir)
+        save = self.json_validate_and_dump
+        out_dirs = []
+        for i, config in enumerate(self.tipsy_conf.visualize, start=1):
+            id = '%03d' % i
+            out_dirs.append(id)
+            out_dir = Path(self.plot_dir, id)
+            out_dir.mkdir()
+            save(config, out_dir / 'plot.json', 'plot')
+            self.write_makefile(out_dir, 'plot-makefile.in')
+        with Path(self.plot_dir, 'fig.tex').open('w') as f:
+            f.write(inspect.cleandoc(r'''
+              \documentclass{article}
+              %\def\pgfsysdriver{pgfsys-dvipdfm.def}
+              \usepackage{pgfplots}
+              \pgfplotsset{compat = newest}
+              \begin{document}
+            '''))
+            f.write("\n")
+            for dir in out_dirs:
+                f.write("  \\input{%s/fig.tex}\n" % dir)
+            f.write("\\end{document}\n")
+
+    def config_measurements(self):
+        self.create_dir(self.meas_dir)
         save = self.json_validate_and_dump
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
             out_dir = Path(self.meas_dir, '%03d' % i)
@@ -262,12 +287,19 @@ class TipsyManager(object):
             save(config, out_dir / self.fname_bm, 'benchmark')
             json_dump(gen_conf(config['pipeline']), out_dir / self.fname_pl)
             self.write_makefile(out_dir, 'per-dir-makefile.in')
-        for i, config in enumerate(self.tipsy_conf.visualize, start=1):
-            out_dir = Path(self.plot_dir, '%03d' % i)
-            out_dir.mkdir()
-            save(config, out_dir / 'plot.json', 'plot')
-            self.write_makefile(out_dir, 'plot-makefile.in')
-        print('\nTo start the measurements, run: make')
+
+    def do_config(self):
+        self.init_tipsyconfig(self.args.configs)
+        self.tipsy_conf.gen_configs()
+
+        self.write_makefile(Path.cwd(), 'main-makefile.in')
+        if args.plots:
+            self.config_plots()
+            print('\nTo start the visualization, run: make plots')
+        else:
+            self.config_measurements()
+            self.config_plots()
+            print('\nTo start the measurements, run: make')
 
     def do_traffic_gen(self):
         meas_dir = Path(self.meas_dir)
@@ -345,6 +377,9 @@ if __name__ == '__main__':
     config.add_argument('--force', '-f',
                         default=False, action="store_true",
                         help='Delete measurement directories')
+    config.add_argument('--plots', '-p',
+                        default=False, action="store_true",
+                        help='Generate config files only for visualization')
     tgen = subparsers.add_parser('traffic-gen', help='Generate traffic')
     run = subparsers.add_parser('run', help='Run benchmarks')
     eval = subparsers.add_parser('evaluate', help='Evaluate benchmark results')
