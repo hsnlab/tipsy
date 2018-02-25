@@ -26,4 +26,11 @@ $(results): .tipsy.json
 	$(MAKE) -C $(dir $@) || exit
 
 .tipsy.json: *.json
-	$(tipsy) config $^
+	@echo '$@ is older than: $?'
+	echo 'to regenerate the file, run:'
+	echo '   $(tipsy) config $^'
+	echo 'or'
+	echo '   $(tipsy) config -f $^'
+	echo 'to ignore this warning, run:'
+	echo '   touch $@; make'
+	false
