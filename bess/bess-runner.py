@@ -64,6 +64,8 @@ class BessUpdater(object):
         table_actions = ('mod_table', 'mod_l3_table', 'mod_group_table')
         while self._running:
             for task in self.conf.run_time:
+                if not self._running:
+                    return
                 if task.action == 'handover':
                     teid = task.args.user_teid
                     shift = task.args.bst_shift
