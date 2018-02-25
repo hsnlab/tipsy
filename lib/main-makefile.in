@@ -4,12 +4,21 @@ results := $(foreach dir,$(m_dir),$(dir)/results.json)
 p_dir := $(sort $(wildcard plots/[0-9][0-9][0-9]))
 plots := $(foreach dir,$(p_dir),$(dir)/out.json)
 
-.PHONY: all
+.PHONY: all plots
 
-all: $(plots) measurements/result.json
+all: plots measurements/result.json
+
+plots: $(plots) plots/fig.pdf
 
 $(plots): measurements/result.json
-	$(MAKE) -C $(dir $@) || exit
+	$(MAKE) -C $(dir $@)
+
+.ONESHELL:
+plots/fig.pdf: $(plots) plots/fig.tex
+	cd plots
+	pdflatex fig.tex
+
+plots/fig.tex: .tipsy.json
 
 .ONESHELL:
 measurements/result.json: $(results)

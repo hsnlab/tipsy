@@ -35,10 +35,33 @@
       "default": [],
       "description": "Group x-values by a variable"
     },
+    "filter": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "var": {"$ref": "definitions.json#/hierarchical-property-name"},
+          "op": {
+            "type": "string",
+            "enum": ["==", "!=", "<", ">"],
+            "default": "=="
+          },
+          "val": {}
+        }
+      },
+      "default" : [],
+      "description": "Ignore values for which one of filter expressions evaultues to false"
+    },
     "title": {
       "type": "string",
       "default": "",
       "description": "The format string used for title, e.g., 'Throught of ovs version {sut.version}'"
+    },
+    "axis-type": {
+      "type": "string",
+      "enum": ["normal", "semilogx", "semilogy", "loglog"],
+      "default": "normal",
+      "description": "Type of the axis.  See 'The Axis Environment' in pgfplots.pdf"
     }
   },
   "required": ["x-axis", "y-axis"],
