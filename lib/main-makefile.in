@@ -6,7 +6,7 @@ plots := $(foreach dir,$(p_dir),$(dir)/out.json)
 
 .PHONY: all plots
 
-all: plots measurements/result.json
+all: measurements/result.json plots
 
 plots: $(plots) plots/fig.pdf
 
