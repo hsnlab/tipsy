@@ -20,6 +20,7 @@
 import collections
 import inspect
 import json
+import math
 
 from pathlib import Path
 
@@ -30,6 +31,8 @@ def ensure_list(object_or_list):
     else:
         return [object_or_list]
 
+def str2tex(s):
+    return s.replace('_', '$\_$')
 
 class ObjectView(object):
     def __init__(self, fname=None, **kwargs):
@@ -97,36 +100,42 @@ class Plot_simple(Plot):
         return '%saxis' % self.conf.axis_type
 
     def latex_series(self, series, title):
+        def is_empty(curve):
+            return all([math.isnan(p[1]) for p in curve[1]])
+
+        # Put empty series to the end, otherwise markers and lables
+        # are misaligned in the legend.
+        ordered_series = sorted(series.items(), key=is_empty)
+
         addplot = ""
-        legend = []
-        for name, points in series.items():
-            legend.append(name)
-            addplot += r"  \addplot coordinates {" + "\n"
+        for name, points in ordered_series:
+            addplot += "\n"
+            addplot += r"    \addplot coordinates {" + "\n"
             for p in points:
                 addplot += "      (%s, %s)\n" % p
-            addplot += "  };\n"
+            addplot += "    };\n"
+            addplot += r'    \addlegendentry{%s}' % str2tex(name)
+            addplot += "\n"
         f = {
             'title': title,
-            'xlabel': self.conf.x_axis,
+            'xlabel': str2tex(self.conf.x_axis),
             'axis_type': self.get_latex_axis_type(),
             'addplot': addplot,
-            'legend': ",\n     ".join(legend)
         }
         if self.ylabel:
-            f['ylabel_opt'] = 'ylabel=%s,' % self.ylabel
+            f['ylabel_opt'] = 'ylabel=%s,' % str2tex(self.ylabel)
+        else:
+            f['ylabel_opt'] = ""
         text = inspect.cleandoc(r"""
           \begin{{figure}}
             \centering
             \begin{{tikzpicture}}
             \begin{{{axis_type}}}[
-                xlabel={xlabel},
-                {ylabel_opt}
+                xlabel={xlabel}, {ylabel_opt}
                 legend pos=outer north east,
                 legend cell align=left,
             ]
             {addplot}
-            \legend{{
-               {legend}}}
             \end{{{axis_type}}}
             \end{{tikzpicture}}
             \caption{{{title}}}
