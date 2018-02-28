@@ -130,7 +130,7 @@ def _get_auto_bng_pktnum(conf, dir):
     return len(conf.nat_table)
 
 
-def _gen_pkts_portfwd(dir, pkt_size, conf, pkt_num, id):
+def _gen_pkts_portfwd(dir, pkt_size, conf, pkt_num, id, workers):
     return [_gen_pkt_portfwd(pkt_size) for _ in range(pkt_num)]
 
 
