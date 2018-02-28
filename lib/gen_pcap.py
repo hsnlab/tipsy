@@ -19,6 +19,7 @@
 
 import argparse
 import json
+import math
 import multiprocessing
 import random
 import scapy
@@ -72,24 +73,21 @@ def byte_seq(template, seq):
 
 
 def gen_packets(params_tuple):
-    try:
-        (dir, pkt_num, pkt_size, conf) = params_tuple
-        pl = conf.name
-        pkts = []
-        if dir[0] == 'b':
-            dir = ('dl', 'ul')
-        else:
-            dir = (dir, dir)
-        for i in range(pkt_num // 2 + 1):
-            for d in dir:
-                pkt_gen_func = getattr(sys.modules[__name__],
-                                       '_gen_%s_pkt_%s' % (d, pl))
-                p = pkt_gen_func(pkt_size, conf)
-                pkts.append(PicklablePacket(p))
-        return pkts[:pkt_num]
-    except:
-        import traceback
-        traceback.print_exc()
+    (dir, pkt_num, pkt_size, conf, id, workers) = params_tuple
+    pl = conf.name
+    pkts = []
+    pkt_gen_func = getattr(sys.modules[__name__],
+                           '_gen_pkts_%s' % pl)
+    if dir[0] == 'b':
+        gen_pkts = pkt_gen_func('u', pkt_size, conf, int(pkt_num/2)+1,
+                                id, workers)
+        gen_pkts.extend(pkt_gen_func('d', pkt_size, conf, int(pkt_num/2)+1,
+                                     id, workers))
+    else:
+        gen_pkts = pkt_gen_func(dir[0], pkt_size, conf, pkt_num, id, workers)
+    gen_pkts = gen_pkts[:pkt_num]
+    random.shuffle(gen_pkts)
+    return [PicklablePacket(p) for p in gen_pkts]
 
 
 def _get_auto_portfwd_pktnum(conf, dir):
@@ -132,7 +130,11 @@ def _get_auto_bng_pktnum(conf, dir):
     return len(conf.nat_table)
 
 
-def _gen_pkt_portfwd(pkt_size, conf):
+def _gen_pkts_portfwd(dir, pkt_size, conf, pkt_num, id):
+    return [_gen_pkt_portfwd(pkt_size) for _ in range(pkt_num)]
+
+
+def _gen_pkt_portfwd(pkt_size):
     smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65023))
     dmac = byte_seq('aa:cc:dd:cc:%02x:%02x', random.randrange(1, 65023))
     dip = byte_seq('3.3.%d.%d', random.randrange(1, 255))
@@ -141,55 +143,121 @@ def _gen_pkt_portfwd(pkt_size, conf):
     return p
 
 
-def _gen_dl_pkt_portfwd(pkt_size, conf):
-    return _gen_pkt_portfwd(pkt_size, conf)
+def _gen_pkts_l2fwd(dir, pkt_size, conf, pkt_num, id, workers):
+    table = get_table_slice(conf, '%s_table' % expand_direction(dir),
+                            id, workers)
+    pkts = []
+    for i in range(pkt_num):
+        dmac = table[i % len(table)].mac
+        pkts.append(_gen_pkt_l2fwd(pkt_size, dmac))
+    return pkts
 
 
-def _gen_ul_pkt_portfwd(pkt_size, conf):
-    return _gen_pkt_portfwd(pkt_size, conf)
-
-
-def _gen_pkt_l2fwd(dir, pkt_size, conf):
+def _gen_pkt_l2fwd(pkt_size, dmac):
     smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65023))
-    dmac = random.choice(getattr(conf, '%s_table' % dir)).mac
     dip = byte_seq('3.3.%d.%d', random.randrange(1, 255))
     p = Ether(dst=dmac, src=smac) / IP(dst=dip)
     p = add_payload(p, pkt_size)
     return p
 
 
-def _gen_dl_pkt_l2fwd(pkt_size, conf):
-    return _gen_pkt_l2fwd('downstream', pkt_size, conf)
-
-
-def _gen_ul_pkt_l2fwd(pkt_size, conf):
-    return _gen_pkt_l2fwd('upstream', pkt_size, conf)
-
-
-def _gen_pkt_l3fwd(dir, pkt_size, conf):
+def _gen_pkts_l3fwd(dir, pkt_size, conf, pkt_num, id, workers):
+    table = get_table_slice(conf, '%s_l3_table' % expand_direction(dir),
+                            id, workers)
     mac = getattr(conf.sut, '%sl_port_mac' % dir[0])
-    ip = random.choice(getattr(conf, '%s_l3_table' % dir)).ip
+    pkts = []
+    for i in range(pkt_num):
+        ip = table[i % len(table)].ip
+        pkts.append(_gen_pkt_l3fwd(pkt_size, mac, ip))
+    return pkts
+
+
+def _gen_pkt_l3fwd(pkt_size, mac, ip):
     p = Ether(dst=mac) / IP(dst=ip)
     p = add_payload(p, pkt_size)
     return p
 
 
-def _gen_dl_pkt_l3fwd(pkt_size, conf):
-    return _gen_pkt_l3fwd('downstream', pkt_size, conf)
+def _gen_pkts_mgw(dir, pkt_size, conf, pkt_num, id, workers):
+    pkts = []
+    gw = conf.gw
+    for i in range(pkt_num):
+        server = random.choice(conf.srvs)
+        user = random.choice(conf.users)
+        proto = random.choice([TCP, UDP])
+        if 'd' in dir:
+            pkts.append(_gen_dl_pkt_mgw(pkt_size, proto, gw,
+                                        server, user))
+        elif 'u' in dir:
+            bst = conf.bsts[user.tun_end]
+            pkts.append(_gen_ul_pkt_mgw(pkt_size, proto, gw,
+                                        server, user, bst))
+    return pkts
 
 
-def _gen_ul_pkt_l3fwd(pkt_size, conf):
-    return _gen_pkt_l3fwd('upstream', pkt_size, conf)
-
-
-def _gen_dl_pkt_mgw(pkt_size, conf):
-    server = random.choice(conf.srvs)
-    user = random.choice(conf.users)
-    proto = random.choice([TCP, UDP])
+def _gen_dl_pkt_mgw(pkt_size, proto, gw, server, user):
     p = (
-        Ether(dst=conf.gw.mac) /
+        Ether(dst=gw.mac) /
         IP(src=server.ip, dst=user.ip) /
         proto()
+    )
+    p = add_payload(p, pkt_size)
+    return p
+
+
+def _gen_ul_pkt_mgw(pkt_size, proto, gw, server, user, bst):
+    p = (
+        Ether(src=bst.mac, dst=gw.mac, type=0x0800) /
+        IP(src=bst.ip, dst=gw.ip) /
+        UDP(sport=4789, dport=4789) /
+        VXLAN(vni=user.teid, flags=0x08) /
+        Ether(dst=gw.mac, type=0x0800) /
+        IP(src=user.ip, dst=server.ip) /
+        proto()
+    )
+    p = add_payload(p, pkt_size)
+    return p
+
+
+def _gen_pkts_bng(dir, pkt_size, conf, pkt_num, id, workers):
+    pkts = []
+    protos = {'6': TCP, '17': UDP}
+    gw = conf.gw
+    for i in range(pkt_num):
+        server = random.choice(conf.srvs)
+        user = random.choice(conf.users)
+        user_nat = random.choice([e for e in conf.nat_table
+                                  if e.priv_ip == user.ip])
+        proto = protos[str(user_nat.proto)]
+        if 'd' in dir:
+            pkts.append(_gen_dl_pkt_bng(pkt_size, proto, gw,
+                                        server, user, user_nat))
+        elif 'u' in dir:
+            cpe = conf.cpe[user.tun_end]
+            pkts.append(_gen_ul_pkt_bng(pkt_size, proto, gw,
+                                        server, user, user_nat, cpe))
+    return pkts
+
+
+def _gen_dl_pkt_bng(pkt_size, proto, gw, server, user, user_nat):
+    p = (
+        Ether(dst=gw.mac) /
+        IP(src=server.ip, dst=user_nat.pub_ip) /
+        proto(sport=user_nat.pub_port, dport=user_nat.pub_port)
+    )
+    p = add_payload(p, pkt_size)
+    return p
+
+
+def _gen_ul_pkt_bng(pkt_size, proto, gw, server, user, user_nat, cpe):
+    p = (
+        Ether(src=cpe.mac, dst=gw.mac, type=0x0800) /
+        IP(src=cpe.ip, dst=gw.ip) /
+        UDP(sport=4789, dport=4789) /
+        VXLAN(vni=user.teid, flags=0x08) /
+        Ether(dst=gw.mac, type=0x0800) /
+        IP(src=user.ip, dst=server.ip) /
+        proto(sport=user_nat.priv_port, dport=user_nat.priv_port)
     )
     p = add_payload(p, pkt_size)
     return p
@@ -201,64 +269,9 @@ def _gen_dl_pkt_vmgw(pkt_size, conf):
     return p
 
 
-def _gen_dl_pkt_bng(pkt_size, conf):
-    server = random.choice(conf.srvs)
-    user = random.choice(conf.users)
-    u = random.choice([e for e in conf.nat_table
-                       if e.priv_ip == user.ip])
-    protos = {'6': TCP, '17': UDP}
-    proto = protos[str(u.proto)]
-    p = (
-        Ether(dst=conf.gw.mac) /
-        IP(src=server.ip, dst=u.pub_ip) /
-        proto(sport=u.pub_port, dport=u.pub_port)
-    )
-    p = add_payload(p, pkt_size)
-    return p
-
-
-def _gen_ul_pkt_mgw(pkt_size, conf):
-    server = random.choice(conf.srvs)
-    user = random.choice(conf.users)
-    proto = random.choice([TCP, UDP])
-    bst = conf.bsts[user.tun_end]
-    p = (
-        Ether(src=bst.mac, dst=conf.gw.mac, type=0x0800) /
-        IP(src=bst.ip, dst=conf.gw.ip) /
-        UDP(sport=4789, dport=4789) /
-        VXLAN(vni=user.teid, flags=0x08) /
-        Ether(dst=conf.gw.mac, type=0x0800) /
-        IP(src=user.ip, dst=server.ip) /
-        proto()
-    )
-    p = add_payload(p, pkt_size)
-    return p
-
-
 def _gen_ul_pkt_vmgw(pkt_size, conf):
     p = _gen_ul_pkt_mgw(pkt_size, conf)
     p = vwrap(p, conf)
-    return p
-
-
-def _gen_ul_pkt_bng(pkt_size, conf):
-    server = random.choice(conf.srvs)
-    user = random.choice(conf.users)
-    u = random.choice([e for e in conf.nat_table
-                       if e.priv_ip == user.ip])
-    protos = {'6': TCP, '17': UDP}
-    proto = protos[str(u.proto)]
-    cpe = conf.cpe[user.tun_end]
-    p = (
-        Ether(src=cpe.mac, dst=conf.gw.mac, type=0x0800) /
-        IP(src=cpe.ip, dst=conf.gw.ip) /
-        UDP(sport=4789, dport=4789) /
-        VXLAN(vni=user.teid, flags=0x08) /
-        Ether(dst=conf.gw.mac, type=0x0800) /
-        IP(src=user.ip, dst=server.ip) /
-        proto(sport=u.priv_port, dport=u.priv_port)
-    )
-    p = add_payload(p, pkt_size)
     return p
 
 
@@ -280,6 +293,25 @@ def vwrap(pkt, conf):
         pkt
     )
     return vxlanpkt
+
+
+def expand_direction(dir):
+    if 'u' in dir:
+        return 'upstream'
+    elif 'd' in dir:
+        return 'downstream'
+    elif 'b' in dir:
+        return 'bidir'
+    else:
+        raise ValueError
+
+
+def get_table_slice(conf, table_name, thread_id, workers):
+    table = getattr(conf, table_name)
+    c = int(math.ceil(len(table)/float(workers)))
+    table = table[c * thread_id : max(len(table), c * (thread_id + 1))]
+    random.shuffle(table)
+    return table
 
 
 def json_load(file, object_hook=None):
@@ -338,11 +370,12 @@ def gen_pcap(defaults=None):
     worker_num = min(args.pkt_num, args.thread)
     pkt_left = args.pkt_num
     ppw = args.pkt_num // worker_num
-    for _ in range(worker_num):
-        wargs.append((dir, ppw, args.pkt_size, conf))
+    for id in range(worker_num):
+        wargs.append((dir, ppw, args.pkt_size, conf, id, worker_num))
         pkt_left -= ppw
     if pkt_left > 0:
-        wargs.append((dir, args.pkt_num % worker_num, args.pkt_size, conf))
+        wargs.append((dir, args.pkt_num % worker_num, args.pkt_size, conf,
+                      worker_num, worker_num + 1))
         worker_num += 1
     workers = multiprocessing.Pool(worker_num)
 
