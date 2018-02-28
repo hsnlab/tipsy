@@ -164,7 +164,9 @@ def _gen_pkt_l2fwd(pkt_size, dmac):
 def _gen_pkts_l3fwd(dir, pkt_size, conf, pkt_num, id, workers):
     table = get_table_slice(conf, '%s_l3_table' % expand_direction(dir),
                             id, workers)
-    mac = getattr(conf.sut, '%sl_port_mac' % dir[0])
+    # NB.  In the uplink case, the traffic leaves Tester via its
+    # uplink port and arrives at the downlink of the SUT.
+    mac = getattr(conf.sut, '%sl_port_mac' % get_other_direction(dir[0]))
     pkts = []
     for i in range(pkt_num):
         ip = table[i % len(table)].ip
@@ -304,6 +306,9 @@ def expand_direction(dir):
         return 'bidir'
     else:
         raise ValueError
+
+def get_other_direction(dir):
+    return {'u': 'd', 'd': 'u'}[dir]
 
 
 def get_table_slice(conf, table_name, thread_id, workers):
