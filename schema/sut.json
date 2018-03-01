@@ -4,7 +4,7 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["ovs", "bess", "ofdpa", "t4p4s", "erfs"],
+      "enum": ["ovs", "bess", "ofdpa", "t4p4s", "erfs", "vpp"],
       "default": "ovs"
     },
     "hostname": {
@@ -42,10 +42,20 @@
       "default": "0000:0b:00.1",
       "description": "Port name ('eth1') or pci addr for DPDK ('0000:0b:00.0')  or DPDK port number (in case of moongen, e.g., '0') [TODO: we could calculate this from the pci_addr]"
     },
+    "uplink-vpp-interface": {
+      "type": "string",
+      "default": "FortyGigabitEthernet8/0/0",
+      "description": "Uplink VPP Interface name. Required by VPP."
+    },
+    "downlink-vpp-interface": {
+      "type": "string",
+      "default": "FortyGigabitEthernet8/0/1",
+      "description": "Downlink VPP Interface name. Required by VPP."
+    },
     "coremask": {
       "$ref": "definitions.json#/hex-string",
       "default": "0x3f03f",
-      "description": "Hexadecimal coremask as string.  Supported by bess, ovs, t4p4s.  Required by t4p4as.  (This defines the availabilty of the cores.  The actual number of cores is defined by pipeline.core)"
+      "description": "Hexadecimal coremask as string.  Supported by bess, ovs, t4p4s, vpp.  Required by t4p4as.  (This defines the availabilty of the cores.  The actual number of cores is defined by pipeline.core)"
     },
     "portmask": {
       "$ref": "definitions.json#/hex-string",

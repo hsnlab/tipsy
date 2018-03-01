@@ -152,6 +152,24 @@ class SUT_bess(SUT):
         self.wait_for_callback()
 
 
+class SUT_vpp(SUT):
+    def _start(self):
+        remote_dir = Path('/tmp')
+        self.upload_conf_files(remote_dir)
+        cmd = [
+            'python3',
+            Path(self.conf.sut.tipsy_dir) / 'vpp' / 'vpp-runner.py',
+            '-p', remote_dir / 'pipeline.json',
+            '-b', remote_dir / 'benchmark.json'
+        ]
+        self.run_async_ssh_cmd([str(c) for c in cmd])
+        self.wait_for_callback()
+
+        cmd = ['sudo', 'vppctl', 'show', 'version']
+        v = self.run_ssh_cmd(cmd, stdout=subprocess.PIPE)
+        self.result['version'] = v.stdout.decode('utf-8').split("\n")[0]
+
+
 class SUT_ovs(SUT):
     def __init__(self, conf):
         super().__init__(conf)
