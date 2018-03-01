@@ -102,6 +102,7 @@ settings.
 - =moongen-cmd=: absolute path of the MoonGen executable
 - =uplink_port= and =downlink_port=: port name ('eth1') or pci addr for
   DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0').
+- =core=: number of CPU cores to use
 - =setup_script=: absolute path of your custom Tester setup script. Useful
   for e.g. automating DPDK interface configuration.
 - =teardown_script=: absolute path of your custom Tester teardown script
@@ -110,18 +111,27 @@ settings.
 
 Settings for the System-Under-Test (SUT).
 
-- =type=: SUT implementation (=bess= or =ovs=)
+- =type=: SUT implementation (=bess=, =ovs=, etc.)
 - =hostname=: hostname that can be used to ssh into SUT without a password
   as 'ssh hostname'.  Edit ~/.ssh/config for more complicated scenarios.
   See man page: ssh_config (5)
 - =bess-dir=: a directory on SUT in which BESS is installed
 - =tipsy-dir=: a directory on SUT in which TIPSY is installed
+- =erfs-dir=: a directory on SUT in which ERFS is installed
+- =t4p4s-dir=: a directory on SUT in which T4P4S is installed
 - =uplink_port= and =downlink_port=: port name ('eth1') or pci addr for
   DPDK ('0000:0b:00.0') or DPDK port number (in case of moongen, e.g., '0').
 - =setup_script=: absolute path of your custom SUT setup script. This
   script will run on the SUT before starting a measurement
 - =teardown_script=: absolute path of your custom SUT teardown script. This
   script will run on SUT after ending a measurement
+- =coremask=: hexadecimal coremask as string.  Supported by bess, ovs,
+  t4p4s, vpp.  Required by t4p4as. (note: this defines the availabilty of
+  the cores.  The actual number of cores is defined by pipeline.core)
+- =portmask=: hexadecimal portmask as string.  Supported by t4p4s.
+  Required by t4p4as.
+- =uplink-vpp-interface=: uplink VPP Interface name. Required by VPP.
+- =downlink-vpp-interface=: downlink VPP Interface name. Required by VPP.
 
 * The =default= section
 
