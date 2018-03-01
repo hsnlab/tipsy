@@ -17,6 +17,25 @@
 -- You should have received a copy of the GNU General Public License
 -- along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+-- !!! INSTALLATION: Apply the following patch to timestamping.lua of
+-- MoonGen, otherwise this program cannot set the correct packet
+-- sizes, and might not be able to read back timestamps from received
+-- packets.
+
+--- diff --git a/lua/timestamping.lua b/lua/timestamping.lua
+--- index bd6c81f..ee68513 100644
+--- --- a/lua/timestamping.lua
+--- +++ b/lua/timestamping.lua
+--- @@ -87,7 +87,7 @@ function timestamper:measureLatency(pktSize, packetModifier, maxWait)
+---  			-- change timestamped UDP port as each packet may be on a different port
+---  			self.rxQueue:enableTimestamps(buf:getUdpPacket().udp:getDstPort())
+---  		end
+--- -		buf:getUdpPtpPacket():setLength(pktSize)
+--- +		-- buf:getUdpPtpPacket():setLength(pktSize)
+---  		self.txBufs:offloadUdpChecksums()
+---  		if self.rxQueue.dev.reconfigureUdpTimestampFilter and not skipReconfigure then
+---  			-- i40e driver fdir filters are broken
+
 local ffi = require "ffi"
 
 local mg      = require "moongen"
