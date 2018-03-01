@@ -36,7 +36,7 @@
     },
     "uplink-mac": {
       "$ref": "definitions.json#/mac-address",
-      "default": "cc:cc:cc:cc:00:00",
+      "default": "dd:dd:dd:dd:00:01",
       "description": "mac address of the uplink port of SUT"
     },
     "downlink-mac": {
