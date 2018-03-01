@@ -67,19 +67,17 @@ else:
                     num_out_q=bess_workers)
 
 for wid in range(bess_workers):
-  wid2 = bess_workers + wid
   try:
     bess.add_worker(wid, corelist[wid])
-    bess.add_worker(wid2, corelist[wid2])
   except IndexError:
     sys.exit('ERROR: Insufficient number of cores available.')
 
   in_u = QueueInc(name="ul_inport_%d" % wid, port=portUL.name, qid=wid)
-  out_u = QueueOut(name="ul_outport_%d" % wid, port=portDL.name, qid=wid)
+  out_u = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
   buf_u = Buffer(name='out_buf_u_%d' % wid)
 
   in_d = QueueInc(name="dl_inport_%d" % wid, port=portDL.name, qid=wid)
-  out_d = QueueOut(name="dl_outport_%d" % wid, port=portUL.name, qid=wid)
+  out_d = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
   buf_d = Buffer(name='out_buf_d_%d' % wid)
   if conf.fakedrop:
     drop_u = buf_u
@@ -88,13 +86,13 @@ for wid in range(bess_workers):
     drop_u = Sink()
     drop_d = Sink()
 
-  # uplink
-  umac = conf.sut.ul_port_mac
+  # upstream traffic: downlink port -> uplink port
+  dl_mac = conf.sut.dl_port_mac
+  ul_mac = conf.sut.ul_port_mac
   mac_table_u = ExactMatch(name='mac_table_u_%d' % wid,
                          fields=[{'offset': 0, 'num_bytes': 6}])
   mac_table_u.set_default_gate(gate=0)
-  mac_table_u.add(fields=[{'value_bin': mac_from_str(umac)}],
-                gate=1)
+  mac_table_u.add(fields=[{'value_bin': mac_from_str(dl_mac)}], gate=1)
   arp_check_u = ExactMatch(name='arp_check_u_%d' % wid,
                          fields=[{'offset': 12, 'num_bytes': 2}])
   arp_check_u.add(fields=[{'value_bin': struct.pack("!H", 0x0806)}], gate=0)  # ARP
@@ -104,27 +102,27 @@ for wid in range(bess_workers):
   ip_u = IPChecksum(name='ip_chk_u_%d' % wid)
   update_s_mac_u = Update(name='u_smac_u_%d' % wid,
                           fields=[{'offset': 6, 'size': 6,
-                                   'value': mac_int_from_str(umac)}])
+                                   'value': mac_int_from_str(ul_mac)}])
   fluct_l3_u = len([True for a in conf.run_time
-                    if 'downstream' in a.table
+                    if 'upstream' in a.table
                     and 'l3' in a.action
                     and 'add' in a.cmd])
-  fibsize_u = len(conf.downstream_l3_table) + fluct_l3_u
+  fibsize_u = 1+ len(conf.upstream_l3_table) + fluct_l3_u
   l3fib_u = IPLookup(name='l3fib_u_%d' % wid, max_rules=fibsize_u)
   l3fib_u.add(prefix='0.0.0.0', prefix_len=0, gate=0)
   for entry in conf.upstream_l3_table:
-    gat = entry.nhop + 1
+    gate = entry.nhop + 1
     ip = re.sub(r'\.[^.]+$', '.0', entry.ip)
-    l3fib_u.add(prefix=ip, prefix_len=24, gate=gat)
+    l3fib_u.add(prefix=ip, prefix_len=24, gate=gate)
   for i, entry in enumerate(conf.upstream_group_table, start=1):
     update_d_mac_u = Update(name='u_dmac_u_%d_%d' % (i, wid),
-                          fields=[{'offset': 0, 'size': 6,
-                                   'value': mac_int_from_str(entry.dmac)}])
+                            fields=[{'offset': 0, 'size': 6,
+                                     'value': mac_int_from_str(entry.dmac)}])
     l3fib_u:i -> update_d_mac_u -> ip_u
 
   ip_u -> buf_u
   buf_u -> out_u
-  in_u -> mac_table_u
+  in_d -> mac_table_u
   mac_table_u:0 -> drop_u
   mac_table_u:1 -> arp_check_u
   arp_check_u:0 -> drop_u
@@ -133,15 +131,15 @@ for wid in range(bess_workers):
   update_s_mac_u -> l3fib_u
   l3fib_u:0 -> drop_u
 
-  # downlink
-  dmac = conf.sut.dl_port_mac
+  # downstream traffic: uplink port -> downlink port
+  dl_mac = conf.sut.dl_port_mac
+  ul_mac = conf.sut.ul_port_mac
   mac_table_d = ExactMatch(name='mac_table_d_%d' % wid,
                          fields=[{'offset': 0, 'num_bytes': 6}])
   mac_table_d.set_default_gate(gate=0)
-  mac_table_d.add(fields=[{'value_bin': mac_from_str(dmac)}],
-                  gate=1)
+  mac_table_d.add(fields=[{'value_bin': mac_from_str(ul_mac)}], gate=1)
   arp_check_d = ExactMatch(name='arp_check_d_%d' % wid,
-                         fields=[{'offset': 12, 'num_bytes': 2}])
+                           fields=[{'offset': 12, 'num_bytes': 2}])
   arp_check_d.add(fields=[{'value_bin': struct.pack("!H", 0x0806)}], gate=0)  # ARP
   arp_check_d.add(fields=[{'value_bin': struct.pack("!H", 0x0800)}], gate=1)  # IPv4
   arp_check_d.set_default_gate(gate=1)
@@ -149,7 +147,7 @@ for wid in range(bess_workers):
   ip_d = IPChecksum(name='ip_chk_d_%d' % wid)
   update_s_mac_d = Update(name='u_smac_d_%d' % wid,
                           fields=[{'offset': 6, 'size': 6,
-                                   'value': mac_int_from_str(dmac)}])
+                                   'value': mac_int_from_str(dl_mac)}])
   fluct_l3_d = len([True for a in conf.run_time
                     if 'downstream' in a.table
                     and 'l3' in a.action
@@ -163,13 +161,13 @@ for wid in range(bess_workers):
     l3fib_d.add(prefix=ip, prefix_len=24, gate=gat)
   for i, entry in enumerate(conf.downstream_group_table, start=1):
     update_d_mac_d = Update(name='u_dmac_d_%d_%d' % (i, wid),
-                          fields=[{'offset': 0, 'size': 6,
-                                   'value': mac_int_from_str(entry.dmac)}])
+                            fields=[{'offset': 0, 'size': 6,
+                                     'value': mac_int_from_str(entry.dmac)}])
     l3fib_d:i -> update_d_mac_d -> ip_d
 
   ip_d -> buf_d
   buf_d -> out_d
-  in_d -> mac_table_d
+  in_u -> mac_table_d
   mac_table_d:0 -> drop_d
   mac_table_d:1 -> arp_check_d
   arp_check_d:0 -> drop_d
@@ -179,7 +177,7 @@ for wid in range(bess_workers):
   l3fib_d:0 -> drop_d
 
   bess.attach_task(in_u.name, wid=wid)
-  bess.attach_task(in_d.name, wid=wid2)
+  bess.attach_task(in_d.name, wid=wid)
 
 bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
 bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
