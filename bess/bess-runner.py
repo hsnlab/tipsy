@@ -456,7 +456,7 @@ if __name__ == '__main__':
                         default='./pipeline.json')
     parser.add_argument('--bm-conf', '-b', type=argparse.FileType('r'),
                         help='Benchmark config JSON file',
-                        default='./pipeline.json')
+                        default='./benchmark.json')
     args = parser.parse_args()
 
     bessctl = str(Path(args.bessdir, 'bessctl', 'bessctl'))
