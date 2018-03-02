@@ -73,26 +73,22 @@ else:
                     num_out_q=bess_workers)
 
 
+buf2 = Bypass(name='chokepoint')
+ul_ws = WorkerSplit(name='worker_split_ul')
+dl_ws = WorkerSplit(name='worker_split_dl')
+if conf.fakedrop:
+  drop_u =  ul_ws
+  drop_d =  dl_ws
+else:
+  drop_u = Sink()
+  drop_d = Sink()
+
 for wid in range(bess_workers):
-  wid2 = bess_workers + wid
   dl_input = QueueInc(name="dl_inport_%d" % wid, port=portDL.name, qid=wid)
-  dl_output = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
   ul_input = QueueInc(name="ul_inport_%d" % wid, port=portUL.name, qid=wid)
-  ul_output = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
-
-  buf_u = Buffer(name='out_buf_u_%d' % wid)
-  buf_d = Buffer(name='out_buf_d_%d' % wid)
-
-  if conf.fakedrop:
-    drop_u = buf_u
-    drop_d = buf_d
-  else:
-    drop_u = Sink()
-    drop_d = Sink()
 
   try:
     bess.add_worker(wid, corelist[wid])
-    bess.add_worker(wid2, corelist[wid2])
   except IndexError:
     sys.exit('ERROR: Insufficient number of available cores.')
 
@@ -121,15 +117,6 @@ for wid in range(bess_workers):
   teid_split = Split(name='teid_split_%d' % wid,
                      attribute='tun_id', size=4)
 
-  fluct_srv_num = len([True for a in conf.run_time
-                    if 'add_server' in a.action])
-  fibsize = 1 + len(conf.srvs) + len(conf.bsts) + fluct_srv_num
-  ip_lookup = IPLookup(name='ip_lookup_%d' % wid,
-                       max_rules=fibsize)
-  ip_lookup.add(prefix='0.0.0.0', prefix_len=0, gate=0)
-
-  buf2 = Buffer(name='prel3_buf_%d' % wid)
-
   for user in conf.users:
     teid = user.teid
     name = "t_%d_%d" % (wid, teid)
@@ -139,28 +126,6 @@ for wid in range(bess_workers):
                 wid=wid)
     q.attach_task(parent=name)
     teid_split:teid -> q -> buf2
-
-  uttl_u = UpdateTTL(name='uttl_u_%d' % wid) # Bring before ip_lookup?
-  uttl_d = UpdateTTL(name='uttl_d_%d' % wid) # Bring before ip_lookup?
-  nhop_split = Split(name='nhop_split_%d' % wid,
-                     attribute='nhop', size=4)
-
-  for i,srv in enumerate(conf.srvs, start=1):
-    ip = re.sub(r'\.[^.]+$', '.0', srv.ip)
-    ip_lookup.add(prefix=ip, prefix_len=24, gate=i)
-    nmd = SetMetadata(name='setmd_srv%d_%d' % (i, wid),
-                      attrs=[{'name': 'nhop', 'size': 4,
-                              'value_int': srv.nhop}])
-    ip_lookup:i -> nmd -> nhop_split
-
-  for i,nhop in enumerate(conf.nhops):
-    update_s_mac = Update(name='u_nhop%d_smac_%d' % (i, wid),
-                          fields=[{'offset': 6, 'size': 6,
-                                   'value': mac_int_from_str(nhop.smac)}])
-    update_d_mac = Update(name='u_nhop%d_dmac_%d' % (i, wid),
-                          fields=[{'offset': 0, 'size': 6,
-                                   'value': mac_int_from_str(nhop.dmac)}])
-    nhop_split:i -> update_s_mac -> update_d_mac -> uttl_u
 
   # downlink
   ue_selector = ExactMatch(name='ue_selector_%d' % wid,
@@ -180,15 +145,6 @@ for wid in range(bess_workers):
                                    'value_bin': aton(tun_ip_dst)}])
     ue_selector:user.teid -> vxlan_md -> vxlan_encap
 
-  for i,bst in enumerate(conf.bsts, start=len(conf.srvs)+1):
-    ip_lookup.add(prefix=bst.ip, prefix_len=32, gate=i)
-    update_s_mac = Update(name='u_bst%d_smac_%d' % (bst.id, wid),
-                          fields=[{'offset': 6, 'size': 6,
-                                   'value': mac_int_from_str(conf.gw.mac)}])
-    update_d_mac = Update(name='u_bst%d_dmac_%d' % (bst.id, wid),
-                          fields=[{'offset': 0, 'size': 6,
-                                   'value': mac_int_from_str(bst.mac)}])
-    ip_lookup:i -> update_s_mac -> update_d_mac -> uttl_d
 
   q = Queue(name='input_q_%d' % wid)
   bess.attach_task(q.name, wid=wid)
@@ -207,16 +163,61 @@ for wid in range(bess_workers):
   dir_selector:1 -> ue_selector
   ue_selector -> drop_d
 
-  ip_lookup:0 -> drop_u
-  buf2 -> ip_lookup
-
   vxlan_encap -> IPEncap() -> EtherEncap() -> teid_split
 
-  uttl_u -> buf_u -> ul_output
-  uttl_d -> buf_d -> dl_output
-
   bess.attach_task(dl_input.name, wid=wid)
-  bess.attach_task(ul_input.name, wid=wid2)
+  bess.attach_task(ul_input.name, wid=wid)
+
+###
+
+uttl_u = UpdateTTL(name='uttl_u') # Bring before ip_lookup?
+uttl_d = UpdateTTL(name='uttl_d') # Bring before ip_lookup?
+fluct_srv_num = len([True for a in conf.run_time
+                     if 'add_server' in a.action])
+fibsize = 1 + len(conf.srvs) + len(conf.bsts) + fluct_srv_num
+ip_lookup = IPLookup(name='ip_lookup',
+                     max_rules=fibsize)
+ip_lookup.add(prefix='0.0.0.0', prefix_len=0, gate=0)
+for i, bst in enumerate(conf.bsts, start=len(conf.nhops)+1):
+  ip_lookup.add(prefix=bst.ip, prefix_len=32, gate=i)
+  update_s_mac = Update(name='u_bst%d_smac' % bst.id,
+                        fields=[{'offset': 6, 'size': 6,
+                                 'value': mac_int_from_str(conf.gw.mac)}])
+  update_d_mac = Update(name='u_bst%d_dmac' % bst.id,
+                        fields=[{'offset': 0, 'size': 6,
+                                 'value': mac_int_from_str(bst.mac)}])
+  ip_lookup:i -> update_s_mac -> update_d_mac -> uttl_d
+
+buf2 -> ip_lookup
+
+for i, srv in enumerate(conf.srvs, start=1):
+  ip = re.sub(r'\.[^.]+$', '.0', srv.ip)
+  ip_lookup.add(prefix=ip, prefix_len=24, gate=srv.nhop)
+
+for i, nhop in enumerate(conf.nhops, start=1):
+  update_s_mac = Update(name='u_nhop%d_smac' % i,
+                        fields=[{'offset': 6, 'size': 6,
+                                 'value': mac_int_from_str(nhop.smac)}])
+  update_d_mac = Update(name='u_nhop%d_dmac' % i,
+                        fields=[{'offset': 0, 'size': 6,
+                                 'value': mac_int_from_str(nhop.dmac)}])
+  ip_lookup:i -> update_s_mac -> update_d_mac -> uttl_u
+
+ip_lookup:0 -> drop_u
+
+uttl_u -> ul_ws
+uttl_d -> dl_ws
+
+for wid in range(bess_workers):
+  buf_u = Buffer(name='out_buf_u_%d' % wid)
+  buf_d = Buffer(name='out_buf_d_%d' % wid)
+  ul_output = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
+  dl_output = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
+  ul_ws:wid -> buf_u -> ul_output
+  dl_ws:wid -> buf_d -> dl_output
+
+
+####
 
 bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
 bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
