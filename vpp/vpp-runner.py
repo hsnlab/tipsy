@@ -41,6 +41,7 @@ class PL(object):
         raise NotImplementedError
 
     def start(self):
+        self.check_vpp_running()
         self._running = True
         self._run()
 
@@ -60,6 +61,16 @@ class PL(object):
 
     def mod_table(self, action, cmd, table, entry):
         raise NotImplementedError
+
+    def check_vpp_running(self):
+        """During pipeline configuration VPP might crash.
+        A dummy vppctl command is used to detect the crash.
+        """
+        try:
+            call_cmd(['sudo', 'vppctl', 'show', 'version'])
+        except subprocess.CalledProcessError:
+            sys.exit('ERROR: Could not initialise pipeline \'%s\'.'
+                     % self.plconf.name)
 
 
 class PL_portfwd(PL):
@@ -162,6 +173,7 @@ class PL_l3fwd(PL):
             ip = self.extra_l2[entry.dmac]
         arp_params = (cmd, interface, ip, entry.dmac)
         call_cmd((arp_template % arp_params).split())
+
 
 class VPP(object):
     def __init__(self, plconf, bmconf):
