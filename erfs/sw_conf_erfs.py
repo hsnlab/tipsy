@@ -33,6 +33,11 @@ def call(cmd):
   #   pass
   ##p.terminate()
 
+def init_sw():
+  # call('config demo_mode 1')
+  # call('config use_counters 1')
+  pass
+
 def add_bridge(br_number, **kw):
   call('add-switch dpid=%s' % br_number)
 
@@ -48,14 +53,16 @@ def set_controller(br_num, target, **kw):
 
   subprocess.Popen(args)
 
+core_assignment = {}
 def add_port(dpid, portid, port_name, cores, **options):
   core_num = len(cores)
   call('add-port dpid=%s port-num=%s PCI:%s rx-queues=%s' % (
     dpid, portid, port_name, core_num))
   for que, core in enumerate(cores, start=0):
-    call('lcore %s PCI:%s/%s' % (core, port_name, que))
-  # call('lcore 1 PCI:%s' %  port_name)
-    
+    current_assignment = core_assignment.get(core, [])
+    current_assignment.append('PCI:%s/%s' % (port_name, que))
+    core_assignment[core] = current_assignment
+    call('lcore %s %s' % (core, ' '.join(current_assignment)))
 
 def set_arp(bridge, ip, mac):
   cmd=['sudo', 'ovs-appctl', 'tnl/arp/set', bridge, ip, mac]

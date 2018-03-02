@@ -20,9 +20,6 @@ TIPSY: Telco pIPeline benchmarking SYstem
 Run as:
     $ cd path/to/tipsy.py
     $ ryu-manager --config-dir .
-
-The setup is similar to the left side of the figure in
-http://docs.openvswitch.org/en/latest/howto/userspace-tunneling/
 """
 
 import datetime
@@ -53,7 +50,10 @@ from ryu.lib.packet.ether_types import ETH_TYPE_IP, ETH_TYPE_ARP
 from ryu.ofproto import ofproto_v1_3
 from ryu.services.protocols.bgp.utils.evtlet import LoopingCall
 
+import exp_ericsson as eri
 import sw_conf_erfs as sw_conf
+print('main',len(dir(ofproto_v1_3)))
+eri.register(ofproto_v1_3)
 
 fdir = os.path.dirname(os.path.realpath(__file__))
 pipeline_conf = os.path.join(fdir, 'pipeline.json')
@@ -81,6 +81,9 @@ class ObjectView(object):
 
   def __getattr__(self, name):
     return self.__dict__[name.replace('_', '-')]
+
+  def __setattr__(self, name, val):
+    self.__dict__[name.replace('_', '-')] = val
 
   def get (self, attr, default=None):
     return self.__dict__.get(attr, default)
@@ -290,12 +293,15 @@ class PL_mgw(PL):
   def __init__(self, parent, conf):
     super(PL_mgw, self).__init__(parent, conf)
     self.has_tunnels = True
+    self.group_idx = 0
     self.tables = {
-      'ingress'   : 0,
+      'mac_fwd'   : 0,
+      'arp_select': 1,
+      'dir_select': 2,
       'downlink'  : 3,
       'uplink'    : 4,
-      'l3_lookup' : 7,
-      'drop'      : 250
+      'l3_lookup' : 5,
+      'drop'      : 9
     }
 
   def get_tunnel_endpoints(self):
@@ -320,7 +326,7 @@ class PL_mgw(PL):
                              meter_id=user.teid, bands=[band])
     self.parent.dp.send_msg(msg)
 
-    # Uplink: vxlan_port -> rate-limiter -> (FW->NAT) -> L3 lookup table
+    # Uplink: dl_port -> vxlan_pop -> rate-lim -> (FW->NAT) -> L3 lookup tbl
     if self.conf.name == 'bng':
       next_tbl = 'ul_fw'
     else:
@@ -329,12 +335,17 @@ class PL_mgw(PL):
     inst = [parser.OFPInstructionMeter(meter_id=user.teid), goto(next_tbl)]
     mod_flow('uplink', match=match, inst=inst, cmd=cmd)
 
-    # Downlink: (NAT->FW) -> rate-limiter -> vxlan_port
+    # Downlink: (NAT->FW) -> rate-limiter -> vxlan push
     match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': user.ip}
-    out_port = self.parent.get_tun_port(user.tun_end)
-    inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
-    actions = [parser.OFPActionSetField(tunnel_id=user.teid),
-               parser.OFPActionOutput(out_port)]
+    tun_id = user.teid
+    tun_ip_src = self.conf.gw.ip
+    tun_ip_dst = self.get_tunnel_endpoints()[user.tun_end].ip
+
+    inst = [parser.OFPInstructionMeter(meter_id=user.teid),
+            goto('l3_lookup')]
+    actions = [eri.EricssonActionPushVXLAN(user.teid),
+               parser.OFPActionSetField(ipv4_dst=tun_ip_dst),
+               parser.OFPActionSetField(ipv4_src=tun_ip_src)]
     mod_flow('downlink', match=match, actions=actions, inst=inst, cmd=cmd)
 
   def mod_server(self, cmd, srv):
@@ -344,31 +355,88 @@ class PL_mgw(PL):
     action = parser.OFPActionGroup(srv.nhop)
     self.parent.mod_flow('l3_lookup', None, match, [action], cmd=cmd)
 
+  def add_bst_or_cpe(self, obj):
+    self.logger.debug('add-bst-or-cpe: ip=%s' % obj.ip)
+    parser = self.parent.dp.ofproto_parser
+
+    # add group-table entry
+    out_port = obj.port or self.parent.dl_port
+    set_field = parser.OFPActionSetField
+    self.parent.add_group(self.group_idx,
+                          [set_field(eth_dst=obj.mac),
+                           set_field(eth_src=self.conf.gw.mac),
+                           parser.OFPActionOutput(out_port)])
+
+    # add l3_lookup entry
+    match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': obj.ip}
+    action = parser.OFPActionGroup(self.group_idx)
+    self.parent.mod_flow('l3_lookup', None, match, [action], cmd='add')
+
+    obj.group_idx = self.group_idx
+    self.group_idx +=1
+
   def config_switch(self, parser):
     mod_flow = self.parent.mod_flow
+    goto = self.parent.goto
+    ul_port = self.parent.ul_port
+    dl_port = self.parent.dl_port
 
-    table = 'ingress'
-    match = {'in_port': self.parent.ports['veth-main']}
-    mod_flow('ingress', 9, match, [], [])
-    next_table = {'mgw': 'downlink', 'bng': 'dl_fw'}[self.conf.name]
-    match = {'in_port': self.parent.ul_port, 'eth_dst': self.conf.gw.mac}
-    mod_flow('ingress', 9, match, goto=next_table)
-    match = {'in_port': self.parent.ul_port}
-    mod_flow('ingress', 8, match, goto='drop')
-    mod_flow('ingress', 7, None, goto='uplink')
+    # A basic MAC table lookup to check that the L2 header of the
+    # receiver packet contains the router's own MAC address(es) in
+    # which case forward to the =ARPselect= module, drop otherwise
+    #
+    # (We don't modify the hwaddr of a kernel interface, or set the
+    # hwaddr of a dpdk interface, we just check whether incoming
+    # packets have the correct addresses.)
+    table = 'mac_fwd'
+    match = {'in_port': ul_port,
+             'eth_dst': self.conf.gw.mac}
+    self.parent.mod_flow(table, match=match, goto='arp_select')
+    match = {'in_port': dl_port,
+             'eth_dst': self.conf.gw.mac}
+    self.parent.mod_flow(table, match=match, goto='arp_select')
+
+    # arp_select: direct ARP packets to the infra (unimplemented) and
+    # IPv4 packets to the L3FIB for L3 processing, otherwise drop
+    table = 'arp_select'
+    match = {'eth_type': ETH_TYPE_ARP}
+    self.parent.mod_flow(table, match=match, goto='drop')
+    match = {'eth_type': ETH_TYPE_IP, 'in_port': dl_port}
+    self.parent.mod_flow(table, match=match, goto='dir_select')
+    match = {'eth_type': ETH_TYPE_IP, 'in_port': ul_port}
+    self.parent.mod_flow(table, match=match, goto='dir_select')
+
+    #
+    table = 'dir_select'
+    match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': self.conf.gw.ip,
+             'ip_proto': in_proto.IPPROTO_UDP, 'udp_src': 4789}
+    actions = [eri.EricssonActionPopVXLAN()]
+    self.parent.mod_flow(table, priority=2, match=match,
+                         actions=actions, goto='uplink')
+    # Downlink, should check: IP in UE range, instead: check for ether_type
+    match = {'eth_type': ETH_TYPE_IP}
+    self.parent.mod_flow(table, priority=1, match=match, goto='downlink')
 
     for user in self.conf.users:
       self.mod_user('add', user)
 
-    for i, nhop in enumerate(self.conf.nhops):
+    for nhop in self.conf.nhops:
       out_port = nhop.port or self.parent.ul_port
       set_field = parser.OFPActionSetField
-      self.parent.add_group(i, [set_field(eth_dst=nhop.dmac),
-                                set_field(eth_src=nhop.smac),
-                                parser.OFPActionOutput(out_port)])
-
+      self.parent.add_group(self.group_idx,
+                            [set_field(eth_dst=nhop.dmac),
+                             set_field(eth_src=nhop.smac),
+                             parser.OFPActionOutput(out_port)])
+      self.group_idx += 1
     for srv in self.conf.srvs:
       self.mod_server('add', srv)
+
+    if self.conf.name == 'bng':
+      objs = self.conf.cpe
+    else:
+      objs = self.conf.bsts
+    for obj in objs:
+      self.add_bst_or_cpe(obj)
 
   def do_handover(self, action):
     parser = self.parent.dp.ofproto_parser
@@ -385,9 +453,9 @@ class PL_mgw(PL):
 
     # Downlink: rate-limiter -> vxlan_port
     match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': user.ip}
-    out_port = self.parent.get_tun_port(new_bst)
+    group_idx = self.conf.bsts[new_bst].group_idx
     actions = [parser.OFPActionSetField(tunnel_id=user.teid),
-               parser.OFPActionOutput(out_port)]
+               parser.OFPActionGroup(group_idx)]
     inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
     mod_flow('downlink', match=match, actions=actions, inst=inst, cmd='add')
 
@@ -409,15 +477,17 @@ class PL_bng(PL_mgw):
   def __init__(self, parent, conf):
     super(PL_bng, self).__init__(parent, conf)
     self.tables = {
-      'ingress'   : 0,
-      'dl_nat'    : 1,
-      'dl_fw'     : 2,
-      'downlink'  : 3,
-      'uplink'    : 4,
-      'ul_fw'     : 5,
-      'ul_nat'    : 6,
-      'l3_lookup' : 7,
-      'drop'      : 250
+      'mac_fwd'   : 0,
+      'arp_select': 1,
+      'dir_select': 2,
+      'dl_nat'    : 3,
+      'dl_fw'     : 4,
+      'downlink'  : 5,
+      'uplink'    : 6,
+      'ul_fw'     : 7,
+      'ul_nat'    : 8,
+      'l3_lookup' : 9,
+      'drop'      : 99
     }
 
   def get_tunnel_endpoints(self):
@@ -598,19 +668,21 @@ class Tipsy(app_manager.RyuApp):
 
     coremask = self.bm_conf.sut.coremask
     os.system('pkill dof')
-    cmd = ['./dof', '-c', coremask, '--socket-mem=1024,1024', '--', '-d', '10']
+    #cmd = ['./dof', '-c', coremask, '--socket-mem=1024,1024', '--', '-d', '10']
+    cmd = ['./dof', '-c', coremask, '--', '-d', '10']
     cwd = self.bm_conf.sut.erfs_dir
     subprocess.Popen(cmd, cwd=cwd)
     time.sleep(15)
 
     self.change_status('initialize_datapath')
+    sw_conf.init_sw()
 
     br_num = 1 # 'br-main'
     sw_conf.add_bridge(br_num)
 
-    core = self.bm_conf.pipeline.core
-    self.add_port(br_num, 1, self.ul_port_name, core=self.get_cores(core))
-    self.add_port(br_num, 2, self.dl_port_name, core=self.get_cores(core))
+    core = self.get_cores(self.bm_conf.pipeline.core)
+    self.add_port(br_num, 1, self.ul_port_name, core=core)
+    self.add_port(br_num, 2, self.dl_port_name, core=core)
     self.ul_port = 1
     self.dl_port = 2
 
