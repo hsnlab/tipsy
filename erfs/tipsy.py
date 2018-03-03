@@ -415,7 +415,8 @@ class PL_mgw(PL):
                          actions=actions, goto='uplink')
     # Downlink, should check: IP in UE range, instead: check for ether_type
     match = {'eth_type': ETH_TYPE_IP}
-    self.parent.mod_flow(table, priority=1, match=match, goto='downlink')
+    next_tbl= {'mgw': 'downlink', 'bng': 'dl_nat'}[self.conf.name]
+    self.parent.mod_flow(table, priority=1, match=match, goto=next_tbl)
 
     for user in self.conf.users:
       self.mod_user('add', user)
@@ -511,7 +512,12 @@ class PL_bng(PL_mgw):
         'tcp_dst': rule.dst_port,
       }
       mod_flow(table_name, match=match, goto='drop')
-    mod_flow(table_name, priority=1, goto=next_table)
+
+    # We added a default rule at priority=0, in erfs we cannot add
+    # another one at priority=1, so we match eth_type, which should be
+    # unnecessary at this point.
+    match = {'eth_type': ETH_TYPE_IP}
+    mod_flow(table_name, priority=1, match=match, goto=next_table)
 
   @staticmethod
   def get_proto_name (ip_proto_num):
