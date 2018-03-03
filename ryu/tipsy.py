@@ -352,7 +352,7 @@ class PL_mgw(PL):
     table = 'ingress'
     match = {'in_port': self.parent.ports['veth-main']}
     mod_flow('ingress', 9, match, [], [])
-    next_table = {'mgw': 'downlink', 'bng': 'dl_fw'}[self.conf.name]
+    next_table = {'mgw': 'downlink', 'bng': 'dl_nat'}[self.conf.name]
     match = {'in_port': self.parent.ul_port, 'eth_dst': self.conf.gw.mac}
     mod_flow('ingress', 9, match, goto=next_table)
     match = {'in_port': self.parent.ul_port}
