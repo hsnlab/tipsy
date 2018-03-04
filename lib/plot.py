@@ -67,7 +67,7 @@ class Plot_simple(Plot):
         super().__init__(conf)
         self.ylabel = None
 
-    def matplotlib_series(self, series, title):
+    def format_matplotlib(self, series, title):
         import matplotlib.pyplot as plt
         plot_fv = getattr(plt, self.conf.axis_type, plt.plot)
         for name, points in series.items():
@@ -86,7 +86,7 @@ class Plot_simple(Plot):
             return 'axis'
         return '%saxis' % self.conf.axis_type
 
-    def latex_series(self, series, title):
+    def format_latex(self, series, title):
         def is_empty(curve):
             return all([math.isnan(p[1]) for p in curve[1]])
 
@@ -157,11 +157,70 @@ class Plot_simple(Plot):
 
         series = collections.OrderedDict(sorted(series.items()))
         if series:
-            self.matplotlib_series(series, title)
-            self.latex_series(series, title)
+            self.format_matplotlib(series, title)
+            self.format_latex(series, title)
 
-        with open('out.json', 'w') as f:
-            json.dump(series, f, indent=1)
+        return series
+
+
+class Plot_contour(Plot_simple):
+
+    def format_latex(self, data, title):
+        addplot = ""
+        for x, ys in sorted(data.items()):
+            addplot += '     '
+            for y, z in sorted(ys.items()):
+                addplot += "(%s, %s, %s) " % (x, y, z)
+            addplot += "\n\n"
+        f = {
+            'title': title,
+            'xlabel': self.conf.x_axis,
+            'ylabel': self.conf.y_axis,
+            'addplot': addplot,
+            'axis': self.get_latex_axis_type()
+        }
+        print(addplot, f)
+        text = inspect.cleandoc(r"""
+          \begin{{figure}}
+            \centering
+            \begin{{tikzpicture}}
+            \begin{{{axis}}}[
+                view={{0}}{{90}},
+                xlabel={xlabel},
+                ylabel={ylabel},
+            ]
+              \addplot3 [ contour gnuplot] coordinates {{
+
+          {addplot}
+
+              }};
+              \end{{{axis}}}
+            \end{{tikzpicture}}
+            \caption{{{title}}}
+          \end{{figure}}
+          """
+        ).format(**f)
+        with open('fig.tex', 'w') as f:
+            f.write(text)
+            f.write("\n")
+
+    def plot(self, raw_data):
+        self.xlabel = self.conf.x_axis
+        self.ylabel = self.conf.y_axis
+
+        title = ''
+        data = collections.defaultdict(dict)
+        for row in raw_data:
+            x = float(row[self.conf.x_axis])
+            y = float(row[self.conf.y_axis])
+            z = float(row[self.conf.z_axis])
+            data[x][y] = z
+            title = self.conf.title.format(**row)
+
+        if data:
+            self.format_latex(data, title)
+
+        return data
 
 
 def json_load(file):
@@ -218,7 +277,9 @@ def run_in_cwd():
     data = filter_data(conf, data)
 
     plt = globals()['Plot_%s' % conf.type](conf)
-    plt.plot(data)
+    plot_points = plt.plot(data)
+    with open('out.json', 'w') as f:
+        json.dump(plot_points, f, indent=1)
 
 
 if __name__ == "__main__":

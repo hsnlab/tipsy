@@ -4,7 +4,7 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["simple"],
+      "enum": ["simple", "contour"],
       "default": "simple",
       "description": "Name of algorithm that generates the plot"
     },
@@ -22,6 +22,10 @@
         }
       ],
       "description": "variable or a list of variables to plot"
+    },
+    "z-axis": {
+      "$ref": "definitions.json#/hierarchical-property-name",
+      "description": "variable of the z-axis (in case of a contour plot)"
     },
     "group-by": {
       "anyOf": [
