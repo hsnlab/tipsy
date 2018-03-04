@@ -21,8 +21,12 @@ import collections
 import inspect
 import json
 import math
-
 from pathlib import Path
+
+try:
+    import mongoquery
+except ImportError:
+    mongoquery = None
 
 
 def ensure_list(object_or_list):
@@ -34,51 +38,34 @@ def ensure_list(object_or_list):
 def str2tex(s):
     return s.replace('_', '$\_$')
 
-class ObjectView(object):
+class ObjectView(dict):
     def __init__(self, fname=None, **kwargs):
-        tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
-        self.__dict__.update(**tmp)
+        tmp = {k.replace('_', '-'): v for k, v in kwargs.items()}
+        self.update(**tmp)
 
     def __getitem__(self, x):
-        x = x.replace('-', '_')
+        x = x.replace('_', '-')
         if '.' in x:
             [head, tail] = x.split('.', 1)
-            return self.__dict__[head][tail]
-        return self.__dict__[x]
+            return super().__getitem__(head)[tail]
+        return super().__getitem__(x)
 
-    def __repr__(self):
-        return self.__dict__.__repr__()
+    def __getattr__(self, x):
+        return self.__getitem__(x)
 
 
 class Plot(object):
     def __init__(self, conf):
         self.conf = conf
 
-    def plot(self, data):
+    def plot(self, filtered_data):
         raise NotImplementedError
+
 
 class Plot_simple(Plot):
     def __init__(self, conf):
         super().__init__(conf)
         self.ylabel = None
-
-    def is_row_relevant(self, row):
-        if not self.conf.filter:
-            return True
-        for filter in ensure_list(self.conf.filter):
-            if filter.op == "==":
-               if row[filter.var] != filter.val:
-                   return False
-            elif filter.op == "!=":
-               if row[filter.var] == filter.val:
-                   return False
-            elif filter.op == "<":
-               if row[filter.var] >= filter.val:
-                   return False
-            elif filter.op == ">":
-               if row[filter.var] <= filter.val:
-                   return False
-        return True
 
     def matplotlib_series(self, series, title):
         import matplotlib.pyplot as plt
@@ -153,8 +140,6 @@ class Plot_simple(Plot):
 
         series = collections.defaultdict(list)
         for row in raw_data:
-            if not self.is_row_relevant(row):
-                continue
             x = row[self.conf.x_axis]
             groups = ensure_list(self.conf.group_by)
             for var_name in y_axis:
@@ -168,7 +153,7 @@ class Plot_simple(Plot):
                     key.append('%s' % group_val)
                 key = '/'.join(key)
                 series[key].append((x, y))
-            title = self.conf.title.format(**row.__dict__)
+            title = self.conf.title.format(**row)
 
         series = collections.OrderedDict(sorted(series.items()))
         if series:
@@ -184,6 +169,45 @@ def json_load(file):
         data = json.load(f, object_hook=lambda x: ObjectView(**x))
     return data
 
+def match_lt(query, obj):
+    return obj < query
+
+def match_gt(query, obj):
+    return obj > query
+
+def match_not(query, obj):
+    return not match(query, obj)
+
+def match(query, obj):
+    if type(query) in [int, float, str]:
+        return query == obj
+    for var, sub_query in query.items():
+        if var.startswith('$'):
+            m = globals().get('match_%s' % var[1:])
+            if m is None:
+                raise NotImplementedError(var)
+            if not m(sub_query, obj):
+                return False
+            else:
+                continue
+        try:
+            val = obj[var]
+        except KeyError:
+            return False
+        if not match(sub_query, val):
+            return False
+    return True
+
+def filter_data(conf, data):
+    if not conf.filter:
+        return data
+    if mongoquery:
+        q = mongoquery.Query(conf.filter)
+        return filter(q.match, data)
+
+    print("Can't import monoquery, using a subset of the query language")
+    return [obj for obj in data if match(conf.filter, obj)]
+
 def run_in_cwd():
     cwd = Path().cwd()
     conf = json_load(cwd / 'plot.json')
@@ -191,6 +215,7 @@ def run_in_cwd():
     for res in (cwd.parent.parent/'measurements').glob('*.json'):
         print(res)
         data += json_load(res)
+    data = filter_data(conf, data)
 
     plt = globals()['Plot_%s' % conf.type](conf)
     plt.plot(data)

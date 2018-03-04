@@ -36,21 +36,9 @@
       "description": "Group x-values by a variable"
     },
     "filter": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "var": {"$ref": "definitions.json#/hierarchical-property-name"},
-          "op": {
-            "type": "string",
-            "enum": ["==", "!=", "<", ">"],
-            "default": "=="
-          },
-          "val": {}
-        }
-      },
-      "default" : [],
-      "description": "Ignore values for which one of filter expressions evaultues to false"
+      "type": "object",
+      "default" : {},
+      "description": "Filter values to plot by this mongodb query expression.  If mongoquery is not installed, then only a subset of the query language can be used.  See: https://pypi.python.org/pypi/mongoquery/"
     },
     "title": {
       "type": "string",
