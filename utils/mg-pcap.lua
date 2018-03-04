@@ -110,12 +110,30 @@ function master(args)
    mg.waitForTasks()
 end
 
+function replay_small_pcap(queue, bufs, n)
+   log:info('The pcap file is small (#packet: %d)', n)
+   local len = n
+   while len < 30 do
+      for i = 0, n-1 do
+         len = len + 1
+         bufs.array[len-1] = bufs.array[i]
+      end
+   end
+   while mg.running() do
+      queue:sendN(bufs, len)
+   end
+end
+
 function replay_pcap(queue, file, loop)
    local mempool = memory:createMemPool(4096)
    local bufs = mempool:bufArray()
    local pcapFile = pcap:newReader(file)
-   local prev = 0
    local linkSpeed = queue.dev:getLinkStatus().speed
+   local n = pcapFile:read(bufs)
+   pcapFile:reset()
+   if n < 30 and loop then
+      return replay_small_pcap(queue, bufs, n)
+   end
    while mg.running() do
       local n = pcapFile:read(bufs)
       if n == 0 then
