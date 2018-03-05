@@ -168,6 +168,12 @@ class SUT_vpp(SUT):
         cmd = ['sudo', 'vppctl', 'show', 'version']
         v = self.run_ssh_cmd(cmd, stdout=subprocess.PIPE)
         self.result['version'] = v.stdout.decode('utf-8').split("\n")[0]
+        dpdk_cmd = ['sudo', 'vppctl', 'show', 'dpdk', 'version']
+        d = self.run_ssh_cmd(dpdk_cmd, stdout=subprocess.PIPE)
+        fline = d.stdout.decode('utf-8').split("\n")[0]
+        dpdk_version = fline.split('DPDK')[-1].strip()
+        self.result['versions'] = {}
+        self.result['versions']['DPDK'] = dpdk_version
 
 
 class SUT_ovs(SUT):
