@@ -361,7 +361,9 @@ def gen_pcap(defaults=None):
     if args.random_seed:
         random.seed(args.random_seed)
 
+    auto_pkt_num = False
     if args.pkt_num == 0:
+        auto_pkt_num = True
         try:
             get_pktnum = getattr(sys.modules[__name__],
                                  '_get_auto_%s_pktnum' % conf.name)
@@ -397,6 +399,10 @@ def gen_pcap(defaults=None):
             # p.show()
             print(p.__repr__())
     else:
+        if auto_pkt_num and args.pkt_num < 1024:
+            pkts = list(pkts)
+            while len(pkts) < 1024:
+                pkts = pkts + pkts
         wrpcap(args.output, pkts)
 
 
