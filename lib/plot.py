@@ -53,6 +53,12 @@ class ObjectView(dict):
     def __getattr__(self, x):
         return self.__getitem__(x)
 
+    def get(self, key, default):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
 
 class Plot(object):
     def __init__(self, conf):
@@ -86,6 +92,9 @@ class Plot_simple(Plot):
             return 'axis'
         return '%saxis' % self.conf.axis_type
 
+    def latex_extra_plot(self, name, points):
+        return ""
+
     def format_latex(self, series, title):
         def is_empty(curve):
             return all([math.isnan(p[1]) for p in curve[1]])
@@ -103,6 +112,7 @@ class Plot_simple(Plot):
             addplot += "    };\n"
             addplot += r'    \addlegendentry{%s}' % str2tex(name)
             addplot += "\n"
+            addplot += self.latex_extra_plot(name, points)
         f = {
             'title': title,
             'xlabel': str2tex(self.conf.x_axis),
@@ -149,11 +159,14 @@ class Plot_simple(Plot):
                 else:
                     key = [var_name]
                 for group in groups:
-                    group_val = row[group]
+                    group_val = row.get(group, 'na')
                     key.append('%s' % group_val)
                 key = '/'.join(key)
                 series[key].append((x, y))
             title = self.conf.title.format(**row)
+
+        for k, points in series.items():
+            series[k] = sorted(points)
 
         series = collections.OrderedDict(sorted(series.items()))
         if series:
@@ -161,6 +174,52 @@ class Plot_simple(Plot):
             self.format_latex(series, title)
 
         return series
+
+
+class Plot_USL(Plot_simple):
+    def latex_extra_plot(self, name, points):
+        import lmfit
+        import numpy as np
+
+        def usl(params, x, data):
+            l = params['lambd']
+            s = params['sigma']
+            k = params['kappa']
+
+            model = l * x / (1 + s * (x - 1) + k * x * (x - 1))
+
+            return model - data
+
+
+        x = np.array([x for x, y in points])
+        data = [y for x, y in points]
+        params = lmfit.Parameters()
+        try:
+            params.add('lambd', value=points[0][1]/points[0][0])
+        except:
+            params.add('lambd', value=1)
+        params.add('sigma', value=0.1, min=0)
+        params.add('kappa', value=0.01)
+        # method: leastsq least_squares differential_evolution brute nelder
+        method = 'leastsq'
+        out = lmfit.minimize(usl, params, method=method, args=(x, data))
+        lmfit.report_fit(out)
+        print(out.params)
+        f = {key: param.value for key, param in out.params.items()}
+        if f['kappa'] != 0:
+            f['ymax'] = math.floor(math.sqrt((1-f['sigma'])/f['kappa']))
+        else:
+            f['ymax'] = '$\inf$'
+        f['legend'] = ('$\lambda = {lambd:.3f}, \sigma={sigma:.3f},'
+                       '\kappa={kappa:.3f}, n_{{max}}={ymax:d}$').format(**f)
+        s = inspect.cleandoc(r"""
+           \addplot [blue, domain=1:16] {{
+            {lambd} * x / (1 +  {sigma}*(x-1) + {kappa} *x*(x-1))
+           }};
+           \addlegendentry{{{legend}}}
+           """.format(**f))
+
+        return s
 
 
 class Plot_contour(Plot_simple):
@@ -271,7 +330,7 @@ def run_in_cwd():
     cwd = Path().cwd()
     conf = json_load(cwd / 'plot.json')
     data = []
-    for res in (cwd.parent.parent/'measurements').glob('*.json'):
+    for res in sorted((cwd.parent.parent/'measurements').glob('*.json')):
         print(res)
         data += json_load(res)
     data = filter_data(conf, data)

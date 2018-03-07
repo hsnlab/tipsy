@@ -4,9 +4,9 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["simple", "contour"],
+      "enum": ["simple", "contour", "USL"],
       "default": "simple",
-      "description": "Name of algorithm that generates the plot"
+      "description": "Name of algorithm that generates the plot.  (USL: fits Universal Scalability Law curve)"
     },
     "x-axis": {
       "$ref": "definitions.json#/hierarchical-property-name",
