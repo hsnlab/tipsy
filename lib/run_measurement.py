@@ -18,8 +18,10 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import csv
+import datetime
 import json
 import subprocess
+import time
 from pathlib import Path, PosixPath
 
 try:
@@ -240,6 +242,9 @@ class Tester(object):
             self.result['tipsy-version-error-msg'] = str(e)
 
     def run(self, out_dir):
+        self.result['timestamp'] = int(time.time())
+        self.result['iso-date'] =  datetime.datetime.now().isoformat()
+        self.result['test-id'] = out_dir.name
         self.run_setup_script()
         self._run(out_dir)
         self.run_teardown_script()
