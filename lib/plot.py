@@ -199,19 +199,19 @@ class Plot_USL(Plot_simple):
         except:
             params.add('lambd', value=1)
         params.add('sigma', value=0.1, min=0)
-        params.add('kappa', value=0.01)
+        params.add('kappa', value=0.01, min=0)
         # method: leastsq least_squares differential_evolution brute nelder
         method = 'leastsq'
         out = lmfit.minimize(usl, params, method=method, args=(x, data))
         lmfit.report_fit(out)
         print(out.params)
         f = {key: param.value for key, param in out.params.items()}
-        if f['kappa'] != 0:
+        try:
             f['ymax'] = math.floor(math.sqrt((1-f['sigma'])/f['kappa']))
-        else:
-            f['ymax'] = '$\inf$'
+        except:
+            f['ymax'] = '\inf'
         f['legend'] = ('$\lambda = {lambd:.3f}, \sigma={sigma:.3f},'
-                       '\kappa={kappa:.3f}, n_{{max}}={ymax:d}$').format(**f)
+                       '\kappa={kappa:.3f}, n_{{max}}={ymax}$').format(**f)
         s = inspect.cleandoc(r"""
            \addplot [blue, domain=1:16] {{
             {lambd} * x / (1 +  {sigma}*(x-1) + {kappa} *x*(x-1))
@@ -238,7 +238,6 @@ class Plot_contour(Plot_simple):
             'addplot': addplot,
             'axis': self.get_latex_axis_type()
         }
-        print(addplot, f)
         text = inspect.cleandoc(r"""
           \begin{{figure}}
             \centering
