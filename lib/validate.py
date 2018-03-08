@@ -134,7 +134,20 @@ def validate_data (data, schema=None, schema_name=None, extension='default'):
   else:
     validator = jsonschema.Draft4Validator
   resolver = jsonschema.RefResolver('file://' + schema_dir + '/', schema)
-  validator(schema, resolver=resolver).validate(data)
+  try:
+    validator(schema, resolver=resolver).validate(data)
+  except jsonschema.exceptions.ValidationError as e:
+    # The default exception is not very helpful in case of the 'oneOf'
+    # keyword: "... is not vaild under any of the given schemas".
+    # However, if 'oneOf' is used in order to combine different object
+    # sub-types, then we can give more specific error message.
+    if len(e.schema_path) < 2 or e.schema_path[-1] != 'oneOf':
+      raise e
+    type = e.instance.get('type') or e.instance.get('name')
+    if type is None:
+      raise e
+    schema_name = '%s-%s' % (e.schema_path[-2], type)
+    validate_data(e.instance, None, schema_name, extension)
 
 
 if __name__ == "__main__":
