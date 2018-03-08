@@ -96,14 +96,20 @@ class TipsyConfig(dict):
     def gen_configs(self):
         self.configs = []
         for b in self.benchmark:
-            benchmark = TipsyConfig(copy.deepcopy(self.default))
+            try:
+                benchmark = TipsyConfig(copy.deepcopy(self.default))
+            except KeyError:
+                benchmark = TipsyConfig()
             conf_merge(benchmark, b)
-            scale = getattr(self, '_scale_%s' % benchmark.scale)
+            scale = getattr(self, '_scale_%s' % benchmark.get('scale', 'none'))
             segments = [x for x in benchmark.keys() if x != 'scale']
             confs = {}
             for segment in segments:
                 confs[segment] = scale(getattr(benchmark, segment))
-            self.configs.extend(self._scale_outer(confs))
+            confs = self._scale_outer(confs)
+            for conf in confs:
+                validate.validate_data(conf, schema_name='benchmark')
+                self.configs.append(conf)
 
         # Oder should not matter, but we need to reboot the SUT if
         # sut.type changes, so it makes sense to minimize the number
@@ -261,8 +267,10 @@ class TipsyManager(object):
     def config_plots(self):
         self.create_dir(self.plot_dir)
         save = self.json_validate_and_dump
+        v_confs = self.tipsy_conf.get('visualize', [])
         out_dirs = []
-        for i, config in enumerate(self.tipsy_conf.visualize, start=1):
+        for i, config in enumerate(v_confs, start=1):
+            print('*', end='', flush=True)
             id = '%03d' % i
             out_dirs.append(id)
             out_dir = Path(self.plot_dir, id)
@@ -286,6 +294,7 @@ class TipsyManager(object):
         self.create_dir(self.meas_dir)
         save = self.json_validate_and_dump
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
+            print('.', end='', flush=True)
             out_dir = Path(self.meas_dir, '%03d' % i)
             out_dir.mkdir()
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
