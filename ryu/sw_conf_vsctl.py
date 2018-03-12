@@ -42,6 +42,13 @@ def call(*cmd):
   if subprocess.call(cmd):
     log.error('ovs-vsctl failed (%s)' % ' '.join(cmd))
 
+def set_coremask(coremask):
+  if not coremask:
+    return
+  cmd = ['set', 'Open_vSwitch', '.',
+         'other_config:pmd-cpu-mask="%s"' % coremask]
+  call(*cmd)
+
 def list_ports(bridge):
   res = check_output('list-ports', bridge)
   return res.strip().split('\n')

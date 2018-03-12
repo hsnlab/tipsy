@@ -605,6 +605,7 @@ class Tipsy(app_manager.RyuApp):
   def initialize_dp_simple(self):
     # datapath without tunnels
     sw_conf.del_bridge('br-phy', can_fail=False)
+    sw_conf.set_coremask(self.bm_conf.sut.coremask)
     br_name = 'br-main'
     sw_conf.del_bridge(br_name, can_fail=False)
     sw_conf.add_bridge(br_name, dp_desc=br_name)
@@ -619,6 +620,7 @@ class Tipsy(app_manager.RyuApp):
     sw_conf.del_bridge('br-main')
 
   def initialize_dp_tunneled(self):
+    sw_conf.set_coremask(self.bm_conf.sut.coremask)
     core = self.bm_conf.pipeline.core
     br_name = 'br-main'
     sw_conf.del_bridge(br_name, can_fail=False)
