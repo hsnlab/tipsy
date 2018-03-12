@@ -72,7 +72,7 @@ class SUT(object):
         self.conf = conf
         self.result = {}
         self.cmd_prefix = ['ssh', self.conf.sut.hostname]
-        self.screen_name = 'TIPSY_SUT'
+        self.screen_name = 'tipsy-sut'
 
     def run_ssh_cmd(self, cmd, *extra_cmd, **kw):
         command = self.cmd_prefix + list(extra_cmd) + cmd
