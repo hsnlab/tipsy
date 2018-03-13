@@ -74,16 +74,16 @@ CONF = cfg.CONF['tipsy']
 
 class ObjectView(object):
   def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)
+    self.__dict__.update({k.replace('-', '_'): v for k, v in kwargs.items()})
 
   def __repr__(self):
     return self.__dict__.__repr__()
 
   def __getattr__(self, name):
-    return self.__dict__[name.replace('_', '-')]
+    return self.__dict__[name.replace('-', '_')]
 
   def __setattr__(self, name, val):
-    self.__dict__[name.replace('_', '-')] = val
+    self.__dict__[name.replace('-', '_')] = val
 
   def get (self, attr, default=None):
     return self.__dict__.get(attr, default)
@@ -454,10 +454,15 @@ class PL_mgw(PL):
 
     # Downlink: rate-limiter -> vxlan_port
     match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': user.ip}
-    group_idx = self.conf.bsts[new_bst].group_idx
-    actions = [parser.OFPActionSetField(tunnel_id=user.teid),
-               parser.OFPActionGroup(group_idx)]
-    inst = [parser.OFPInstructionMeter(meter_id=user.teid)]
+    tun_id = user.teid
+    tun_ip_src = self.conf.gw.ip
+    tun_ip_dst = self.get_tunnel_endpoints()[user.tun_end].ip
+
+    inst = [parser.OFPInstructionMeter(meter_id=user.teid),
+            self.parent.goto('l3_lookup')]
+    actions = [eri.EricssonActionPushVXLAN(user.teid),
+               parser.OFPActionSetField(ipv4_dst=tun_ip_dst),
+               parser.OFPActionSetField(ipv4_src=tun_ip_src)]
     mod_flow('downlink', match=match, actions=actions, inst=inst, cmd='add')
 
   def do_add_user(self, action):
