@@ -75,13 +75,16 @@ CONF = cfg.CONF['tipsy']
 
 class ObjectView(object):
   def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)
+    self.__dict__.update({k.replace('-', '_'): v for k, v in kwargs.items()})
 
   def __repr__(self):
     return self.__dict__.__repr__()
 
   def __getattr__(self, name):
-    return self.__dict__[name.replace('_', '-')]
+    return self.__dict__[name.replace('-', '_')]
+
+  def __setattr__(self, name, val):
+    self.__dict__[name.replace('-', '_')] = val
 
   def get (self, attr, default=None):
     return self.__dict__.get(attr, default)
