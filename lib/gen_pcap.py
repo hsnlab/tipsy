@@ -281,7 +281,7 @@ def add_payload(p, pkt_size):
     if len(p) < pkt_size:
         #"\x00" is a single zero byte
         s = "\x00" * (pkt_size - len(p))
-        p = p / Padding(s)
+        p = p / Raw(s)
     return p
 
 
