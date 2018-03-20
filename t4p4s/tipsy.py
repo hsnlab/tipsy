@@ -50,7 +50,10 @@ def call_cmd(cmd):
     print(' '.join(cmd))
     return subprocess.call(cmd)
 
-def gen_t4p4s_config(cpumask, portmask, cores):
+def gen_t4p4s_config(sut_conf, cores):
+    cpumask = sut_conf.coremask
+    portmask = sut_conf.portmask
+
     cpum = int(cpumask, 16) ## given in hexa
     portm = int(portmask, 16)
 
@@ -64,7 +67,14 @@ def gen_t4p4s_config(cpumask, portmask, cores):
             portmapping.append('(%d,%d,%d)' % (p,rxqueue,c))
             rxqueue += 1
 
-    return '-c %s -n 4 - --log-level 3 -- -p %s --config "%s"' % (cpumask, portmask, ','.join(portmapping))
+    cfg = ''
+    cfg += ' -w %s' % sut_conf.uplink_port
+    cfg += ' -w %s' % sut_conf.downlink_port
+    cfg += ' -c %s' % cpumask
+    cfg += ' -n 4 - --log-level 0 -- '
+    cfg += ' -p %s' % portmask
+    cfg += ' --config "%s"' % ','.join(portmapping)
+    return cfg
 
 
 class PL(object):
@@ -78,9 +88,10 @@ class PL(object):
         self.t4p4s_home = parent.bm_conf.sut.t4p4s_dir
         self._process = None
         # '-c 0x3 -n 4 - --log-level 3 -- -p 0x3 --config "(0,0,0),(1,0,0)"'
-        self.dpdk_config = gen_t4p4s_config(
-            parent.bm_conf.sut.coremask, parent.bm_conf.sut.portmask, conf.core)
+        self.dpdk_config = gen_t4p4s_config(parent.bm_conf.sut, conf.core)
         self.controller = 'dpdk_controller'
+        self.ul_port = 0
+        self.dl_port = 1
 
     def compile_and_start(self):
         cmd = './launch.sh'
@@ -138,11 +149,11 @@ class PL_l2fwd(PL):
         # Create a config file for t4p4s controller
         with open(t4p4s_conf_l2fwd, 'w') as conf_file:
             for entry in self.conf.upstream_table:
-                out_port = entry.out_port or 0
+                out_port = entry.out_port or self.ul_port
                 conf_file.write("%s %d\n" % (entry.mac, out_port))
 
             for entry in self.conf.downstream_table:
-                out_port = entry.out_port or 1
+                out_port = entry.out_port or self.dl_port
                 conf_file.write("%s %d\n" % (entry.mac, out_port))
 
 class PL_portfwd(PL):
@@ -189,13 +200,15 @@ class PL_l3fwd(PL):
             # Processing nexthop groups
             nhg_idx = 0
             for nhg in self.conf.downstream_group_table:
-                conf_file.write("N %d %d %s %s\n" % (nhg_idx, nhg.port, nhg.smac, nhg.dmac))
+                out_port = nhg.port or self.dl_port
+                conf_file.write("N %d %d %s %s\n" % (nhg_idx, out_port, nhg.smac, nhg.dmac))
                 nhg_idx += 1
 
             nhg_offset = nhg_idx #len(self.conf.downstream_group_table)
 
             for nhg in self.conf.upstream_group_table:
-                conf_file.write("N %d %d %s %s\n" % (nhg_idx, nhg.port, nhg.smac, nhg.dmac))
+                out_port = nhg.port or self.ul_port
+                conf_file.write("N %d %d %s %s\n" % (nhg_idx, out_port, nhg.smac, nhg.dmac))
                 nhg_idx += 1
 
             # Filling L3fwd tables
