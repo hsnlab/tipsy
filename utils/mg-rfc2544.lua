@@ -58,9 +58,20 @@ function configure(parser)
    parser:argument("txDev","txport[:numcores]"):default(0)
    parser:argument("rxDev", "rxport"):default(1):convert(tonumber)
    parser:argument("file", "pcap file"):args(1)
-   parser:option("-r --runtime", "length of one measurement."):default(0):convert(tonumber)
+   parser:option("-r --runtime", "length of one measurement.")
+      :argname("len")
+      :default(0)
+      :convert(tonumber)
    parser:option("-p --precision", "precision [Mbit/s]\n"
-                    .. "default: 1% of the link rate."):default(0):convert(tonumber)
+                    .. "default: 1% of the link rate.")
+      :argname("rate")
+      :default(0)
+      :convert(tonumber)
+   parser:option("-l --lossTolerance", "loss considered acceptable [mpps]\n"
+                    .. "default: 0.2 mpps.")
+      :argname("lt")
+      :default(0.2)
+      :convert(tonumber)
    parser:option("-o --ofile", "file to write the result into."):default(nil)
    local args = parser:parse()
    return args
@@ -132,9 +143,11 @@ function master(args)
 
    local linkRate = txDev:getLinkStatus().speed
    local rateThreshold = args.precision==0 and linkRate*0.01 or args.precision
+   local lossTolerance = args.lossTolerance
    local binSearch = binarySearch(0, linkRate)
    local finished = false
-   local validRun, tx, rx
+   local validRun = false
+   local r
    a.rate = linkRate
    log:info("Precision: %d [Mbit/s]", rateThreshold)
 
@@ -142,10 +155,20 @@ function master(args)
       log:info('Sending pcap with rate of %16s%s',
                green(tostring(a.rate)),
                white(' [Mbit/s] for %ds', a.runtime))
-      tx, rx = measure_with_rate(a)
-      validRun = (tx < rx + rateThreshold) and (tx >= a.rate*0.9)
-      log:info('  result: tx:%5.0f rx:%5.0f [Mbit/s] %s', tx, rx, validRun)
+      r = measure_with_rate(a)
+      --validRun = (r.tx < r.rx + rateThreshold) and (r.tx >= a.rate*0.9)
+      validRun = (r.txMpps < r.rxMpps + lossTolerance) and (r.tx >= a.rate*0.9)
+      log:info('  result: tx:%2.2f rx:%2.2f [Mpps]', r.txMpps, r.rxMpps)
+      log:info('  result: tx:%5.0f rx:%5.0f [Mbit/s] %s', r.tx, r.rx, validRun)
       a.rate, finished = binSearch:next(a.rate, validRun, rateThreshold)
+      log:info('          %d < tx-rfc < %d (precision: %s)',
+               binSearch.lowerLimit, binSearch.upperLimit,
+               binSearch.upperLimit - binSearch.lowerLimit)
+      if r.rxMpps < 0.001 then
+         -- There's something work with SUT, no point in continuing
+         a.rate = 0
+         finished = true
+      end
    end
    log:info('Result: %s%s', yellow(tostring(a.rate)), white(' [Mbit/s]'))
    if args.ofile then
@@ -178,8 +201,8 @@ function measure_with_rate(...)
    local tx_stats = txCtr:getStats()
    local rx_stats = rxCtr:getStats()
 
-   log:info('  result: tx:%2.2f rx:%2.2f [Mpps]', txCtr.mpps[1], rxCtr.mpps[1])
-   return txCtr.wireMbit[1], rxCtr.wireMbit[1]
+   return {tx=txCtr.wireMbit[1], rx=rxCtr.wireMbit[1],
+           txMpps=txCtr.mpps[1], rxMpps=rxCtr.mpps[1]}
 end
 
 function replay_small_pcap(queue, bufs, n)
