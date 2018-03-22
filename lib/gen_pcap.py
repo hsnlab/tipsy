@@ -386,9 +386,13 @@ def gen_pcap(defaults=None):
         worker_num += 1
     workers = multiprocessing.Pool(worker_num)
 
-    pkts = workers.map(gen_packets, wargs)
-    pkts = [p for wpkts in pkts for p in wpkts]
-    pkts = map(PicklablePacket.__call__, pkts)
+    if worker_num > 1:
+        pkts = workers.map(gen_packets, wargs)
+        pkts = [p for wpkts in pkts for p in wpkts]
+        pkts = map(PicklablePacket.__call__, pkts)
+    else:
+        pkts = gen_packets(*wargs)
+        pkts = map(PicklablePacket.__call__, pkts)
 
     if args.ascii:
         print("Dumping packets:")
