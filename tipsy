@@ -95,7 +95,7 @@ class TipsyConfig(dict):
 
     def gen_configs(self):
         self.configs = []
-        for b in self.benchmark:
+        for b in self.get('benchmark', []):
             try:
                 benchmark = TipsyConfig(copy.deepcopy(self.default))
             except KeyError:
