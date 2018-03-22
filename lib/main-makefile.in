@@ -15,8 +15,12 @@ $(plots): measurements/result.json
 
 .ONESHELL:
 plots/fig.pdf: $(plots) plots/fig.tex
+ifneq ($(plots),)
 	cd plots
-	pdflatex fig.tex
+	pdflatex -shell-escape fig.tex
+else
+	@echo No figs to generate
+endif
 
 plots/fig.tex: .tipsy.json
 
