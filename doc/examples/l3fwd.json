@@ -1,0 +1,85 @@
+{
+  "benchmark": [
+    {
+      "pipeline": {
+        "core": 1,
+        "name": "l3fwd",
+        "downstream-group-table-size": 20,
+        "downstream-l3-table-size": [1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 100000],
+        "upstream-group-table-size": 20,
+        "upstream-l3-table-size": [1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 100000]
+      },
+      "tester": {
+        "type": "moongen-combined"
+      }
+    },
+    {
+      "pipeline": {
+        "core": 2,
+        "name": "l3fwd",
+        "downstream-group-table-size": 20,
+        "downstream-l3-table-size": [1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 100000],
+        "upstream-group-table-size": 20,
+        "upstream-l3-table-size": [1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 100000]
+      },
+      "tester": {
+        "type": "moongen"
+      }
+    }
+  ],
+  "visualize": [
+    {
+      "type": "simple",
+      "x-axis": "pipeline.upstream-l3-table-size",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type", "tester.type"],
+      "filter": {"pipeline.name": "l3fwd"},
+      "axis-type": "semilogx",
+      "title": "{pipeline.name}"
+    },
+    {
+      "type": "simple",
+      "x-axis": "pipeline.upstream-l3-table-size",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type"],
+      "filter": {"pipeline.name": "l3fwd",
+                 "tester.type": "moongen-combined"},
+      "axis-type": "semilogx",
+      "title": "pl: {pipeline.name}"
+    },
+    {
+      "type": "simple",
+      "x-axis": "pipeline.upstream-l3-table-size",
+      "y-axis": "out.latency.3rd_Quartiles",
+      "group-by": ["sut.type"],
+      "filter": {"pipeline.name": "l3fwd",
+                 "tester.type": "moongen-combined"},
+      "axis-type": "semilogx",
+      "title": "pl: {pipeline.name}"
+    },
+    {
+      "type": "simple",
+      "x-axis": "pipeline.upstream-l3-table-size",
+      "y-axis": "out.latency.3rd-Quartiles",
+      "group-by": ["sut.type"],
+      "filter": {"pipeline.name": "l3fwd",
+                 "sut.type": {"$not": "ovs"},
+                 "tester.type": "moongen-combined",
+                 "pipeline.upstream-l3-table-size": {"$gt": 1}},
+      "axis-type": "semilogx",
+      "title": "{tester.type}, {pipeline.name}, table-size $>1$"
+    },
+    {
+      "type": "simple",
+      "x-axis": "pipeline.upstream-l3-table-size",
+      "y-axis": "out.latency.Average",
+      "group-by": ["sut.type"],
+      "filter": {"pipeline.name": "l3fwd",
+                 "sut.type": {"$not": "ovs"},
+                 "tester.type": "moongen",
+                 "pipeline.upstream-l3-table-size": {"$gt": 1}},
+      "axis-type": "semilogx",
+      "title": "{tester.type}, {pipeline.name}, table-size $>1$ "
+    }
+  ]
+}

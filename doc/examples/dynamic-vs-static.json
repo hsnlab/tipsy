@@ -1,0 +1,191 @@
+{
+  "benchmark": [
+    {
+      "id": "handover",
+      "pipeline": {
+	"name": "mgw",
+	"core": 1,
+	"bst": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": 400,
+        "handover": [10, 30, 100, 300, 1000],
+        "user": [10, 30, 100, 300, 1000]
+      }
+    },
+    {
+      "id": "fluct-server",
+      "pipeline": {
+	"name": "mgw",
+	"core": 1,
+	"bst": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": [200, 400, 250, 300, 500],
+        "fluct-server": [200, 400, 250, 300, 500],
+        "user": 300
+      }
+    },
+    {
+      "id": "fluct-server",
+      "pipeline": {
+	"name": "bng",
+	"core": 1,
+	"cpe": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": [200, 250, 300, 400, 500],
+        "user": 300,
+        "fluct-server": [200, 250, 300, 400, 500],
+        "user-conn": 3
+      }
+    },
+    {
+      "id": "fluct-user",
+      "pipeline": {
+	"name": "bng",
+	"core": 1,
+	"cpe": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": 400,
+        "user": [10, 30, 100, 300, 1000],
+        "fluct-user": [10, 30, 100, 300, 1000],
+        "user-conn": 3
+      }
+    }
+  ],
+  "visualize": [
+
+    {
+      "type": "contour",
+      "x-axis": "pipeline.user",
+      "y-axis": "pipeline.handover",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "axis-type": "loglog",
+      "filter": {"sut.type": "ovs",
+                 "pipeline.name": "mgw",
+                 "id": "handover"},
+      "title": "{sut.type}:{pipeline.name} server:{pipeline.server}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "x-axis": "pipeline.user",
+      "y-axis": "pipeline.handover",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "axis-type": "loglog",
+      "filter": {"sut.type": "bess",
+                 "pipeline.name": "mgw",
+                 "id": "handover"},
+      "title": "{sut.type}:{pipeline.name} server:{pipeline.server}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "x-axis": "pipeline.user",
+      "y-axis": "pipeline.handover",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "axis-type": "loglog",
+      "filter": {"sut.type": "erfs",
+                 "pipeline.name": "mgw",
+                 "id": "handover"},
+      "title": "{sut.type}:{pipeline.name} server:{pipeline.server}, dir:{traffic.dir} {tester.type}"
+    },
+
+    {
+      "type": "contour",
+      "x-axis": "pipeline.server",
+      "y-axis": "pipeline.fluct-server",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "ovs",
+                 "pipeline.name": "mgw",
+                 "id": "fluct-server"},
+      "title": "{sut.type}:{pipeline.name} users:{pipeline.user}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "x-axis": "pipeline.server",
+      "y-axis": "pipeline.fluct-server",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "bess",
+                 "pipeline.name": "mgw",
+                 "id": "fluct-server"},
+      "title": "{sut.type}:{pipeline.name} users:{pipeline.user}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "x-axis": "pipeline.server",
+      "y-axis": "pipeline.fluct-server",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "erfs",
+                 "pipeline.name": "mgw",
+                 "id": "fluct-server"},
+      "title": "{sut.type}:{pipeline.name} users:{pipeline.user}, dir:{traffic.dir} {tester.type}"
+    },
+
+    {
+      "type": "contour",
+      "x-axis": "pipeline.server",
+      "y-axis": "pipeline.fluct-server",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "ovs",
+                 "pipeline.name": "bng",
+                 "id": "fluct-server"},
+      "title": "{sut.type}:{pipeline.name} users:{pipeline.user}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "x-axis": "pipeline.server",
+      "y-axis": "pipeline.fluct-server",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "bess",
+                 "pipeline.name": "bng",
+                 "id": "fluct-server"},
+      "title": "{sut.type}:{pipeline.name} users:{pipeline.user}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "x-axis": "pipeline.server",
+      "y-axis": "pipeline.fluct-server",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "erfs",
+                 "pipeline.name": "bng",
+                 "id": "fluct-server"},
+      "title": "{sut.type}:{pipeline.name} users:{pipeline.user}, dir:{traffic.dir} {tester.type}"
+    },
+
+    {
+      "type": "contour",
+      "axis-type": "loglog",
+      "x-axis": "pipeline.user",
+      "y-axis": "pipeline.fluct-user",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "ovs",
+                 "pipeline.name": "bng",
+                 "id": "fluct-user"},
+      "title": "{sut.type}:{pipeline.name} server:{pipeline.server}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "axis-type": "loglog",
+      "x-axis": "pipeline.user",
+      "y-axis": "pipeline.fluct-user",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "bess",
+                 "pipeline.name": "bng",
+                 "id": "fluct-user"},
+      "title": "{sut.type}:{pipeline.name} server:{pipeline.server}, dir:{traffic.dir} {tester.type}"
+    },
+    {
+      "type": "contour",
+      "axis-type": "loglog",
+      "x-axis": "pipeline.user",
+      "y-axis": "pipeline.fluct-user",
+      "z-axis": "out.throughput.RX.PacketRate",
+      "filter": {"sut.type": "erfs",
+                 "pipeline.name": "bng",
+                 "id": "fluct-user"},
+      "title": "{sut.type}:{pipeline.name} server:{pipeline.server}, dir:{traffic.dir} {tester.type}"
+    }
+
+  ]
+}

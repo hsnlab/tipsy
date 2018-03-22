@@ -1,0 +1,43 @@
+{
+  "benchmark": [
+    {
+      "pipeline": {
+	"name": "mgw",
+	"core": [1,2,3,4,5,6,7,8,9,10,11,12],
+	"bst": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": 400,
+        "user": 300
+      }
+    },
+    {
+      "pipeline": {
+	"name": "bng",
+	"core": [1,2,3,4,5,6,7,8,9,10,11,12],
+	"cpe": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": 400,
+        "user": 300,
+        "user-conn": 3
+      }
+    }
+  ],
+  "visualize": [
+    {
+      "title": "users:{pipeline.user}, {pipeline.name}, {tester.type}",
+      "x-axis": "pipeline.core",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type", "pipeline.user", "traffic.dir"],
+      "filter": {"pipeline.name": "mgw", "pipeline.user": 300}
+    },
+    {
+      "title": "users:{pipeline.user}, {pipeline.name}, {tester.type}",
+      "x-axis": "pipeline.core",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type", "pipeline.user", "traffic.dir"],
+      "filter": {"pipeline.name": "bng", "pipeline.user": 300}
+    }
+  ]
+}

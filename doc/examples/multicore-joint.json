@@ -1,0 +1,98 @@
+{
+  "benchmark": [
+    {
+      "id": "all",
+      "scale": "joint",
+      "pipeline": {
+	"name": "mgw",
+	"core": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+	"bst": [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480],
+        "nhop": [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360],
+        "rate-limit": 40000000000,
+        "server": [400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000, 4400, 4800],
+        "user": [300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3300, 3600]
+      }
+    },
+    {
+      "id": "user",
+      "scale": "joint",
+      "pipeline": {
+	"name": "mgw",
+	"core": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+	"bst": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": 400,
+        "user": [300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3300, 3600]
+      }
+    },
+    {
+      "id": "all",
+      "scale": "joint",
+      "pipeline": {
+	"name": "bng",
+	"core": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+	"cpe": [40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480],
+        "nhop": [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360],
+        "rate-limit": 40000000000,
+        "server": [400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000, 4400, 4800],
+        "user": [300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3300, 3600],
+        "user-conn": 3
+      }
+    },
+    {
+      "id": "user",
+      "scale": "joint",
+      "pipeline": {
+	"name": "bng",
+	"core": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+	"cpe": 40,
+        "nhop": 30,
+        "rate-limit": 40000000000,
+        "server": 400,
+        "user": [300, 600, 900, 1200, 1500, 1800, 2100, 2400, 2700, 3000, 3300, 3600],
+        "user-conn": 3
+      }
+    }
+  ],
+  "visualize": [
+    {
+      "type": "USL",
+      "x-axis": "pipeline.core",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type", "tester.type", "traffic.pkt-size"],
+      "filter": {"pipeline.name": "mgw",
+                 "id": "all"},
+      "title": "{pipeline.name} dir:{traffic.dir} {id} USL fit test"
+    },
+    {
+      "type": "USL",
+      "x-axis": "pipeline.core",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type", "tester.type", "traffic.pkt-size"],
+      "filter": {"pipeline.name": "mgw",
+                 "id": "user"},
+      "title": "{pipeline.name} dir:{traffic.dir} {id} USL fit test"
+    },
+
+    {
+      "type": "USL",
+      "x-axis": "pipeline.core",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type", "tester.type", "traffic.pkt-size"],
+      "filter": {"pipeline.name": "bng",
+                 "id": "all"},
+      "title": "{pipeline.name} dir:{traffic.dir} {id} USL fit test"
+    },
+    {
+      "type": "USL",
+      "x-axis": "pipeline.core",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "group-by": ["sut.type", "tester.type", "traffic.pkt-size"],
+      "filter": {"pipeline.name": "bng",
+                 "id": "user"},
+      "title": "{pipeline.name} dir:{traffic.dir} {id} USL fit test"
+    }
+
+  ]
+}
