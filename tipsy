@@ -29,7 +29,6 @@ import subprocess
 import sys
 from pathlib import Path, PosixPath
 
-from lib.gen_conf import gen_conf
 from lib import validate
 
 
@@ -300,7 +299,6 @@ class TipsyManager(object):
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
             save(config['traffic'], out_dir / self.fname_pcap_in, 'traffic')
             save(config, out_dir / self.fname_bm, 'benchmark')
-            json_dump(gen_conf(config['pipeline']), out_dir / self.fname_pl)
             self.write_makefile(out_dir, 'per-dir-makefile.in')
 
     def do_config(self):

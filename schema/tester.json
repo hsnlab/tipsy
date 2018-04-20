@@ -29,7 +29,7 @@
       "default": 1
     },
     "moongen-cmd": {
-      "type": "string",
+      "$ref": "definitions.json#/readable-file",
       "default": "/opt/MoonGen/build/MoonGen",
       "description": "Absolute path of the MoonGen executable"
     },

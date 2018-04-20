@@ -57,6 +57,26 @@
       "short_opt": "-a",
       "default": false,
       "description": "Dump generated packets in human readable ASCII form"
+    },
+    "trace-generator-cmd": {
+      "type": "string",
+      "default": "/opt/trace_generator/trace_generator",
+      "description": "Absolute path of the trace_generator executable, necessary for the FW pipeline (https://www.arl.wustl.edu/classbench/)"
+    },
+    "trace-generator-pareto-a": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Pareto-a paramentor of trace_generator"
+    },
+    "trace-generator-pareto-b": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Pareto-b paramentor of trace_generator"
+    },
+    "trace-generator-scale": {
+      "type": "number",
+      "default": 1,
+      "description": "Scale paramentor of trace_generator"
     }
   },
   "required": [],

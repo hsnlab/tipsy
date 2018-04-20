@@ -1,0 +1,46 @@
+{
+  "title": "Configuration of a Firewall pipeline",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "enum": ["fw"],
+      "description":
+        "name of the pipeline, must be set to fw"
+    },
+    "fakedrop": {
+      "type": "boolean",
+      "description":
+        "whether to actually drop unmatched packets (False) or send them immediately to the output port (True) for correct rate measurements",
+      "default": true
+    },
+    "implementation-type": {
+        "type": "string",
+        "enum": ["acl", "dpdk", "default"],
+        "description": "Type of the internal implementation of the FW pipeline.  In case of bess: 'acl' or 'dpdk'.  Otherwise: 'default'.",
+        "default": "default"
+    },
+    "seed-file": {
+      "type": "string",
+      "default": "seed-file",
+      "description": "Seed file for Classbench (relative to classbench/vendor/parameter_files)"
+    },
+    "rule-num": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 2,
+      "description": "Number of fw rules"
+    },
+    "core": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "number of CPU cores/workers running the pipeline",
+      "default": 1
+    },
+    "classbench-cmd": {
+      "type": "string",
+      "default": "/opt/classbench-ng/classbench",
+      "description": "Absolute path of the classbench executable (https://github.com/classbench-ng/classbench-ng)"
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false
+}

@@ -19,6 +19,8 @@
 
 import argparse
 import json
+import subprocess
+from pathlib import Path
 
 try:
   import args_from_schema
@@ -226,6 +228,48 @@ class PL_portfwd (PL):
   def add_portfwd (self):
     for arg in ['mac_swap_upstream', 'mac_swap_downstream']:
       self.conf[arg] = self.get_arg(arg)
+
+class PL_fw (PL):
+  "Firewall (acl) pipeline"
+  def __init__ (self, args):
+    super().__init__(args)
+    self.components += ['fakedrop', 'acl']
+
+  def add_acl (self):
+    rule_num = self.args.rule_num
+    cmd = self.args.classbench_cmd
+    v_dir = Path(cmd).parent / 'vendor'
+    outfile = Path(self.args.output.name).parent / 'fw_rules'
+
+    db_genrator = v_dir / 'db_generator' / 'db_generator'
+    seed_file = v_dir / 'parameter_files' / ('%s_seed' % self.args.seed_file)
+    cmd = [cmd, 'generate', 'v4', seed_file, '--count=%d' % rule_num,
+           '--db-generator=%s' % db_genrator]
+    cmd = [str(s) for s in cmd]
+    rules = []
+    with outfile.open('w') as f:
+      subprocess.check_call(cmd, stdout=f)
+    with outfile.open() as f:
+      for line in f.readlines():
+        #line = line.decode('utf-8')
+        if not line.startswith("@"):
+          continue
+        line = line[1:]
+        fields = line.split("\t")
+        src_ports = fields[2].split(" ")
+        dst_ports = fields[3].split(" ")
+        rules.append({
+          "src_ip": fields[0],
+          "dst_ip": fields[1],
+          "src_port": int(src_ports[0]),
+          "dst_port": int(dst_ports[0]),
+          "ipproto": int(fields[4].split("/")[0], 16),
+          "drop": False
+        })
+    self.conf.update(
+      {'ul_fw_rules': rules,
+       'dl_fw_rules': rules,
+      })
 
 
 class PL_l2fwd (PL):
@@ -465,7 +509,7 @@ def parse_cli_args ():
   add_args_from_schema(parser, args.name)
   if args.json:
     # Override the defaults for the given pipeline
-    parser.set_defaults(**new_defaults)
+    set_defaults(parser, **new_defaults)
 
   args = parser.parse_args()
   if args.info:

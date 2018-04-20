@@ -38,6 +38,7 @@ except ImportError:
 
 __all__ = ["gen_pcap"]
 
+cli_args = None
 
 class PicklablePacket(object):
     """A container for scapy packets that can be pickled (in contrast
@@ -94,6 +95,10 @@ def _get_auto_portfwd_pktnum(conf, dir):
     return 10
 
 
+def _get_auto_fw_pktnum(conf, dir):
+    return 10
+
+
 def _get_auto_l2fwd_pktnum(conf, dir):
     if 'd' in dir:  # downstream
         return len(conf.downstream_table)
@@ -139,6 +144,45 @@ def _gen_pkt_portfwd(pkt_size):
     dmac = byte_seq('aa:cc:dd:cc:%02x:%02x', random.randrange(1, 65023))
     dip = byte_seq('3.3.%d.%d', random.randrange(1, 255))
     p = Ether(dst=dmac, src=smac) / IP(dst=dip)
+    p = add_payload(p, pkt_size)
+    return p
+
+
+def _gen_pkts_fw(dir, pkt_size, conf, pkt_num, id, workers):
+    # a. Doesn't support parallelism
+    # b. Call `trace_generator` first
+    pkts = []
+    rulefile = 'fw_rules'
+    tracefile = rulefile + '_trace'
+    pareto_a = cli_args.trace_generator_pareto_a
+    pareto_b = cli_args.trace_generator_pareto_b
+    scale    = cli_args.trace_generator_scale
+    cmd = [cli_args.trace_generator_cmd, pareto_a, pareto_b, scale, rulefile]
+    cmd = [str(s) for s in cmd]
+    print(' '.join(cmd))
+    subprocess.check_call(cmd)
+    with open(tracefile) as f:
+        for line in f.readlines():
+            pkts.append(_gen_pkt_fw(pkt_size, line))
+
+    return pkts
+
+
+def _gen_pkt_fw(pkt_size, line):
+    def int2ip(ip):
+        return socket.inet_ntoa(hex(ip)[2:].zfill(8).decode('hex'))
+    vals = line.split('\t')
+    src, dst, sport, dport, proto, a, b = [int(v) for v in vals]
+    src = int2ip(src)
+    dst = int2ip(dst)
+
+    smac = byte_seq('aa:bb:bb:aa:%02x:%02x', random.randrange(1, 65023))
+    dmac = byte_seq('aa:cc:dd:cc:%02x:%02x', random.randrange(1, 65023))
+    p = Ether(dst=dmac, src=smac) / IP(dst=dst, src=src, proto=proto)
+    if proto == 6:   # TCP
+        p = p / TCP(sport=sport, dport=dport)
+    if proto == 17:  # UDP
+        p = p / UDP(sport=sport, dport=dport)
     p = add_payload(p, pkt_size)
     return p
 
@@ -355,7 +399,8 @@ def parse_args(defaults=None):
 
 
 def gen_pcap(defaults=None):
-    args = parse_args(defaults)
+    global cli_args
+    args = cli_args = parse_args(defaults)
     conf = json_load(args.conf, object_hook=lambda x: ObjectView(**x))
 
     if args.random_seed:
@@ -405,6 +450,8 @@ def gen_pcap(defaults=None):
     else:
         if auto_pkt_num and args.pkt_num < 1024:
             pkts = list(pkts)
+            if pkts == []:
+                exit(-1)
             while len(pkts) < 1024:
                 pkts = pkts + pkts
         wrpcap(args.output, pkts)

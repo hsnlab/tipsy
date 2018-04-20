@@ -1,0 +1,101 @@
+# -*- mode: python; -*-
+
+# TIPSY: Telco pIPeline benchmarking SYstem
+#
+# Copyright (C) 2018 by its authors (See AUTHORS)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+import json
+import binascii
+import sys
+
+def mac_from_str(s):
+  return binascii.unhexlify(s.replace(':', ''))
+
+def coremask_to_corelist(coremask):
+  cpum = int(coremask, 16)
+  return [i for i in range(32) if (cpum >> i) & 1 == 1]
+
+class ObjectView(dict):
+    def __init__(self, *args, **kwargs):
+        tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
+        self.update(*args, **tmp)
+
+    def __getattr__(self, name):
+        return self[name]
+
+    def __setattr__(self, name, value):
+        self[name.replace('-', '_')] = value
+
+
+def conv_fn(d): return ObjectView(**d)
+
+def remove_ipproto(rules):
+  for r in rules:
+    del r['ipproto']
+
+pl_conf_file = $pl_config!'./fw.json'
+bm_conf_file = $bm_config!'./benchmark.json'
+with open(pl_conf_file, 'r') as f:
+  conf = json.load(f, object_hook=conv_fn)
+with open(bm_conf_file, 'r') as f:
+  bm_conf = json.load(f, object_hook=conv_fn)
+
+bess_dlport = int(bm_conf.sut.downlink_port)
+bess_ulport = int(bm_conf.sut.uplink_port)
+bess_workers = int(conf.core)
+corelist = coremask_to_corelist(bm_conf.sut.coremask)
+
+portDL = PMDPort(port_id=bess_dlport,
+                 num_inc_q=bess_workers,
+                 num_out_q=bess_workers)
+
+if bess_dlport == bess_ulport:
+  portUL = portDL
+else:
+  portUL = PMDPort(port_id=bess_ulport,
+                   num_inc_q=bess_workers,
+                   num_out_q=bess_workers)
+
+dl_rules = conf.dl_fw_rules
+ul_rules = conf.ul_fw_rules
+
+if bm_conf.pipeline.implementation_type == 'dpdk':
+    module = DPDKACL
+else:
+    module = ACL
+    remove_ipproto(dl_rules)
+    remove_ipproto(ul_rules)
+
+if bm_conf.pipeline.fakedrop:
+    extra_rules = [{
+        "src_ip": '0.0.0.0/0',
+        "dst_ip": '0.0.0.0/0',
+        "drop": False
+    }]
+else:
+    extra_rules = []
+
+in_u = QueueInc(name="ul_inport", port=portDL.name)
+out_u = QueueOut(name="ul_outport", port=portUL.name)
+in_u -> module(rules=ul_rules + extra_rules) -> out_u
+
+in_d = QueueInc(name="dl_inport", port=portUL.name)
+out_d = QueueOut(name="dl_outport", port=portDL.name)
+in_d -> module(rules=dl_rules + extra_rules) -> out_d
+
+
+bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
+bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)

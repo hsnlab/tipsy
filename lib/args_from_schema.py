@@ -31,6 +31,9 @@ def check_type_string (string):
 def check_type_boolean (string):
   return bool(strtobool(string))
 
+def check_type_number (string):
+  return float(string)
+
 def check_type_positive_integer (string):
   msg = "'%s' is not a positive integer" % string
   try:
