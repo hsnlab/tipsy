@@ -86,8 +86,9 @@ def gen_packets(params_tuple):
                                      id, workers))
     else:
         gen_pkts = pkt_gen_func(dir[0], pkt_size, conf, pkt_num, id, workers)
-    gen_pkts = gen_pkts[:pkt_num]
-    random.shuffle(gen_pkts)
+    if pkt_num != 0:
+        gen_pkts = gen_pkts[:pkt_num]
+        random.shuffle(gen_pkts)
     return [PicklablePacket(p) for p in gen_pkts]
 
 
@@ -96,7 +97,7 @@ def _get_auto_portfwd_pktnum(conf, dir):
 
 
 def _get_auto_fw_pktnum(conf, dir):
-    return 10
+    return 0 # fw uses classbench/trace_generator
 
 
 def _get_auto_l2fwd_pktnum(conf, dir):
@@ -419,7 +420,7 @@ def gen_pcap(defaults=None):
 
     dir = '%sl' % args.dir[0]
     wargs = []
-    worker_num = min(args.pkt_num, args.thread)
+    worker_num = max(1, min(args.pkt_num, args.thread))
     pkt_left = args.pkt_num
     ppw = args.pkt_num // worker_num
     for id in range(worker_num):
