@@ -43,7 +43,7 @@
     "thread": {
       "$ref": "definitions.json#/non-negative-integer",
       "short_opt": "-t",
-      "default": 1,
+      "default": 0,
       "description":
         "Number of requested processing CPU threads. 0 means all of the available cores."
     },

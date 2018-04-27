@@ -1,0 +1,5 @@
+*.pcap
+*.json
+fw_rules
+fw_rules_trace
+gmon.out

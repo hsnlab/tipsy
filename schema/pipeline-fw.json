@@ -22,7 +22,7 @@
     },
     "seed-file": {
       "type": "string",
-      "default": "seed-file",
+      "default": "acl1",
       "description": "Seed file for Classbench (relative to classbench/vendor/parameter_files)"
     },
     "rule-num": {
