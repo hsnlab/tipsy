@@ -55,7 +55,12 @@ def check_type_non_negative_integer (string):
   return i
 
 def check_type_readable_file (string):
-    return argparse.FileType('r')(string)
+  return argparse.FileType('r')(string)
+
+def check_type_readable_file_or_null (val):
+  if val is None:
+    return None
+  return argparse.FileType('r')(val)
 
 def check_type_writable_file (string):
     return argparse.FileType('w')(string)

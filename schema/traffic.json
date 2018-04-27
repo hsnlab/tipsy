@@ -3,9 +3,9 @@
   "type": "object",
   "properties": {
     "json": {
-      "$ref": "definitions.json#/readable-file",
+      "$ref": "definitions.json#/readable-file-or-null",
       "short_opt": "-j",
-      "default": "",
+      "default": null,
       "description":
         "Input config file, command line arguments override settings"
     },
