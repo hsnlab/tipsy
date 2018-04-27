@@ -239,7 +239,10 @@ class PL_fw (PL):
     rule_num = self.args.rule_num
     cmd = self.args.classbench_cmd
     v_dir = Path(cmd).parent / 'vendor'
-    outfile = Path(self.args.output.name).parent / 'fw_rules'
+    if self.args.output.name == '/dev/stdout': # the default
+      outfile = Path('/tmp/fw_rules')
+    else:
+      outfile = Path(self.args.output.name).parent / 'fw_rules'
 
     db_genrator = v_dir / 'db_generator' / 'db_generator'
     seed_file = v_dir / 'parameter_files' / ('%s_seed' % self.args.seed_file)
