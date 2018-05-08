@@ -16,7 +16,7 @@
   },
   "readable-file-or-null": {
     "anyOf": [
-      {"$ref": "string"},
+      {"type": "string"},
       {"type": "null"}
     ]
   },
