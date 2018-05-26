@@ -1,0 +1,48 @@
+#+LaTeX_HEADER:\usepackage[margin=2cm]{geometry}
+#+LaTeX_HEADER:\usepackage{enumitem}
+#+LaTeX_HEADER:\usepackage{tikz}
+#+LATEX:\setitemize{noitemsep,topsep=0pt,parsep=0pt,partopsep=0pt}
+#+LATEX:\lstdefinelanguage{javascript}{basicstyle=\scriptsize\ttfamily,numbers=left,numberstyle=\scriptsize,stepnumber=1,showstringspaces=false,breaklines=true,frame=lines}
+#+OPTIONS: toc:nil ^:nil num:nil
+
+#+TITLE: Firewall (FW)
+
+The firewall pipeline (name: =fw=) is a basic Firewall setup that
+allows to microbenchmark the ACL/firewall capabilites of switches.
+
+Config generation of the pipeline requires [[https://github.com/classbench-ng/classbench-ng][Classbench]].
+
+* Static pipeline
+
+Both the upstream and the downstream driection consists of a single
+firewall module using separate (uplink/downlink) access control lists.
+The firewall rules contain L3/L4.
+
+The pipeline receives normal TCP/IP packets. The packet generator
+varies L2/L3 source and destination, L4 port number and port type (TCP
+or UDP) according to Classbench traces.
+
+* Dynamic scenarios
+
+The Firewall pipeline currently does not define dynamic scenarios.
+
+* Pipeline configuration
+
+The parameters specific to the Firewall pipeline are as follows:
+
+- =name=: name of the pipeline, must be set to =fw= for the Firewall pipeline
+- =implementation-type=: type of the internal implementation of the FW
+  pipeline. In case of bess: 'acl' or 'dpdk'.  Otherwise: 'default'.
+- =classbench-cmd=: absolute path of the classbench executable
+  (https://github.com/classbench-ng/classbench-ng)
+- =seed-file=: seed file for Classbench (relative to
+  classbench/vendor/parameter_files)
+- =rule-num=: number of firewall rules
+
+* OVS Implementation: Caveats and considerations
+
+* BESS Implementation: Caveats and considerations
+
+BESS implementation support two internal firewall implementations:
+- built-in =ACL= module
+- a DPDK-based =DPDKACL= module
