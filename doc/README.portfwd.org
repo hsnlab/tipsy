@@ -40,7 +40,7 @@ A sample TIPSY configuration for the PORTfwd pipeline is shown below:
 }
 #+END_SRC
 
-The parameters specific to the MGW pipeline are as follows:
+The parameters specific to the PORTfwd pipeline are as follows:
 
 - =name=: name of the pipeline, must be set to =portfwd= for the Port
   Forward pipeline
@@ -52,5 +52,3 @@ The parameters specific to the MGW pipeline are as follows:
 * OVS Implementation: Caveats and considerations
 
 * BESS Implementation: Caveats and considerations
-
-
