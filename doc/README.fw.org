@@ -8,13 +8,13 @@
 #+TITLE: Firewall (FW)
 
 The firewall pipeline (name: =fw=) is a basic Firewall setup that
-allows to microbenchmark the ACL/firewall capabilites of switches.
+allows to micro-benchmark the ACL/firewall capabilities of switches.
 
 Config generation of the pipeline requires [[https://github.com/classbench-ng/classbench-ng][Classbench]].
 
 * Static pipeline
 
-Both the upstream and the downstream driection consists of a single
+Both the upstream and the downstream direction consist of a single
 firewall module using separate (uplink/downlink) access control lists.
 The firewall rules contain L3/L4.
 
@@ -45,4 +45,4 @@ The parameters specific to the Firewall pipeline are as follows:
 
 BESS implementation support two internal firewall implementations:
 - built-in =ACL= module
-- a DPDK-based =DPDKACL= module
+- DPDK-based =DPDKACL= module
