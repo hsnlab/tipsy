@@ -54,7 +54,7 @@ def conf_merge(dst, src):
     if dst is None:
         return src
 
-    if type(dst) in [int, str, bool]:
+    if type(dst) in [int, float, str, bool]:
         return src
 
     if type(dst) == list:
@@ -69,7 +69,7 @@ def conf_merge(dst, src):
                 dst[k] = conf_merge(dst.get(k), v)
             return dst
 
-    if type(src) in [int, str, bool]:
+    if type(src) in [int, float, str, bool]:
         return src
 
     raise TypeError('incompatible types: cannot merge %s -> %s'
