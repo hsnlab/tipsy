@@ -44,6 +44,23 @@ except ImportError:
 __all__ = ["gen_pcap"]
 
 
+class PicklablePacket(object):
+    """A container for scapy packets that can be pickled (in contrast
+    to scapy packets themselves). https://stackoverflow.com/a/4312192"""
+
+    __slots__ = ['contents', 'time']
+
+    def __init__(self, pkt):
+        self.contents = bytes(pkt)
+        self.time = pkt.time
+
+    def __call__(self):
+        """Get the original scapy packet."""
+        pkt = Ether(self.contents)
+        pkt.time = self.time
+        return pkt
+
+
 class ObjectView(object):
     def __init__(self, d=None, **kwargs):
         if d is None:
@@ -91,7 +108,8 @@ class GenPkt(object):
                 if item is None:
                     break
                 pkt_idxs = item['pkt_idxs']
-                item['pkts'] = [self.gen_pkt(idx) for idx in pkt_idxs]
+                pkts = [PicklablePacket(self.gen_pkt(idx)) for idx in pkt_idxs]
+                item['pkts'] = pkts
                 del item['pkt_idxs']
                 self.out_que.put(item)
         except Exception as e:
@@ -394,7 +412,8 @@ def gen_pcap(*defaults):
         # print([x['job_idx'] for x in results])
         while len(results) > 0 and results[0]['job_idx'] == next_idx:
             # print('w: %s' % results[0]['job_idx'])
-            output_pkts(args, results[0]['pkts'])
+            pkts = [PicklablePacket.__call__(p) for p in results[0]['pkts']]
+            output_pkts(args, pkts)
             results.pop(0)
             next_idx += 1
 
