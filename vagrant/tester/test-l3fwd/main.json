@@ -1,0 +1,54 @@
+{
+    "benchmark": [
+        {
+            "pipeline": {
+                "core": 1,
+                "downlink-mac": "dd:dd:dd:dd:00:00",
+                "downstream-group-table-size": 1,
+                "downstream-l3-table-size": 2,
+                "fakedrop": true,
+                "fluct-group-table": 0,
+                "fluct-l3-table": 0,
+                "name": "l3fwd",
+                "uplink-mac": "dd:dd:dd:dd:00:01",
+                "upstream-group-table-size": 2,
+                "upstream-l3-table-size": 10
+            },
+            "scale": "none",
+            "sut": {
+                "bess-dir": "/opt/bess",
+                "coremask": "0x3f03f",
+                "downlink-port": "0000:00:08.0",
+                "hostname": "sut.local",
+                "portmask": "0x3",
+                "tipsy-dir": "/opt/tipsy",
+                "type": "ovs",
+                "uplink-port": "0000:00:09.0"
+            },
+            "tester": {
+                "core": 1,
+                "downlink-port": "1",
+                "moongen-cmd": "/opt/MoonGen/build/MoonGen",
+                "setup-script": "",
+                "teardown-script": "",
+                "test-time": 30,
+                "type": "moongen-flood",
+                "uplink-port": "0"
+            },
+            "traffic": {
+                "ascii": false,
+                "conf": "pipeline.json",
+                "dir": "uplink",
+                "json": null,
+                "output": "/dev/stdout",
+                "pkt-num": 0,
+                "pkt-size": 64,
+                "random-seed": 1,
+                "thread": 0
+            }
+        }
+    ],
+    "default": {
+    },
+    "visualize": []
+}

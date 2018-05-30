@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# Permanently add 'sut.local' to the list of known hosts
+ssh -o StrictHostKeyChecking=no sut.local echo
+
+cd /vagrant/test-l3fwd
+/opt/tipsy/tipsy config -f
+make

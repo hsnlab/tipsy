@@ -6,24 +6,15 @@ Vagrant.configure("2") do |config|
 
   config.vm.define "SUT" do |s|
     s.vm.hostname = "SUT"
-    s.vm.network "private_network", ip: "192.168.50.14",
-        virtualbox__intnet: true, adapter: 2
-    s.vm.network "private_network", ip: "192.168.50.15",
-        virtualbox__intnet: true, adapter: 3
-    s.vm.network "private_network", ip: "192.168.50.16",
-        virtualbox__intnet: true, adapter: 4
-    s.vm.network "forwarded_port", guest: 2004, host: 12004,
-        guest_ip: "192.168.50.14", autocorrect: true,
-        protocol: "udp", id: "uplink"
-    s.vm.network "forwarded_port", guest: 2005, host: 12005,
-        guest_ip: "192.168.50.15", autocorrect: true,
-        protocol: "udp", id: "downlink"
-    s.vm.network "forwarded_port", guest: 2006, host: 12006,
-        guest_ip: "192.168.50.16", autocorrect: true,
-        protocol: "udp", id: "management"
+    s.vm.network "private_network", ip: "192.168.51.3",
+        virtualbox__intnet: "tu2sd", adapter: 2
+    s.vm.network "private_network", ip: "192.168.52.3",
+        virtualbox__intnet: "td2su", adapter: 3
+    s.vm.network "private_network", ip: "192.168.53.3",
+        virtualbox__intnet: "mgmnt", adapter: 4
     s.vm.provider "virtualbox" do |vb|
       vb.name = "SUT"
-      vb.memory = 4096
+      vb.memory = 3072
       vb.cpus = 2
       vb.customize ["modifyvm", :id, "--nic1", "nat"]
       vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
@@ -34,7 +25,9 @@ Vagrant.configure("2") do |config|
       vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
       vb.customize ["modifyvm", :id, "--nicpromisc4", "allow-all"]
     end
-    s.vm.provision "shell",
-      path: "install.sh"
+    config.vm.synced_folder ".", "/vagrant"
+    config.vm.synced_folder "../..", "/opt/tipsy"
+    s.vm.provision "shell", path: "install.sh"
+    s.vm.provision "shell", path: "start-ovs.sh", run: 'always'
   end
 end

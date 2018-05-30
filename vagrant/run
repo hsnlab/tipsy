@@ -1,0 +1,19 @@
+#!/bin/bash
+
+DIR="$(dirname "${BASH_SOURCE[0]}")"
+cd "${DIR}"
+
+mkdir -p ssh
+if [ ! -e ssh/id_rsa ]; then
+    ssh-keygen -f ssh/id_rsa -t rsa -N ''
+    cp ssh/id_rsa tester
+    cp ssh/id_rsa.pub sut
+fi
+
+cd sut
+vagrant up
+
+cd ../tester
+vagrant up
+
+vagrant ssh -- /vagrant/run

@@ -6,21 +6,12 @@ Vagrant.configure("2") do |config|
 
   config.vm.define "Tester" do |t|
     t.vm.hostname = "Tester"
-    t.vm.network "private_network", ip: "192.168.50.11",
-        virtualbox__intnet: true, adapter: 2
-    t.vm.network "private_network", ip: "192.168.50.12",
-        virtualbox__intnet: true, adapter: 3
-    t.vm.network "private_network", ip: "192.168.50.13",
-        virtualbox__intnet: true, adapter: 4
-    t.vm.network "forwarded_port", guest: 2001, host: 12001,
-        guest_ip: "192.168.50.11", autocorrect: true,
-        protocol: "udp", id: "uplink"
-    t.vm.network "forwarded_port", guest: 2002, host: 12002,
-        guest_ip: "192.168.50.12", autocorrect: true,
-        protocol: "udp", id: "downlink"
-    t.vm.network "forwarded_port", guest: 2003, host: 12003,
-        guest_ip: "192.168.50.13", autocorrect: true,
-        protocol: "udp", id: "management"
+    t.vm.network "private_network", ip: "192.168.51.2",
+        virtualbox__intnet: "tu2sd", adapter: 2
+    t.vm.network "private_network", ip: "192.168.52.2",
+        virtualbox__intnet: "td2su", adapter: 3
+    t.vm.network "private_network", ip: "192.168.53.2",
+        virtualbox__intnet: "mgmnt", adapter: 4
     t.vm.provider "virtualbox" do |vb|
       vb.name = "Tester"
       vb.memory = 4096
@@ -34,7 +25,15 @@ Vagrant.configure("2") do |config|
       vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
       vb.customize ["modifyvm", :id, "--nicpromisc4", "allow-all"]
     end
+    config.vm.synced_folder ".", "/vagrant"
+    config.vm.synced_folder "../..", "/opt/tipsy"
+    t.vm.provision "file",
+      source: "../ssh/id_rsa",
+      destination: "~/.ssh/id_rsa"
     t.vm.provision "shell",
       path: "install.sh"
+    t.vm.provision "shell",
+      path: "dpdk-init.sh",
+      run: "always"
   end
 end
