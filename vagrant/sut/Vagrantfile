@@ -1,0 +1,40 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-16.04"
+
+  config.vm.define "SUT" do |s|
+    s.vm.hostname = "SUT"
+    s.vm.network "private_network", ip: "192.168.50.14",
+        virtualbox__intnet: true, adapter: 2
+    s.vm.network "private_network", ip: "192.168.50.15",
+        virtualbox__intnet: true, adapter: 3
+    s.vm.network "private_network", ip: "192.168.50.16",
+        virtualbox__intnet: true, adapter: 4
+    s.vm.network "forwarded_port", guest: 2004, host: 12004,
+        guest_ip: "192.168.50.14", autocorrect: true,
+        protocol: "udp", id: "uplink"
+    s.vm.network "forwarded_port", guest: 2005, host: 12005,
+        guest_ip: "192.168.50.15", autocorrect: true,
+        protocol: "udp", id: "downlink"
+    s.vm.network "forwarded_port", guest: 2006, host: 12006,
+        guest_ip: "192.168.50.16", autocorrect: true,
+        protocol: "udp", id: "management"
+    s.vm.provider "virtualbox" do |vb|
+      vb.name = "SUT"
+      vb.memory = 4096
+      vb.cpus = 2
+      vb.customize ["modifyvm", :id, "--nic1", "nat"]
+      vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype2", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype3", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype4", "virtio"]
+      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
+      vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
+      vb.customize ["modifyvm", :id, "--nicpromisc4", "allow-all"]
+    end
+    s.vm.provision "shell",
+      path: "install.sh"
+  end
+end
