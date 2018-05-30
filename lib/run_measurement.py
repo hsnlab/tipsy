@@ -361,6 +361,30 @@ class Tester_moongen_combined(Tester):
         self.result.update(self.latency.result)
 
 
+class Tester_moongen_flood(Tester_moongen):
+    def __init__(self, conf):
+        super().__init__(conf)
+        self.script = Path(__file__).parent.parent / 'utils' / 'mg-flood.lua'
+
+    def _run(self, out_dir):
+        pcap = out_dir / 'traffic.pcap'
+        ofile = out_dir / 'mg.flood.csv'
+        cmd = ['sudo', self.mg_cmd, self.script, self.txdev, self.rxdev,
+               pcap, '-l', '-r', self.runtime, '-o', ofile]
+        cmd = [ str(o) for o in cmd ]
+        print(' '.join(cmd))
+        subprocess.call(cmd)
+
+    def collect_results(self):
+        throughput = {}
+        with open('mg.flood.csv') as f:
+            reader = csv.DictReader(f)
+            for row  in reader:
+                d = row.pop('Direction')
+                throughput[d] = row
+        self.result.update({'flood': throughput})
+
+
 def run(defaults=None):
     cwd = Path().cwd()
     conf = Config(cwd / 'benchmark.json')
