@@ -166,7 +166,8 @@ class GenPkt_l2fwd(GenPkt):
             self.table = self.conf.downstream_table
 
     def get_auto_pkt_num(self):
-        if 'd' in self.args.dir:  # downstream
+        dir = self.args.dir
+        if 'd' in dir:  # downstream
             return len(self.conf.downstream_table)
         elif 'u' in dir:  # upstream
             return len(self.conf.upstream_table)
@@ -196,6 +197,7 @@ class GenPkt_l3fwd(GenPkt):
                                '%sl_port_mac' % self.get_other_direction())
 
     def get_auto_pkt_num(self):
+        dir = self.args.dir
         if 'd' in dir:  # downstream
             return len(self.conf.downstream_l3_table)
         elif 'u' in dir:  # upstream
@@ -385,7 +387,7 @@ def gen_pcap(*defaults):
     if args.ascii:
         print("Dumping packets:")
     else:
-        args.pcap_file = PcapWriter(args.output)
+        args.pcap_file = PcapWriter(args.output.name)
 
     processes = []
     for i in range(worker_num):
