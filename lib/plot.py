@@ -74,6 +74,8 @@ class Plot_simple(Plot):
         self.ylabel = None
 
     def format_matplotlib(self, series, title):
+        import matplotlib as mpl # "Generating graphs w/o a running X server"
+        mpl.use('Agg')           # https://stackoverflow.com/a/4935945
         import matplotlib.pyplot as plt
         plot_fv = getattr(plt, self.conf.axis_type, plt.plot)
         for name, points in series.items():
