@@ -2,19 +2,17 @@
     "benchmark": [
         {
             "pipeline": {
+                "name": "l3fwd",
                 "core": 1,
+                "fakedrop": true,
                 "downlink-mac": "dd:dd:dd:dd:00:00",
                 "downstream-group-table-size": 1,
                 "downstream-l3-table-size": 2,
-                "fakedrop": true,
-                "fluct-group-table": 0,
-                "fluct-l3-table": 0,
-                "name": "l3fwd",
                 "uplink-mac": "dd:dd:dd:dd:00:01",
                 "upstream-group-table-size": 2,
-                "upstream-l3-table-size": 10
+                "upstream-l3-table-size": [10, 100, 1000, 10000]
             },
-            "scale": "none",
+            "scale": "outer",
             "sut": {
                 "bess-dir": "/opt/bess",
                 "coremask": "0x3f03f",
@@ -26,21 +24,15 @@
                 "uplink-port": "0000:00:09.0"
             },
             "tester": {
+                "type": "moongen-flood",
                 "core": 1,
                 "downlink-port": "1",
+                "uplink-port": "0",
                 "moongen-cmd": "/opt/MoonGen/build/MoonGen",
-                "setup-script": "",
-                "teardown-script": "",
-                "test-time": 30,
-                "type": "moongen-flood",
-                "uplink-port": "0"
+                "test-time": 30
             },
             "traffic": {
-                "ascii": false,
-                "conf": "pipeline.json",
                 "dir": "uplink",
-                "json": null,
-                "output": "/dev/stdout",
                 "pkt-num": 0,
                 "pkt-size": 64,
                 "random-seed": 1,
@@ -50,5 +42,19 @@
     ],
     "default": {
     },
-    "visualize": []
+    "visualize": [
+        { "x-axis": "pipeline.upstream-l3-table-size",
+          "y-axis": "out.flood.RX.PacketRate",
+          "axis-type": "semilogx",
+          "title": "{pipeline.name} - OVS v{out.sut.version}"
+        },
+        { "x-axis": "pipeline.upstream-l3-table-size",
+          "y-axis": [
+              "out.flood.RX.PacketRate",
+              "out.flood.TX.PacketRate"
+          ],
+          "axis-type": "semilogx",
+          "title": "{pipeline.name} - OVS v{out.sut.version}"
+        }
+    ]
 }
