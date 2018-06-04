@@ -34,7 +34,7 @@ apt-get install --yes \
 echo 'vm.nr_hugepages=512' > /etc/sysctl.d/hugepages.conf
 sysctl -p /etc/sysctl.d/hugepages.conf
 
-cat /vagrant/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+cat /vagrant/ssh/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
 
 cd /usr/src/
 wget http://fast.dpdk.org/rel/dpdk-17.11.1.tar.xz

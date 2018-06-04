@@ -1,8 +1,6 @@
 .vagrant
 ssh
-sut/id_rsa.pub
-tester/id_rsa
-tester/test-l3fwd/.tipsy.json
-tester/test-l3fwd/Makefile
-tester/test-l3fwd/measurements/
-tester/test-l3fwd/plots
+tests/.tipsy.json
+tests/Makefile
+tests/measurements
+tests/plots

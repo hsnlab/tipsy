@@ -1,0 +1,73 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+system("
+  mkdir -p ssh
+  if [ ! -e ssh/id_rsa ]; then
+    ssh-keygen -f ssh/id_rsa -t rsa -N ''
+  fi
+")
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-16.04"
+
+  config.vm.define "SUT" do |s|
+    s.vm.hostname = "SUT"
+    s.vm.network "private_network", ip: "192.168.51.3",
+        virtualbox__intnet: "tu2sd", adapter: 2
+    s.vm.network "private_network", ip: "192.168.52.3",
+        virtualbox__intnet: "td2su", adapter: 3
+    s.vm.network "private_network", ip: "192.168.53.3",
+        virtualbox__intnet: "mgmnt", adapter: 4
+    s.vm.provider "virtualbox" do |vb|
+      vb.name = "SUT"
+      vb.memory = 3072
+      vb.cpus = 2
+      vb.customize ["modifyvm", :id, "--nic1", "nat"]
+      vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype2", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype3", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype4", "virtio"]
+      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
+      vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
+      vb.customize ["modifyvm", :id, "--nicpromisc4", "allow-all"]
+    end
+    config.vm.synced_folder ".", "/vagrant"
+    config.vm.synced_folder "..", "/opt/tipsy"
+    s.vm.provision "shell", path: "sut-install.sh"
+    s.vm.provision "shell", path: "sut-start-ovs.sh", run: 'always'
+  end
+
+  config.vm.define "Tester" do |t|
+    t.vm.hostname = "Tester"
+    t.vm.network "private_network", ip: "192.168.51.2",
+        virtualbox__intnet: "tu2sd", adapter: 2
+    t.vm.network "private_network", ip: "192.168.52.2",
+        virtualbox__intnet: "td2su", adapter: 3
+    t.vm.network "private_network", ip: "192.168.53.2",
+        virtualbox__intnet: "mgmnt", adapter: 4
+    t.vm.provider "virtualbox" do |vb|
+      vb.name = "Tester"
+      vb.memory = 3072
+      vb.cpus = 2
+      vb.customize ["modifyvm", :id, "--nic1", "nat"]
+      vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype2", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype3", "virtio"]
+      vb.customize ["modifyvm", :id, "--nictype4", "virtio"]
+      vb.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
+      vb.customize ["modifyvm", :id, "--nicpromisc3", "allow-all"]
+      vb.customize ["modifyvm", :id, "--nicpromisc4", "allow-all"]
+    end
+    config.vm.synced_folder ".", "/vagrant"
+    config.vm.synced_folder "..", "/opt/tipsy"
+    t.vm.provision "file",
+      source: "ssh/id_rsa",
+      destination: "~/.ssh/id_rsa"
+    t.vm.provision "shell",
+      path: "tester-install.sh"
+    t.vm.provision "shell",
+      path: "tester-dpdk-init.sh",
+      run: "always"
+  end
+end
