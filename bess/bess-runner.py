@@ -82,59 +82,6 @@ class BessUpdater(object):
     def _calc_new_bst_id(self, cur_bst_id, bst_shift):
         return (cur_bst_id + bst_shift) % len(self.conf.bsts)
 
-    def _config_add(self, entry, conf_container, key):
-        con = getattr(self.conf, conf_container)
-        if not any(e for e in con if getattr(e, key) == getattr(entry, key)):
-            con.append(entry)
-
-    def _config_del(self, entry, conf_container, key):
-        con = getattr(self.conf, conf_container)
-        for i, e in enumerate(con):
-            if getattr(e, key) == getattr(entry, key):
-                con.pop(i)
-                break
-
-    def _config_add_user(self, user):
-        self._config_add(user, 'users', 'teid')
-
-    def _config_del_user(self, user):
-        self._config_del(user, 'users', 'teid')
-
-    def _config_add_server(self, server):
-        self._config_add(server, 'srvs', 'ip')
-
-    def _config_del_server(self, server):
-        self._config_del(server, 'srvs', 'ip')
-
-    def _config_handover(self, user, new_bst):
-        for i, usr in enumerate(self.conf.users):
-            if usr.teid == user.teid:
-                usr.tun_end = new_bst
-                self.conf.users[i] = usr
-
-    def _config_mod_table(self, action, cmd, table, entry):
-        key = 'mac'
-        if 'l3' in action:
-            key = 'ip'
-        if 'group' in action:
-            key = 'dmac'
-        try:
-            params = (table, action.replace('mod_', ''))
-            tab = getattr(self.conf, '%s_%s' % params)
-        except:
-            raise ValueError
-        if cmd == 'add':
-            if not any(e for e in tab if
-                       getattr(e, key) == getattr(entry, key)):
-                tab.append(entry)
-        elif cmd == 'del':
-            for i, e in enumerate(tab):
-                if getattr(e, key) == getattr(entry, key):
-                    tab.pop(i)
-                    break
-        else:
-            raise ValueError
-
     def add_user(self, user):
         raise NotImplementedError
 
@@ -165,7 +112,6 @@ class BessUpdaterL2Fwd(BessUpdater):
         super(BessUpdaterL2Fwd, self).__init__(conf)
 
     def mod_table(self, action, cmd, table, entry):
-        self._config_mod_table(action, cmd, table, entry)
         for wid in range(self.conf.core):
             wid2 = self.conf.core + wid
             name = 'mac_table_%s_%d' % (table[0], wid)
@@ -205,7 +151,6 @@ class BessUpdaterL3Fwd(BessUpdater):
         super(BessUpdaterL3Fwd, self).__init__(conf)
 
     def mod_table(self, action, cmd, table, entry):
-        self._config_mod_table(action, cmd, table, entry)
         if 'l3' in action:
             self.mod_l3_table(cmd, table, entry)
         elif 'group' in action:
@@ -272,7 +217,6 @@ class BessUpdaterMgw(BessUpdater):
         super(BessUpdaterMgw, self).__init__(conf)
 
     def add_user(self, user):
-        self._config_add_user(user)
         for wid in range(self.conf.core):
             try:
                 self.bess.pause_worker(wid)
@@ -312,7 +256,6 @@ class BessUpdaterMgw(BessUpdater):
                 self.bess.resume_worker(wid)
 
     def del_user(self, user):
-        self._config_del_user(user)
         for wid in range(self.conf.core):
             try:
                 self.bess.pause_worker(wid)
@@ -329,7 +272,6 @@ class BessUpdaterMgw(BessUpdater):
                 self.bess.resume_worker(wid)
 
     def handover(self, user, new_bst):
-        self._config_handover(user, new_bst)
         for wid in range(self.conf.core):
             try:
                 tun_ip_dst = self.conf.bsts[user.tun_end].ip
@@ -353,7 +295,6 @@ class BessUpdaterMgw(BessUpdater):
         return sum([int(x[0]) * x[1] for x in zip(ip.split('.')[1:3], (255, 1))])
 
     def add_server(self, server):
-        self._config_add_server(server)
         try:
             ip = re.sub(r'\.[^.]+$', '.0', server.ip)
             id = self.__get_id_from_ip(ip)
@@ -369,7 +310,6 @@ class BessUpdaterMgw(BessUpdater):
             self.bess.resume_all()
 
     def del_server(self, server):
-        self._config_del_server(server)
         try:
             ip = re.sub(r'\.[^.]+$', '.0', server.ip)
             id = self.__get_id_from_ip(ip)
@@ -383,6 +323,7 @@ class BessUpdaterMgw(BessUpdater):
             raise
         finally:
             self.bess.resume_all()
+
 
 class BessUpdaterBng(BessUpdaterMgw):
     def __init__(self, conf):
