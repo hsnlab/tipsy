@@ -472,7 +472,7 @@ if __name__ == '__main__':
             uclass = getattr(sys.modules[__name__],
                              'BessUpdater%s' % pl_config.name.title())
             updater = uclass(pl_config)
-        except:
+        except AttributeError:
             updater = BessUpdaterDummy(pl_config)
 
         signal.signal(signal.SIGINT, signal_handler)
