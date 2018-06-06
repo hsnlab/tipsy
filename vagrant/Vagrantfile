@@ -1,6 +1,9 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+# https://www.vagrantup.com/docs/vagrantfile/tips.html#overwrite-host-locale-in-ssh-session
+ENV["LC_ALL"] = "en_US.UTF-8"
+
 system("
   mkdir -p ssh
   if [ ! -e ssh/id_rsa ]; then
