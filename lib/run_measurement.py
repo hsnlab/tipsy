@@ -111,6 +111,16 @@ class SUT(object):
         raise NotImplementedError
 
     def stop(self, *args):
+        r = self.run_ssh_cmd(['curl', '-s', '-o', '-',
+                              'http://localhost:8080/tipsy/result'],
+                             stdout=subprocess.PIPE, stderr=None)
+        if r.stdout:
+            try:
+                data = json.loads(r.stdout.decode())
+            except Exception as e:
+                data = {'error': str(e)}
+            self.result.update(**data)
+
         cmd = ['screen', '-S', self.screen_name, '-X', 'stuff', '^C']
         subprocess.run(cmd, check=True)
         self.run_teardown_script()

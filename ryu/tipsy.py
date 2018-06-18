@@ -554,6 +554,7 @@ class Tipsy(app_manager.RyuApp):
     Tipsy._instance = self
     self.logger.debug(" __init__()")
 
+    self.result = {}
     self.lock = False
     self.dp_id = None
     self.configured = False
@@ -762,6 +763,8 @@ class Tipsy(app_manager.RyuApp):
   @set_ev_cls(ofp_event.EventOFPDescStatsReply, MAIN_DISPATCHER)
   def handle_desc_stats_reply(self, ev):
     self.logger.info(str(ev.msg.body))
+    for field in ['mfr_desc', 'hw_desc', 'sw_desc', 'serial_num', 'dp_desc']:
+      self.result[field] = getattr(ev.msg.body, field)
 
   @set_ev_cls(ofp_event.EventOFPPortDescStatsReply, MAIN_DISPATCHER)
   def handle_port_desc_stats_reply(self, ev):
@@ -1032,6 +1035,10 @@ class TipsyController(ControllerBase):
   def get_clear(self, req, **kw):
     Tipsy._instance.clear_switch()
     return "ok"
+
+  @rest_command
+  def get_result(self, req, **kw):
+    return Tipsy._instance.result
 
   @staticmethod
   def do_exit():
