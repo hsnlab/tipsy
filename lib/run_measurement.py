@@ -74,10 +74,13 @@ class SUT(object):
         self.cmd_prefix = ['ssh', self.conf.sut.hostname]
         self.screen_name = 'tipsy-sut'
 
-    def run_ssh_cmd(self, cmd, *extra_cmd, **kw):
+    def run_ssh_cmd(self, cmd, *extra_cmd, **kw0):
+        kw = {'check': True}
+        kw.update(**kw0)
+
         command = self.cmd_prefix + list(extra_cmd) + cmd
         print(' '.join(command))
-        return subprocess.run(command, check=True, **kw)
+        return subprocess.run(command, **kw)
 
     def run_async_ssh_cmd(self, cmd):
         command = self.cmd_prefix + ['-t'] + cmd
@@ -113,7 +116,7 @@ class SUT(object):
     def stop(self, *args):
         r = self.run_ssh_cmd(['curl', '-s', '-o', '-',
                               'http://localhost:8080/tipsy/result'],
-                             stdout=subprocess.PIPE, stderr=None)
+                             stdout=subprocess.PIPE, stderr=None, check=False)
         if r.stdout:
             try:
                 data = json.loads(r.stdout.decode())
