@@ -23,12 +23,14 @@ Run as:
 """
 
 import datetime
+import importlib
 import json
 import os
 import re
 import requests
 import signal
 import subprocess
+import sys
 import time
 
 from ryu import cfg
@@ -101,42 +103,6 @@ class PL(object):
 
   def do_unknown(self, action):
     self.logger.error('Unknown action: %s' % action.action)
-
-
-class PL_portfwd(PL):
-  """L2 Port Forwarding
-
-  In the upstream direction the pipeline will receive L2 packets from the
-  downlink port of the SUT and forward them to the uplink port. Meanwhile, it
-  may optionally rewrite the source MAC address in the L2 frame to the MAC
-  address of the uplink port (must be specified by the pipeline config).  The
-  downstream direction is the same, but packets are received from the uplink
-  port and forwarded to the downlink port after an optional MAC rewrite.
-  """
-  def __init__(self, parent, conf):
-    super(PL_portfwd, self).__init__(parent, conf)
-    self.tables = {
-      'tbl'  : 0,
-    }
-
-  def config_switch(self, parser):
-    mod_flow = self.parent.mod_flow
-    ul_port = self.parent.ul_port
-    dl_port = self.parent.dl_port
-
-    actions = []
-    mac = self.conf.mac_swap_downstream
-    if mac:
-      actions = [parser.OFPActionSetField(eth_src=mac)]
-    match = {'in_port': dl_port}
-    mod_flow(match=match, actions=actions, output=ul_port)
-
-    actions = []
-    mac = self.conf.mac_swap_upstream
-    if mac:
-      actions = [parser.OFPActionSetField(eth_src=mac)]
-    match = {'in_port': ul_port}
-    mod_flow(match=match, actions=actions, output=dl_port)
 
 
 class PL_l2fwd(PL):
@@ -596,12 +562,7 @@ class Tipsy(app_manager.RyuApp):
     # port "names" used to configure the OpenFlow switch
     self.dl_port_name = self.bm_conf.sut.downlink_port
     self.ul_port_name = self.bm_conf.sut.uplink_port
-    try:
-      self.pl = globals()['PL_%s' % self.pl_conf.name](self, self.pl_conf)
-    except (KeyError, NameError) as e:
-      self.logger.error('Failed to instanciate pipeline (%s): %s' %
-                        (self.pl_conf.name, e))
-      raise(e)
+    self.instantiate_pipeline()
 
     self._timer = LoopingCall(self.handle_timer)
 
@@ -619,6 +580,23 @@ class Tipsy(app_manager.RyuApp):
 
     self.initialize_datapath()
     self.change_status('wait')  # Wait datapath to connect
+
+  def instantiate_pipeline(self):
+    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+    try:
+      module = importlib.import_module('pipeline.%s' % self.pl_conf.name)
+      pl_class = getattr(module, 'PL')
+      self.pl = pl_class(self, self.pl_conf)
+      return
+    except ImportError as e:
+      self.logger.warn('Failed to import pipeine: %s' % e)
+
+    try:
+      self.pl = globals()['PL_%s' % self.pl_conf.name](self, self.pl_conf)
+    except (KeyError, NameError) as e:
+      self.logger.error('Failed to instanciate pipeline (%s): %s' %
+                        (self.pl_conf.name, e))
+      raise(e)
 
   def parse_conf(self, var_name, fname):
     self.logger.info("conf_file: %s" % fname)
