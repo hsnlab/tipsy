@@ -1,0 +1,31 @@
+{
+  "benchmark": [
+    {
+      "pipeline": {
+        "name": "l2fwd",
+        "core": 1,
+        "fakedrop": false,
+        "downstream-table-size": 2,
+        "upstream-table-size": [10, 100, 1000, 10000]
+      },
+      "scale": "outer"
+    }
+  ],
+  "visualize": [
+    { "x-axis": "pipeline.upstream-table-size",
+      "y-axis": "out.flood.RX.PacketRate",
+      "axis-type": "semilogx",
+      "filter": {"pipeline.name": "l2fwd"},
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
+    },
+    { "x-axis": "pipeline.upstream-table-size",
+      "y-axis": [
+        "out.flood.RX.PacketRate",
+        "out.flood.TX.PacketRate"
+      ],
+      "axis-type": "semilogx",
+      "filter": {"pipeline.name": "l2fwd"},
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
+    }
+  ]
+}

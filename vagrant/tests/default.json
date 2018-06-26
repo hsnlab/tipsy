@@ -1,0 +1,29 @@
+{
+  "default": {
+    "sut": {
+      "bess-dir": "/opt/bess",
+      "coremask": "0x3f03f",
+      "downlink-port": "0000:00:08.0",
+      "hostname": "sut.local",
+      "portmask": "0x3",
+      "tipsy-dir": "/opt/tipsy",
+      "type": "ovs",
+      "uplink-port": "0000:00:09.0"
+    },
+    "tester": {
+      "type": "moongen-flood",
+      "core": 1,
+      "downlink-port": "1",
+      "uplink-port": "0",
+      "moongen-cmd": "/opt/MoonGen/build/MoonGen",
+      "test-time": 30
+    },
+    "traffic": {
+      "dir": "uplink",
+      "pkt-num": 0,
+      "pkt-size": 64,
+      "random-seed": 1,
+      "thread": 0
+    }
+  }
+}
