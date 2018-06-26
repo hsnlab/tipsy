@@ -89,7 +89,7 @@ class ObjectView(object):
     self.__dict__[name.replace('-', '_')] = val
 
   def get (self, attr, default=None):
-    return self.__dict__.get(attr, default)
+    return self.__dict__.get(attr.replace('-', '_'), default)
 
 
 class PL(object):
@@ -159,51 +159,6 @@ class PL_fw(PL):
         match['%s_dst' % pname] = entry.dst_port
 
     mod_flow(table, match=match, output=out_port, cmd=cmd)
-
-  def do_mod_table(self, args):
-    self.mod_table(args.cmd, args.table, args.entry)
-
-
-class PL_l2fwd(PL):
-  """L2 Packet Forwarding
-
-  Upstream the L2fwd pipeline will receive packets from the downlink
-  port, perform a lookup for the destination MAC address in a static
-  MAC table, and if a match is found the packet will be forwarded to
-  the uplink port or otherwise dropped (or likewise forwarded upstream
-  if the =fakedrop= parameter is set to =true=).  The downstream
-  pipeline is just the other way around, but note that the upstream
-  and downstream pipelines use separate MAC tables.
-  """
-
-  def __init__(self, parent, conf):
-    super(PL_l2fwd, self).__init__(parent, conf)
-    self.tables = {
-      'selector'   : 0,
-      'upstream'   : 1,
-      'downstream' : 2,
-      'drop'       : 3,
-    }
-
-  def config_switch(self, parser):
-    ul_port = self.parent.ul_port
-    dl_port = self.parent.dl_port
-
-    table = 'selector'
-    self.parent.mod_flow(table, match={'in_port': dl_port}, goto='upstream')
-    self.parent.mod_flow(table, match={'in_port': ul_port}, goto='downstream')
-
-    for d in ['upstream', 'downstream']:
-      for entry in self.conf.get('%s-table' % d):
-        self.mod_table('add', d, entry)
-
-  def mod_table(self, cmd, table, entry):
-    mod_flow = self.parent.mod_flow
-    out_port = {'upstream': self.parent.ul_port,
-                'downstream': self.parent.dl_port}[table]
-    out_port = entry.out_port or out_port
-
-    mod_flow(table, match={'eth_dst': entry.mac}, output=out_port, cmd=cmd)
 
   def do_mod_table(self, args):
     self.mod_table(args.cmd, args.table, args.entry)
