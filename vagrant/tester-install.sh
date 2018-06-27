@@ -33,5 +33,14 @@ git clone --depth=1 https://github.com/emmericp/MoonGen.git /opt/MoonGen
 cd /opt/MoonGen
 ./build.sh
 
-cd /opt/tipsy
-export PATH=$PWD:$PATH
+url=https://github.com/classbench-ng/classbench-ng.git
+target=/opt/classbench-ng
+git clone --depth=1 $url $target
+cd $target
+make
+gem install open4 ruby-ip docopt ipaddress
+
+url=https://www.arl.wustl.edu/classbench/trace_generator.tar.gz
+wget -qO- $url | tar xz -C /opt
+cd /opt/trace_generator
+make all

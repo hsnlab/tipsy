@@ -66,17 +66,17 @@
     "trace-generator-pareto-a": {
       "type": "number",
       "default": 0.5,
-      "description": "Pareto-a paramentor of trace_generator"
+      "description": "Pareto-a parameter of trace_generator"
     },
     "trace-generator-pareto-b": {
       "type": "number",
       "default": 0.5,
-      "description": "Pareto-b paramentor of trace_generator"
+      "description": "Pareto-b parameter of trace_generator"
     },
     "trace-generator-scale": {
       "type": "number",
       "default": 1,
-      "description": "Scale paramentor of trace_generator"
+      "description": "Scale parameter of trace_generator"
     }
   },
   "required": [],

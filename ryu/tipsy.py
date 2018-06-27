@@ -114,56 +114,6 @@ class PL(object):
     return name
 
 
-class PL_fw(PL):
-  """Firewall (ACL) pipeline
-  """
-
-  def __init__(self, parent, conf):
-    super(PL_fw, self).__init__(parent, conf)
-    self.tables = {
-      'selector'   : 0,
-      'upstream'   : 1,
-      'downstream' : 2,
-      'drop'       : 3,
-    }
-
-  def config_switch(self, parser):
-    ul_port = self.parent.ul_port
-    dl_port = self.parent.dl_port
-
-    table = 'selector'
-    self.parent.mod_flow(table, match={'in_port': dl_port}, goto='upstream')
-    self.parent.mod_flow(table, match={'in_port': ul_port}, goto='downstream')
-
-    for d in ['u', 'd']:
-      longname = {'u': 'upstream', 'd': 'downstream'}[d]
-      for entry in self.conf.get('%sl_fw_rules' % d):
-        self.mod_table('add', longname, entry)
-
-  def mod_table(self, cmd, table, entry):
-    mod_flow = self.parent.mod_flow
-    out_port = {'upstream': self.parent.ul_port,
-                'downstream': self.parent.dl_port}[table]
-    match = {
-      'eth_type': ETH_TYPE_IP,
-      'ipv4_src': entry.src_ip,
-      'ipv4_dst': entry.dst_ip,
-    }
-    pname = self.get_proto_name(entry.ipproto)
-
-    if entry.ipproto > 0:
-      match['ip_proto'] = entry.ipproto
-      if entry.src_port > 0:
-        match['%s_src' % pname] = entry.src_port
-      if entry.dst_port > 0:
-        match['%s_dst' % pname] = entry.dst_port
-
-    mod_flow(table, match=match, output=out_port, cmd=cmd)
-
-  def do_mod_table(self, args):
-    self.mod_table(args.cmd, args.table, args.entry)
-
-
 class PL_mgw(PL):
 
   def __init__(self, parent, conf):

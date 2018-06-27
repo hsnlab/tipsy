@@ -1,0 +1,23 @@
+{
+  "benchmark": [
+    {
+      "scale": "outer",
+      "pipeline": {
+        "name": "fw",
+        "fakedrop": false,
+        "rule-num": [2, 20, 200]
+      },
+      "traffic": {
+        "trace-generator-pareto-a": [0.5, 0.7]
+      }
+    }
+  ],
+  "visualize": [
+    { "x-axis": "pipeline.rule-num",
+      "y-axis": "out.flood.RX.PacketRate",
+      "group-by": "traffic.trace-generator-pareto-a",
+      "filter": {"pipeline.name": "fw"},
+      "title": "{pipeline.name} - Results grouped by pareto-a"
+    }
+  ]
+}
