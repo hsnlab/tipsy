@@ -1,0 +1,28 @@
+{
+  "benchmark": [
+    {
+      "scale": "joint",
+      "pipeline": {
+	"name": "mgw",
+        "fakedrop": false,
+	"bst": [1, 5],
+        "nhop": [1, 3],
+        "rate-limit": 40000000000,
+        "server": [1, 5],
+        "user": [1, 5]
+      },
+      "traffic": {
+        "dir": ["uplink", "downlink"]
+      }
+    }
+  ],
+  "visualize": [
+    { "x-axis": "pipeline.user",
+      "y-axis": "out.flood.RX.PacketRate",
+      "axis-type": "semilogx",
+      "filter": {"pipeline.name": "mgw"},
+      "group-by": "traffic.dir",
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
+    }
+  ]
+}

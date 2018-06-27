@@ -16,7 +16,7 @@
       "downlink-port": "1",
       "uplink-port": "0",
       "moongen-cmd": "/opt/MoonGen/build/MoonGen",
-      "test-time": 30
+      "test-time": 15
     },
     "traffic": {
       "dir": "uplink",

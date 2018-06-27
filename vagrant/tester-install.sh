@@ -25,7 +25,11 @@ apt-get install --yes \
     zlib1g-dev \
     texlive-latex-base \
     texlive-pictures \
-    scapy
+    #scapy
+
+
+# scapy 2.2 in "Ubuntu 16.04.4 LTS, xenial" does not support VXLAN
+pip install scapy
 
 echo 192.168.53.3 sut.local >> /etc/hosts
 

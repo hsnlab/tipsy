@@ -1,0 +1,29 @@
+{
+  "benchmark": [
+    {
+      "scale": "joint",
+      "pipeline": {
+	"name": "bng",
+        "fakedrop": false,
+	"cpe": 2,
+        "nhop": 2,
+        "rate-limit": 40000000000,
+        "server": 4,
+        "user": [1, 5, 10],
+        "user-conn": 2
+      },
+      "traffic": {
+        "dir": ["uplink", "downlink"]
+      }
+    }
+  ],
+  "visualize": [
+    { "x-axis": "pipeline.user",
+      "y-axis": "out.flood.RX.PacketRate",
+      "axis-type": "semilogx",
+      "filter": {"pipeline.name": "bng"},
+      "group-by": "traffic.dir",
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
+    }
+  ]
+}
