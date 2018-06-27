@@ -3,6 +3,15 @@
 # Permanently add 'sut.local' to the list of known hosts
 ssh -o StrictHostKeyChecking=no sut.local echo
 
+if [ $# -gt 0 ]; then
+    tests=default.json
+    for test in $*; do
+        tests="$tests ${test}.json"
+    done
+else
+    tests=""
+fi
+
 cd /vagrant/tests
-/opt/tipsy/tipsy config -f
+/opt/tipsy/tipsy config -f $tests
 make

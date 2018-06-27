@@ -1,4 +1,4 @@
 #!/bin/bash
 
 vagrant up
-vagrant ssh Tester -- /vagrant/tester-run
+vagrant ssh Tester -- /vagrant/tester-run $*
