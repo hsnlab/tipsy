@@ -208,6 +208,20 @@ class SUT_ovs(SUT):
         self.wait_for_callback()
 
 
+class SUT_lagopus(SUT):
+    def _start(self):
+        v = self.run_ssh_cmd(['lagopus', '--version'], stdout=subprocess.PIPE)
+        first_line = v.stdout.decode('utf8').split("\n")[0]
+        self.result['version'] = first_line.split(' ')[-1]
+
+        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'lagopus'
+        self.upload_conf_files(remote_ryu_dir)
+
+        cmd = remote_ryu_dir / 'start-ryu'
+        self.run_async_ssh_cmd(['sudo', str(cmd)])
+        self.wait_for_callback()
+
+
 class SUT_erfs(SUT):
     def _start(self):
         remote_dir = Path(self.conf.sut.tipsy_dir) / 'erfs'

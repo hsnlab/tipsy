@@ -15,16 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-
 from ryu.lib.packet import in_proto
 from ryu.lib.packet.ether_types import ETH_TYPE_IP, ETH_TYPE_ARP
 from ryu.ofproto import ofproto_v1_3
-
-
-import exp_ericsson as eri
-import sw_conf_erfs as sw_conf
-eri.register(ofproto_v1_3)
 
 from ovs.mgw import PL as PL_ovs_mgw
 
@@ -43,6 +36,13 @@ class PL(PL_ovs_mgw):
       'l3_lookup' : 5,
       'drop'      : 9
     }
+    self.init_backend()
+
+  def init_backend(self):
+    # Backend specific initialization
+    import exp_ericsson as eri
+    eri.register(ofproto_v1_3)
+    self.eri = eri
 
   def mod_user(self, cmd='add', user=None):
     self.logger.debug('%s-user: teid=%d' % (cmd, user.teid))
@@ -68,9 +68,9 @@ class PL(PL_ovs_mgw):
       next_tbl = 'ul_fw'
     else:
       next_tbl = 'l3_lookup'
-    match = {'tunnel_id': user.teid}
+    match, actions = self.get_vxlan_match_and_decap(user.teid)
     inst = [parser.OFPInstructionMeter(meter_id=user.teid), goto(next_tbl)]
-    mod_flow('uplink', match=match, inst=inst, cmd=cmd)
+    mod_flow('uplink', match=match, actions=actions, inst=inst, cmd=cmd)
 
     # Downlink: (NAT->FW) -> rate-limiter -> vxlan push
     match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': user.ip}
@@ -80,9 +80,7 @@ class PL(PL_ovs_mgw):
 
     inst = [parser.OFPInstructionMeter(meter_id=user.teid),
             goto('l3_lookup')]
-    actions = [eri.EricssonActionPushVXLAN(user.teid),
-               parser.OFPActionSetField(ipv4_dst=tun_ip_dst),
-               parser.OFPActionSetField(ipv4_src=tun_ip_src)]
+    actions = self.get_vxlan_encap_actions(user.teid, tun_ip_src, tun_ip_dst)
     mod_flow('downlink', match=match, actions=actions, inst=inst, cmd=cmd)
 
   def add_bst_or_cpe(self, obj):
@@ -104,6 +102,26 @@ class PL(PL_ovs_mgw):
 
     obj.group_idx = self.group_idx
     self.group_idx +=1
+
+  def get_vxlan_encap_actions(self, vxlan_vni, tun_ip_src, tun_ip_dst):
+    parser = self.parent.dp.ofproto_parser
+    actions = [self.eri.EricssonActionPushVXLAN(vxlan_vni),
+               parser.OFPActionSetField(ipv4_dst=tun_ip_dst),
+               parser.OFPActionSetField(ipv4_src=tun_ip_src)]
+    return actions
+
+  def get_vxlan_decap_actions(self):
+    return [self.eri.EricssonActionPopVXLAN()]
+
+  def get_vxlan_decap_actions_before_match(self):
+    return self.get_vxlan_decap_actions()
+
+  def get_vxlan_match_and_decap(self, vxlan_vni):
+    # As opposed to Lagopus, the vxlan header has already been removed
+    # and the vxlan_vni is stored as metadata 'tunnel_id'.
+    match = {'tunnel_id': vxlan_vni}
+    actions = []
+    return match, actions
 
   def config_switch(self, parser):
     mod_flow = self.parent.mod_flow
@@ -140,7 +158,7 @@ class PL(PL_ovs_mgw):
     table = 'dir_select'
     match = {'eth_type': ETH_TYPE_IP, 'ipv4_dst': self.conf.gw.ip,
              'ip_proto': in_proto.IPPROTO_UDP, 'udp_src': 4789}
-    actions = [eri.EricssonActionPopVXLAN()]
+    actions = self.get_vxlan_decap_actions_before_match()
     self.parent.mod_flow(table, priority=2, match=match,
                          actions=actions, goto='uplink')
     # Downlink, should check: IP in UE range, instead: check for ether_type
@@ -190,8 +208,6 @@ class PL(PL_ovs_mgw):
 
     inst = [parser.OFPInstructionMeter(meter_id=user.teid),
             self.parent.goto('l3_lookup')]
-    actions = [eri.EricssonActionPushVXLAN(user.teid),
-               parser.OFPActionSetField(ipv4_dst=tun_ip_dst),
-               parser.OFPActionSetField(ipv4_src=tun_ip_src)]
+    actions = self.get_vxlan_encap_actions(user.teid, tun_ip_src, tun_ip_dst)
     mod_flow('downlink', match=match, actions=actions, inst=inst, cmd='add')
 
