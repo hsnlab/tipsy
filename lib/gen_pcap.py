@@ -35,6 +35,7 @@ except ImportError:
     # python2
     PosixPath = str
 from scapy.all import *
+from scapy.contrib.gtp import *
 
 try:
     import args_from_schema
@@ -244,13 +245,29 @@ class GenPkt_mgw(GenPkt):
         p = self.add_payload(p, self.args.pkt_size)
         return p
 
-    def gen_ul_pkt(self, pkt_size, proto, gw, server, user, bst):
+    def gen_ul_pkt(self, *args):
+        attr = getattr(self, 'gen_ul_pkt_%s' % self.args.tunneling_method)
+        return attr(*args)
+
+    def gen_ul_pkt_vxlan(self, pkt_size, proto, gw, server, user, bst):
         p = (
             Ether(src=bst.mac, dst=gw.mac, type=0x0800) /
             IP(src=bst.ip, dst=gw.ip) /
             UDP(sport=4789, dport=4789) /
             VXLAN(vni=user.teid, flags=0x08) /
             Ether(dst=gw.mac, type=0x0800) /
+            IP(src=user.ip, dst=server.ip) /
+            proto()
+        )
+        p = self.add_payload(p, self.args.pkt_size)
+        return p
+
+    def gen_ul_pkt_gtp(self, pkt_size, proto, gw, server, user, bst):
+        p = (
+            Ether(src=bst.mac, dst=gw.mac, type=0x0800) /
+            IP(src=bst.ip, dst=gw.ip) /
+            UDP(sport=2152, dport=2152) /
+            GTPHeader(teid=user.teid, version=1) /
             IP(src=user.ip, dst=server.ip) /
             proto()
         )

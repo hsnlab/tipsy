@@ -77,6 +77,12 @@
       "type": "number",
       "default": 1,
       "description": "Scale parameter of trace_generator"
+    },
+    "tunneling-method": {
+      "type": "string",
+      "enum": ["vxlan", "gtp"],
+      "default": "vxlan",
+      "description": "Pipelines supporting gtp: mgw"
     }
   },
   "required": [],

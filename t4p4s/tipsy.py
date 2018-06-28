@@ -41,6 +41,7 @@ bm_conf_file = '/tmp/benchmark.json'
 t4p4s_conf_l2fwd = '/tmp/l2fwd_conf.txt'
 t4p4s_conf_portfwd = '/tmp/portfwd_conf.txt'
 t4p4s_conf_l3fwd = '/tmp/l3fwd_conf.txt'
+t4p4s_conf_smgw = '/tmp/smgw_conf.txt'
 
 webhook_configured = 'http://localhost:9000/configured'
 
@@ -115,19 +116,26 @@ class PL_new(object):
         self.p4_version = 'v14'
         self.t4p4s_home = parent.bm_conf.sut.t4p4s_dir # '/home/p4/t4p4s-16/'
         self._process = None
+        # '-c 0x3 -n 4 - --log-level 3 -- -p 0x3 --config "(0,0,0),(1,0,0)"'
+        self.dpdk_config = gen_t4p4s_config(parent.bm_conf.sut, conf.core)
+        self.controller = 'dpdk_controller'
+        self.ul_port = 0
+        self.dl_port = 1
 
     def compile_and_start(self):
         cmd = './t4p4s.sh'
         p4src = os.path.join(self.t4p4s_home, self.p4_source)
-        print([cmd, self.p4_version, 'ctrcfg', self.cont_config, p4src], 'cwd=', self.t4p4s_home)
-        self._process = subprocess.Popen([cmd, self.p4_version, 'ctrcfg', self.cont_config, p4src], cwd = self.t4p4s_home)
+        cmd = [cmd, self.p4_version, 'ctrcfg', self.cont_config, p4src]
+        cmd = ['sudo'] + cmd + ['--', self.dpdk_config]
+        print(cmd, 'cwd=', self.t4p4s_home)
+        self._process = subprocess.Popen(cmd, cwd = self.t4p4s_home)
 
     def stop(self):
         if self._process:
             self._process.terminate()
 
 
-class PL_l2fwd(PL):
+class PL_l2fwd(PL_new):
     """L2 Packet Forwarding
 
     Upstream the L2fwd pipeline will receive packets from the downlink
@@ -142,6 +150,7 @@ class PL_l2fwd(PL):
     def __init__(self, parent, conf):
         super(PL_l2fwd, self).__init__(parent, conf)
         self.p4_source = 'examples/l2-switch-test.p4'
+        self.p4_source = 'examples/l2fwd.p4'
         self.p4_version = 'v14'
         self.cont_config = t4p4s_conf_l2fwd
 
@@ -156,7 +165,7 @@ class PL_l2fwd(PL):
                 out_port = entry.out_port or self.dl_port
                 conf_file.write("%s %d\n" % (entry.mac, out_port))
 
-class PL_portfwd(PL):
+class PL_portfwd(PL_new):
     """Port Forwarding
 
     TBA
@@ -181,7 +190,7 @@ class PL_portfwd(PL):
             else:
                 conf_file.write("1 0 0 11:11:11:11:11:11\n")
 
-class PL_l3fwd(PL):
+class PL_l3fwd(PL_new):
     """L3 Forwarding
 
     TBA
@@ -189,7 +198,8 @@ class PL_l3fwd(PL):
 
     def __init__(self, parent, conf):
         super(PL_l3fwd, self).__init__(parent, conf)
-        self.p4_source = 'examples/l3fwd.p4'
+        self.p4_source = 'examples/l3fwd-with-chksm.p4'
+        self.p4_source = 'examples/l3fwd-wo-chksm.p4'
         self.p4_version = 'v14'
         self.cont_config = t4p4s_conf_l3fwd
         self.controller = 'dpdk_l3fwd_controller'
@@ -221,6 +231,59 @@ class PL_l3fwd(PL):
             # SUT
             conf_file.write("M %s\n" % self.conf.sut.dl_port_mac)
             conf_file.write("M %s\n" % self.conf.sut.ul_port_mac)
+
+
+class PL_mgw(PL_new):
+    """L3 Forwarding
+    TBA
+    """
+
+    def __init__(self, parent, conf):
+        super(PL_mgw, self).__init__(parent, conf)
+        self.p4_source = 'examples/vsmgw-no-typedef.p4_16'
+        self.p4_version = 'v16'
+        self.cont_config = t4p4s_conf_smgw
+        self.controller = 'dpdk_smgw_controller'
+
+    def config_switch(self):
+
+        gwip = self.conf.gw.ip
+        gwmac = self.conf.gw.mac
+
+        # Create a config file for t4p4s controller
+        with open(t4p4s_conf_smgw, 'w') as conf_file:
+            # Processing nexthop groups
+            nhg_idx = 0
+            for nhg in self.conf.nhops:
+                out_port = nhg.port or self.ul_port
+                conf_file.write("N %d %d %s %s\n" % (nhg_idx, out_port, nhg.smac, nhg.dmac))
+                nhg_idx += 1
+
+            nhg_offset = nhg_idx #len(self.conf.downstream_group_table)
+
+            for bs in self.conf.bsts:
+                out_port = bs.port or self.dl_port
+                conf_file.write("N %d %d %s %s\n" % (nhg_idx, out_port, gwmac, bs.mac))
+                nhg_idx += 1
+
+            #------------------- nhgrp filled -------------------
+            # Filling ue_selector tables
+
+            conf_file.write("U %s %d %d %d 0 0.0.0.0\n" % ( gwip, 32, 2152, 0 ))
+            for user in self.conf.users:
+                conf_file.write("U %s %d %d %d %d %s\n" % (user.ip, 32, 0, 1, user.teid, self.conf.bsts[user.tun_end].ip))
+
+            for srv in self.conf.srvs:
+                conf_file.write("E %s %d %d\n" % (srv.ip, srv.prefix_len, srv.nhop))
+
+            for bst in self.conf.bsts:
+                conf_file.write("E %s %d %d\n" % (bst.ip, 32, nhg_offset + bst.id))
+
+            # SUT
+            conf_file.write("M %s\n" % gwmac) #self.conf.sut.dl_port_mac)
+            for bs in self.conf.bsts:
+                conf_file.write("M %s\n" % bs.mac) #self.conf.sut.ul_port_mac)
+
 
 
 class Tipsy(ObjectWithConfig):
