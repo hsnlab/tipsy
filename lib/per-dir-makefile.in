@@ -1,12 +1,18 @@
 tipsy=@tipsy@
-tipsy_lib=$(dir $(tipsy))lib
-gen_pcap=$(tipsy_lib)/gen_pcap.py
+tipsy_dir=$(dir $(tipsy))
+gen_pcap=$(tipsy_dir)/lib/gen_pcap.py
 
 results.json: traffic.pcap benchmark.json
-	$(tipsy_lib)/run_measurement.py
+	$(tipsy_dir)/lib/run_measurement.py
+
+pipeline-in.json: benchmark.json
+	$(tipsy_dir)/utils/extract $^ pipeline > $@
+
+traffic.json: benchmark.json
+	$(tipsy_dir)/utils/extract $^ traffic > $@
 
 pipeline.json: pipeline-in.json
-	$(tipsy_lib)/gen_conf.py -j $^ -o $@
+	$(tipsy_dir)/lib/gen_conf.py -j $^ -o $@
 
 .DELETE_ON_ERROR:
 traffic.pcap: traffic.json pipeline.json
