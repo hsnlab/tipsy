@@ -1,0 +1,18 @@
+{
+  "benchmark": [
+    {
+      "scale": "outer",
+      "pipeline": {
+        "name": "portfwd",
+        "core": 1
+      }
+    }
+  ],
+  "visualize": [
+    { "x-axis": "pipeline.core",
+      "y-axis": "out.flood.RX.PacketRate",
+      "filter": {"pipeline.name": "portfwd"},
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
+    }
+  ]
+}

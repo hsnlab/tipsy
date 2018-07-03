@@ -1,0 +1,6 @@
+{
+  "title": "High-level pipeline description. @auto@. Run 'tipsy update-mod' after the 'module' directory changes.",
+  "oneOf": [
+    @pipelines@
+  ]
+}

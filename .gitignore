@@ -1,3 +1,4 @@
+schema/pipeline.json
 *.pyc
 *~
 \#*\#

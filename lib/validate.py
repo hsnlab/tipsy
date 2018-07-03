@@ -43,11 +43,28 @@
 import argparse
 import json
 import jsonschema  # apt install python3-jsonschema
+import re
 from copy import deepcopy
 from os import path
 
+from . import find_mod
+
 schema_dir = path.join(path.abspath(path.dirname(__file__)),
                        '..', 'schema')
+
+class ResolverWithPlugins(jsonschema.RefResolver):
+  def resolve_remote(self, uri):
+    #print('resolve_remote: %s' % uri)
+    m = re.search(r'^file:\/\/.*\/schema\/(.*)$', uri)
+    if m:
+      schema = m.group(1)
+      path = find_mod.find_file(schema)
+      if path:
+        uri = 'file://%s' % path
+        #print('resolve_remote:: %s' % uri)
+
+    return super().resolve_remote(uri)
+
 
 # Background info:
 # https://spacetelescope.github.io/understanding-json-schema/index.html
@@ -125,7 +142,12 @@ def extend_with_property_array (validator_class):
 
 def validate_data (data, schema=None, schema_name=None, extension='default'):
   if schema_name:
-    with open(path.join(schema_dir, schema_name + '.json')) as f:
+    fname = path.join(schema_dir, schema_name + '.json')
+    if not path.exists(fname):
+      fname = find_mod.find_file(schema_name + '.json')
+      if not fname:
+        raise Exception('Cannot file schema file for %s' % schema_name)
+    with open(fname) as f:
       schema = json.load(f)
 
   if extension is not None:
@@ -133,7 +155,7 @@ def validate_data (data, schema=None, schema_name=None, extension='default'):
     validator = fn(jsonschema.Draft4Validator)
   else:
     validator = jsonschema.Draft4Validator
-  resolver = jsonschema.RefResolver('file://' + schema_dir + '/', schema)
+  resolver = ResolverWithPlugins('file://' + schema_dir + '/', schema)
   try:
     validator(schema, resolver=resolver).validate(data)
   except jsonschema.exceptions.ValidationError as e:

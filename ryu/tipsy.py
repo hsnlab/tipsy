@@ -57,6 +57,9 @@ import ip
 import sw_conf_vsctl as sw_conf
 
 fdir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(fdir, '..', 'lib'))
+import find_mod
+
 pipeline_conf = os.path.join(fdir, 'pipeline.json')
 benchmark_conf = os.path.join(fdir, 'benchmark.json')
 cfg.CONF.register_opts([
@@ -100,6 +103,7 @@ class Tipsy(app_manager.RyuApp):
     Tipsy._instance = self
     self.logger.debug(" __init__()")
 
+    self.switch_name = 'ovs'
     self.result = {}
     self.lock = False
     self.dp_id = None
@@ -135,6 +139,18 @@ class Tipsy(app_manager.RyuApp):
 
   def instantiate_pipeline(self):
     sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
+    try:
+      backend = 'SUT_%s' % self.switch_name
+      self.logger.warn('backend: %s', backend)
+      pl_class = find_mod.find_class(backend, self.pl_conf.name)
+    except KeyError as e:
+      pl_class = None
+      self.logger.error('keyerror: %s', e)
+    if pl_class:
+      self.pl = pl_class(self, self.pl_conf)
+      return
+
     try:
       module = importlib.import_module('pipeline.%s' % self.pl_conf.name)
       pl_class = getattr(module, 'PL')

@@ -27,8 +27,6 @@ import multiprocessing
 import random
 import scapy
 import sys
-import traceback
-from itertools import izip, chain, repeat
 try:
     from pathlib import PosixPath
 except ImportError:
@@ -39,27 +37,14 @@ from scapy.contrib.gtp import *
 
 try:
     import args_from_schema
+    import find_mod
+    from gen_pcap_base import *
 except ImportError:
     from . import args_from_schema
+    from . import find_mod
+    from .gen_pcap_base import *
 
 __all__ = ["gen_pcap"]
-
-
-class PicklablePacket(object):
-    """A container for scapy packets that can be pickled (in contrast
-    to scapy packets themselves). https://stackoverflow.com/a/4312192"""
-
-    __slots__ = ['contents', 'time']
-
-    def __init__(self, pkt):
-        self.contents = bytes(pkt)
-        self.time = pkt.time
-
-    def __call__(self):
-        """Get the original scapy packet."""
-        pkt = Ether(self.contents)
-        pkt.time = self.time
-        return pkt
 
 
 class ObjectView(object):
@@ -74,74 +59,6 @@ class ObjectView(object):
 
     def as_dict(self):
         return self.__dict__
-
-
-def byte_seq(template, seq):
-    return template % (int(seq / 254), (seq % 254) + 1)
-
-# https://stackoverflow.com/a/312644
-def grouper(n, iterable, padvalue=None):
-    "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
-    return izip(*[chain(iterable, repeat(padvalue, n-1))]*n)
-
-
-class GenPkt(object):
-    def __init__(self, args, conf, in_que, out_que):
-        self.args = args
-        self.conf = conf
-        self.in_que = in_que
-        self.out_que = out_que
-
-    def create_work_items(self, job_size):
-        pkt_num = self.get_pkt_num()
-        pkt_idx = list(range(pkt_num))
-        random.shuffle(pkt_idx)
-        items = []
-        for job_idx, pkt_idxs in enumerate(grouper(job_size, pkt_idx)):
-            pkt_idxs = [idx for idx in pkt_idxs if idx is not None]
-            items.append({'job_idx': job_idx, 'pkt_idxs': pkt_idxs})
-        return items
-
-    def do_work(self):
-        try:
-            while True:
-                item = self.in_que.get()
-                if item is None:
-                    break
-                pkt_idxs = item['pkt_idxs']
-                pkts = [PicklablePacket(self.gen_pkt(idx)) for idx in pkt_idxs]
-                item['pkts'] = pkts
-                del item['pkt_idxs']
-                self.out_que.put(item)
-        except Exception as e:
-            item = {'exception': e, 'traceback': traceback.format_exc()}
-            self.out_que.put(item)
-            return True
-
-    def gen_pkt(self, pkt_idx):
-        raise NotImplementedError
-
-    def get_pkt_num(self):
-        "Return the number of packets to be generated"
-        if self.args.pkt_num:
-            self.args.auto_pkt_num = False
-            return self.args.pkt_num
-        self.args.auto_pkt_num = True
-        return self.get_auto_pkt_num()
-
-    def get_auto_pkt_num(self):
-        raise NotImplementedError
-
-    @staticmethod
-    def add_payload(p, pkt_size):
-        if len(p) < pkt_size:
-            #"\x00" is a single zero byte
-            s = "\x00" * (pkt_size - len(p))
-            p = p / Raw(s)
-        return p
-
-    def get_other_direction(self):
-        return {'u': 'd', 'd': 'u'}[self.args.dir[0]]
 
 
 class GenPkt_portfwd(GenPkt):
@@ -396,7 +313,7 @@ def gen_pcap(*defaults):
 
     in_que = multiprocessing.Queue()
     out_que = multiprocessing.Queue()
-    gen_pkt_class = globals()['GenPkt_%s' % conf.name]
+    gen_pkt_class = find_mod.find_class('GenPkt', conf.name)
     gen_pkt_obj = gen_pkt_class(args, conf, in_que, out_que)
     worker_num = max(1, args.thread)
     job_size = 1024

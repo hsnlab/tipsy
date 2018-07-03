@@ -23,6 +23,8 @@ import os
 import re
 from distutils.util import strtobool
 
+import find_mod
+
 __all__ = ["add_args"]
 
 def check_type_string (string):
@@ -97,7 +99,10 @@ def add_args(parser, schema_name, schema_dir=None, ignored_properties=[]):
       schema_dir = os.path.join(schema_dir, '..', 'schema')
 
   fname = '%s.json' % schema_name
-  with open(os.path.join(schema_dir, fname)) as f:
+  fpath = os.path.join(schema_dir, fname)
+  if not os.path.exists(fpath):
+    fpath = find_mod.find_file(fname)
+  with open(fpath) as f:
     schema = json.load(f)
 
   for prop, val in sorted(schema['properties'].items()):
