@@ -63,6 +63,7 @@ cfg.CONF.register_opts([
 ], group='tipsy')
 CONF = cfg.CONF['tipsy']
 
+import sw_conf_erfs as sw_conf
 
 ###########################################################################
 
