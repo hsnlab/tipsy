@@ -37,6 +37,15 @@ git clone --depth=1 https://github.com/emmericp/MoonGen.git /opt/MoonGen
 cd /opt/MoonGen
 ./build.sh
 
+
+# It's hard to patch a makefile downloaded during 'make', so:
+cat > /usr/local/bin/g++ <<'EOF'
+#!/bin/sh
+/usr/bin/g++ -fpermissive $*
+EOF
+chmod a+x /usr/local/bin/g++
+
+# Classbench
 url=https://github.com/classbench-ng/classbench-ng.git
 target=/opt/classbench-ng
 git clone --depth=1 $url $target
@@ -48,3 +57,7 @@ url=https://www.arl.wustl.edu/classbench/trace_generator.tar.gz
 wget -qO- $url | tar xz -C /opt
 cd /opt/trace_generator
 make all
+
+
+#
+rm /usr/local/bin/g++
