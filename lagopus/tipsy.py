@@ -298,12 +298,35 @@ class Tipsy(app_manager.RyuApp):
     "Get SUT port to tun_end"
     return self.ports['tun-%s' % tun_end]
 
+  def get_netmask(self, prefix_len):
+    from socket import inet_ntoa
+    from struct import pack
+    bits = 0xffffffff ^ (1 << 32 - prefix_len) - 1
+    mask = inet_ntoa(pack('>I', bits))
+    return mask
+
+  def mod_match_addr(self, match, key):
+    try:
+      val = match[key]
+    except:
+      return
+    m = re.match(r'^([^\/]*)\/([^\/]*)$', val)
+    if not m:
+      return
+    mask = self.get_netmask(int(m.group(2)))
+    match[key] = (m.group(1), mask)
+
   def mod_flow(self, table=0, priority=None, match=None,
                actions=None, inst=None, out_port=None, out_group=None,
                output=None, goto=None, cmd='add'):
 
     ofp = self.dp.ofproto
     parser = self.dp.ofproto_parser
+
+    # Lagopus extensions have been added to an older version of ryu,
+    # which does not support the "ip_address/prefix_length" notation
+    for key in ['ipv4_src', 'ipv4_dst']:
+        self.mod_match_addr(match, key)
 
     if actions is None:
       actions = []
