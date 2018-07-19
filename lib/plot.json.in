@@ -1,10 +1,11 @@
 {
   "title": "Definition of one plot",
+  "description": "@auto@",
   "type": "object",
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["simple", "contour", "USL"],
+      "enum": ["@plot-types@"],
       "default": "simple",
       "description": "Name of algorithm that generates the plot.  (USL: fits Universal Scalability Law curve)"
     },

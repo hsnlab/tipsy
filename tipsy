@@ -226,6 +226,14 @@ class TipsyManager(object):
         }
         TipsyManager.create_file_from_template(src, dst, replacements)
 
+        src = Path(__file__).parent / 'lib' / 'plot.json.in'
+        dst = outdir / 'plot.json'
+        pl = find_mod.glob('Plot_*.py')
+        pl = [ os.path.basename(p) for p in pl ]
+        pl = [ p.replace('Plot_', '').replace('.py', '') for p in pl ]
+        replacements['plot-types'] = '", "'.join(sorted(pl))
+        TipsyManager.create_file_from_template(src, dst, replacements)
+
 
     def init_tipsyconfig(self, config_files=None):
         def conf_load(d): return TipsyConfig(**d)
@@ -302,9 +310,11 @@ class TipsyManager(object):
               %\def\pgfsysdriver{pgfsys-dvipdfm.def}
               \usepackage{pgfplots}
               \pgfplotsset{compat = newest}
-              \begin{document}
             '''))
             f.write("\n")
+            for dir in out_dirs:
+                f.write("  \\input{%s/preamble.tex}\n" % dir)
+            f.write("\\begin{document}\n")
             for dir in out_dirs:
                 f.write("  \\input{%s/fig.tex}\n" % dir)
             f.write("\\end{document}\n")
