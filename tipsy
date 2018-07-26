@@ -51,9 +51,13 @@ target is either a filename, a PosixPath, or a file-like object.
         dump_to_file(obj, target)
 
 
-def conf_merge(dst, src):
+def conf_merge(dst, src, props_to_concat=None, property=None):
     if dst is None:
         return src
+
+    if props_to_concat and property in props_to_concat:
+        if type(dst) == str and type(src) == str:
+            return dst + " " + src
 
     if type(dst) in [int, float, str, bool]:
         return src
@@ -67,7 +71,7 @@ def conf_merge(dst, src):
     if isinstance(dst, dict):
         if isinstance(src, dict):
             for k, v in src.items():
-                dst[k] = conf_merge(dst.get(k), v)
+                dst[k] = conf_merge(dst.get(k), v, props_to_concat, k)
             return dst
 
     if type(src) in [int, float, str, bool]:
@@ -211,6 +215,7 @@ class TipsyManager(object):
 
     @staticmethod
     def do_update_mod():
+        # The pipeline schema references the individual schemas.
         outdir = Path(__file__).parent / 'schema'
         pl = find_mod.glob('pipeline-*.json')
         pl += glob.glob(str(outdir / 'pipeline-*.json'))
@@ -226,6 +231,19 @@ class TipsyManager(object):
         }
         TipsyManager.create_file_from_template(src, dst, replacements)
 
+        # The tester schema merges individula schema into itself.
+        # This is inconsistent with the pipeline schema, but it makes
+        # possible to define 'trex-dir' in the defaults section.
+        schema = {}
+        for fname in find_mod.glob('tester-*.json'):
+            with open(fname) as f:
+                s = json.load(f)
+            schema = conf_merge(schema, s, ['description'])
+        json_dump(schema, outdir / 'tester.json')
+
+        # The plot schema simply collects the plot types and does not
+        # allow module writers to extend, redefine schema properties.
+        # TODO: refactor to the merger/reference method.
         src = Path(__file__).parent / 'lib' / 'plot.json.in'
         dst = outdir / 'plot.json'
         pl = find_mod.glob('Plot_*.py')

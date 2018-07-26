@@ -1,0 +1,31 @@
+{
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "trex"
+      ],
+      "description": "Trex: https://trex-tgn.cisco.com/"
+    },
+    "trex-dir": {
+      "type": "string",
+      "default": "/opt/trex",
+      "description": "A directory on Tester in which TRex is installed"
+    },
+    "trex-host": {
+      "type": "string",
+      "default": "localhost",
+      "description": "Host where the trex daemon runs"
+    },
+    "trex-client-args": {
+      "type": "object",
+      "default": {},
+      "description": "Arguments of the CTRexClient constructor.  See: ~trex/trex_client/stf/trex_stf_lib/trex_client.py.  Currently available properties: max_history_size, filtered_latency_amount, trex_daemon_port, master_daemon_port, trex_zmq_port, verbose, debug_image, trex_args, timeout.  Can be empty if trex-host is localhost."
+    },
+    "trex-cli-args": {
+      "type": "object",
+      "default": {"f": "cap2/http_simple.yaml"},
+      "description": "Trex command line arguments.  See: start_trex() in ~trex/trex_client/stf/trex_stf_lib/trex_client.py, or Chapter 'Running TRex, understanding output' of http://trex-tgn.cisco.com/trex/doc/trex_book.pdf; or run './t-rex-64 --help'"
+    }
+  }
+}
