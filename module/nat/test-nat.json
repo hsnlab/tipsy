@@ -1,0 +1,33 @@
+{
+  "benchmark": [
+    {
+      "pipeline": {
+        "name": "nat",
+        "core": 1,
+        "fakedrop": false
+      },
+      "tester": {
+        "uplink-port": "00:08.0",
+        "downlink-port": "00:09.0",
+        "type": "trex",
+        "trex-cli-args": {
+          "f": "cap2/http_simple.yaml",
+          "prom": true
+        }
+      }
+    }
+  ],
+  "visualize": [
+    { "type": "table",
+      "x-axis": "out.trex-info.Version",
+      "y-axis": [
+        "out.trex.trex-global.data.m_rx_pps",
+        "out.trex.trex-global.data.m_tx_pps",
+        "out.trex.trex-global.data.m_total_rx_pkts",
+        "out.trex.trex-global.data.m_total_tx_pkts"
+      ],
+      "filter": {"pipeline.name": "nat"},
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
+    }
+  ]
+}

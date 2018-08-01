@@ -1,0 +1,55 @@
+{
+  "title": "Configuration of a NAT pipeline",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "enum": ["nat"],
+      "description":
+      "name of the pipeline, must be set to nat"
+    },
+    "fakedrop": {
+      "type": "boolean",
+      "description":
+      "whether to actually drop unmatched packets (False) or send them immediately to the output port (True) for correct rate measurements",
+      "default": true
+    },
+    "downlink-dst-mac": {
+      "$ref": "definitions.json#/mac-address",
+      "description": "mac address of the remote host on SUT's downlink port, i.e, the mac address of the Tester's uplink port.",
+      "default": "00:00:00:00:00:02"
+    },
+    "uplink-dst-mac": {
+      "$ref": "definitions.json#/mac-address",
+      "description": "mac address of the remote host on SUT's uplink port, i.e, the mac address of the Tester's downlink port.",
+      "default": "00:00:00:00:00:04"
+    },
+    "range-ipv4-min": {
+      "$ref": "definitions.json#/ip-address",
+      "default": "10.10.0.1",
+      "description": "Lower end of the public IP range of the SNAT."
+    },
+    "range-ipv4-max": {
+      "$ref": "definitions.json#/ip-address",
+      "default": "10.10.0.1",
+      "description": "Upper end of the public IP range of the SNAT."
+    },
+    "range-port-min": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 1000,
+      "description": "Lower end of the port range from  which  the  translated port  should be selected."
+    },
+    "range-port-max": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 2000,
+      "description": "Upper end of the port range from which the translated port should be selected."
+    },
+    "core": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "number of CPU cores/workers running the pipeline",
+      "default": 1
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false
+}
