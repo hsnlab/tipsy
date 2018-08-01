@@ -29,8 +29,11 @@ class Plot(Plot_base):
         """) + "\n"
 
     def format_latex(self, series, title):
+        f = {'title': title, 'plot_args': '', 'addplot': ''}
+
         names = [self.conf.x_axis] + [s[0] for s in series.items()]
-        header = ' & '.join(names)
+        names = [str2tex(n) for n in names]
+        f['header'] = ' & '.join(names)
 
         x_vals = []
         for s in series.items():
@@ -38,24 +41,29 @@ class Plot(Plot_base):
         x_vals = sorted(set(x_vals))
 
         sdict = [{k: v for k, v in points} for points in series.values()]
-        addplot = ""
-        for x in x_vals:
-            vals = [str(x)]
-            for s in sdict:
-                vals.append(str(s.get(x, 'nan')))
-            addplot += ' & '.join(vals) + "\\\\ \n    "
+        if len(x_vals) != 1:
+            for x in x_vals:
+                vals = [str(x)]
+                for s in sdict:
+                    vals.append(str(s.get(x, 'nan')))
+                f['addplot'] += ' & '.join(vals) + "\\\\ \n    "
+        else:
+            f['plot_args'] = 'string type,column type=l,'
+            f['header'] = 'variable & value'
+            x = x_vals[0]
+            line = "%s & %s\\\\ \n    "
+            f['addplot'] += line % (self.conf.x_axis, x)
+            for var in self.conf.y_axis:
+                print(var, series[var])
+                val = series[var][0][1]
+                f['addplot'] += line % (str2tex(var), val)
 
-        f = {
-            'title': title,
-            'header': header,
-            'addplot': addplot,
-        }
         text = inspect.cleandoc(r"""
           \begin{{table}}
             \tiny
             \centering
             \caption{{{title}}}
-            \pgfplotstabletypeset[col sep=&,row sep=\\,
+            \pgfplotstabletypeset[col sep=&,row sep=\\,{plot_args}
               every even row/.style={{before row={{\rowcolor[gray]{{0.9}}}}}}]{{
               {header} \\
               {addplot}}}
