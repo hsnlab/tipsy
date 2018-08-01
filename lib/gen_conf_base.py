@@ -32,7 +32,7 @@ class GenConf (object):
     self.conf = {}
 
   def get_arg (self, arg_name, default=None):
-    return self.args.__dict__.get(arg_name, default)
+    return self.args.__dict__.get(arg_name.replace('-', '_'), default)
 
   def create_conf (self):
     for c in self.components:

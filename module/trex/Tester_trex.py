@@ -54,23 +54,29 @@ class Tester(Base):
             return addr
         fname = '/etc/trex_cfg.yaml'
         tmpname = '/tmp/trex_cfg.yaml'
-        iface = {
+        cfg = {
             'uplink': trim(self.conf.tester.uplink_port),
             'downlink': trim(self.conf.tester.downlink_port),
         }
         # If the the file is missing, create it
         if not os.path.exists(fname):
+            try:
+                cmd = 'sudo dmesg | grep -q VirtualBox'
+                subprocess.run(cmd, check=True, shell=True)
+                cfg['low_end'] = 'true'
+            except subprocess.CalledProcessError:
+                cfg['low_end'] = 'false'
             content = inspect.cleandoc("""
               - port_limit: 2
                 version: 2
                 interfaces: ['{uplink}', '{downlink}']
-                # low_end: true
+                low_end: {low_end}
                 port_info   :  # set mac addr
                 - dest_mac  : [0x00,0x00,0x00,0x00,0x00,0x01] # port 0
                   src_mac   : [0x00,0x00,0x00,0x00,0x00,0x02]
                 - dest_mac  : [0x00,0x00,0x00,0x00,0x00,0x03] # port 1
                   src_mac   : [0x00,0x00,0x00,0x00,0x00,0x04]
-            """.format(**iface))
+            """.format(**cfg))
             with open(tmpname, 'w') as f:
                 f.write("%s\n" % content)
             subprocess.run(['sudo', 'mv', tmpname, fname], check=True)
@@ -82,7 +88,7 @@ class Tester(Base):
         # does not work with python3.  It's also better to avoid
         # adding one additional dependency (python3-yaml) just for
         # this.)
-        new = "interfaces: ['{uplink}', '{downlink}']".format(**iface)
+        new = "interfaces: ['{uplink}', '{downlink}']".format(**cfg)
         exp = 's/^\(\s*\)interfaces.*$/\\1%s/' % new
         cmd = ['sudo', 'sed', '-i', '-e', exp, fname]
         subprocess.run(cmd, check=True)

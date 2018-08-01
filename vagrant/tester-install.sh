@@ -58,6 +58,16 @@ wget -qO- $url | tar xz -C /opt
 cd /opt/trace_generator
 make all
 
-
 #
 rm /usr/local/bin/g++
+
+
+# T-Rex
+TREX_WEB_URL=http://trex-tgn.cisco.com/trex
+mkdir -p /opt/trex
+cd /opt
+wget --no-cache ${TREX_WEB_URL}/release/latest -O trex-latest
+tar --strip-components=1 -C /opt/trex -xzf trex-latest
+rm trex-latest
+cd /opt/trex
+tar axf trex_client_*.tar.gz
