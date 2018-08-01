@@ -349,6 +349,9 @@ class TipsyManager(object):
             save(config, out_dir / self.fname_bm, 'benchmark')
             self.write_makefile(out_dir, 'per-dir-makefile.in')
 
+    def do_list_module_tests(self):
+        print("\n".join(find_mod.glob('test-*.json')))
+
     def do_config(self):
         self.init_tipsyconfig(self.args.configs)
         self.tipsy_conf.gen_configs()
@@ -410,6 +413,8 @@ if __name__ == '__main__':
                       default=None)
     subparsers.add_parser('update-mod',
                           help='Update internal files based on the module dir')
+    subparsers.add_parser('list-module-tests',
+        help='List test configurations under the module dir ("test-*.json")')
     run = subparsers.add_parser('run', help='Run benchmarks')
     make = subparsers.add_parser('make', help='Do everything')
     clean = subparsers.add_parser('clean', help='Clean up pcaps, logs, etc.')
