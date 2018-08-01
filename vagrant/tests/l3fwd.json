@@ -30,6 +30,15 @@
       "axis-type": "semilogx",
       "filter": {"pipeline.name": "l3fwd"},
       "title": "{pipeline.name} - OVS v{out.sut.version}"
+    },
+    { "type": "table",
+      "x-axis": "pipeline.upstream-l3-table-size",
+      "y-axis": [
+        "out.flood.RX.PacketRate",
+        "out.flood.TX.PacketRate"
+      ],
+      "filter": {"pipeline.name": "l3fwd"},
+      "title": "{pipeline.name} - OVS v{out.sut.version}"
     }
   ]
 }
