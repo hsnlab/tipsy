@@ -31,7 +31,7 @@ apt-get install --yes \
     python-tftpy \
     libnuma-dev
 
-echo 'vm.nr_hugepages=512' > /etc/sysctl.d/hugepages.conf
+echo 'vm.nr_hugepages=256' > /etc/sysctl.d/hugepages.conf
 sysctl -p /etc/sysctl.d/hugepages.conf
 
 cat /vagrant/ssh/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys

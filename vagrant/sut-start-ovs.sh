@@ -15,6 +15,9 @@ ovsdb/ovsdb-tool create ${DB_CONF} vswitchd/vswitch.ovsschema
 ovsdb/ovsdb-server --remote=punix:${DB_SOCK} \
     --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
     --pidfile --detach
-utilities/ovs-vsctl --no-wait set Open_vSwitch . other_config:dpdk-init=true
+utilities/ovs-vsctl --no-wait set Open_vSwitch . \
+    other_config:dpdk-init=true
+utilities/ovs-vsctl --no-wait set Open_vSwitch . \
+    other_config:dpdk-socket-mem="512"
 vswitchd/ovs-vswitchd unix:${DB_SOCK} --pidfile --detach
 utilities/ovs-ctl --no-ovsdb-server --db-sock="$DB_SOCK" start
