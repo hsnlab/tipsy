@@ -115,5 +115,7 @@ for wid in range(bess_workers):
 
   bess.attach_task(in_d.name, wid=wid2)
 
-bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
-bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
+try:
+    bess.track_gate(False, '', '', bits=True)
+except AttributeException:
+    bess.track_module('', False, bits=True)
