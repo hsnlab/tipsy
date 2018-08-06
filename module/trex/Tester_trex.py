@@ -26,12 +26,12 @@ from pathlib import Path
 from find_mod import add_path
 from tester_base import Tester as Base
 
+logging.basicConfig(level=logging.DEBUG)
+
 class Tester(Base):
     def __init__(self, conf):
         super().__init__(conf)
         self.logger = logging.getLogger(__name__)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.DEBUG)
         tester = conf.tester
         self.should_stop_daemon = False
         self.trex_host = conf.tester.trex_host
