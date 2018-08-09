@@ -8,7 +8,17 @@ ssh -o StrictHostKeyChecking=no sut.local echo
 if [ $# -gt 0 ]; then
     tests=0_default.json
     for test in $*; do
-        tests="$tests ${test}.json"
+        if [ -e ${test}.json ]; then
+            tests="$tests ${test}.json"
+        else
+            f=$(find $(dirname $TIPSY)/module -name test-${test}.json)
+            if [ $(echo $f|wc -w) -eq 1 ]; then
+                tests="$tests $f"
+            else
+                echo Cannot find: $test >&2
+                exit 1
+            fi
+        fi
     done
 else
     tests="*.json $($TIPSY list-module-tests)"
