@@ -120,7 +120,7 @@ class Plot(Base):
             groups = ensure_list(self.conf.group_by)
             for var_name in y_axis:
                 y = float(row[var_name])
-                if len(y_axis) == 1:
+                if len(y_axis) == 1 and len(groups) > 0:
                     key = []
                 else:
                     key = [var_name]

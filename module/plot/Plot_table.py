@@ -18,7 +18,7 @@
 import inspect
 
 from Plot_simple import Plot as Plot_base
-from Plot_simple import str2tex
+from Plot_simple import str2tex, ensure_list
 
 class Plot(Plot_base):
     def __init__(self, conf):
@@ -27,6 +27,17 @@ class Plot(Plot_base):
           \usepackage{pgfplotstable}
           \usepackage{colortbl}
         """) + "\n"
+        self.column_types = {}
+
+    def set_column_types(self, vals):
+        print(vals)
+        for col, val in enumerate(vals):
+            if val == 'nan':
+                continue
+            try:
+                float(val)
+            except ValueError:
+                self.column_types[col] = 'string'
 
     def format_latex(self, series, title):
         f = {'title': title, 'plot_args': '', 'addplot': ''}
@@ -46,17 +57,26 @@ class Plot(Plot_base):
                 vals = [str(x)]
                 for s in sdict:
                     vals.append(str(s.get(x, 'nan')))
+                self.set_column_types(vals)
                 f['addplot'] += ' & '.join(vals) + "\\\\ \n    "
         else:
-            f['plot_args'] = 'string type,column type=l,'
+            f['plot_args'] = 'column type=l,'
             f['header'] = 'variable & value'
             x = x_vals[0]
             line = "%s & %s\\\\ \n    "
             f['addplot'] += line % (self.conf.x_axis, x)
-            for var in self.conf.y_axis:
-                print(var, series[var])
+            self.set_column_types([self.conf.x_axis, x])
+            for var in ensure_list(self.conf.y_axis):
                 val = series[var][0][1]
+                self.set_column_types([var, val])
                 f['addplot'] += line % (str2tex(var), val)
+
+        plot_args = []
+        for col, type in self.column_types.items():
+            s = '/pgfplots/table/display columns/%s/.style={string type}' % col
+            plot_args.append(s)
+        if plot_args:
+            f['plot_args'] += ','.join(plot_args) + ','
 
         text = inspect.cleandoc(r"""
           \begin{{table}}
