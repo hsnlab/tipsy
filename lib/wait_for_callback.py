@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 class MyHandler(BaseHTTPRequestHandler):
   def do_GET(self):
-    if self.path != self.w_url:
+    if self.path not in self.w_urls.keys():
       self.send_response(404)
       return
     self.send_response(200)
@@ -33,11 +33,12 @@ class MyHandler(BaseHTTPRequestHandler):
 
     def shutdown(server):
       server.shutdown()
+    self.httpd.success = self.w_urls[self.path]
     Thread(target=shutdown, args=(self.httpd,)).start()
 
-def wait_for_request(host_name, port_number, url):
+def wait_for_request(host_name, port_number, urls):
   httpd = HTTPServer((host_name, port_number), MyHandler)
-  httpd.RequestHandlerClass.w_url = url
+  httpd.RequestHandlerClass.w_urls = urls
   httpd.RequestHandlerClass.httpd = httpd
   interrupted = False
   try:
@@ -46,12 +47,13 @@ def wait_for_request(host_name, port_number, url):
     interrupted = True
   finally:
     httpd.server_close()
-  return not interrupted
+  return not interrupted and httpd.success
 
 
 if __name__ == '__main__':
-  params = ('127.0.0.1', 9000, '/configured')
-  print('Waiting for %s:%s%s' % params)
+  urls = {'/configured': True, '/failed': False}
+  params = ('127.0.0.1', 9000, urls)
+  print('Waiting for %s:%s%s' % (params[0], params[1], ' or '.join(urls)))
   if wait_for_request(*params):
     print('Got it')
   else:
