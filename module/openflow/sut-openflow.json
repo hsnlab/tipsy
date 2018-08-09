@@ -1,0 +1,9 @@
+{
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["openflow"],
+      "description": "Openflow: General OpenFlow 1.3 controller that doesn't use any non-standard protocol extension."
+    }
+  }
+}

@@ -11,7 +11,8 @@
   "visualize": [
     { "x-axis": "pipeline.core",
       "y-axis": "out.flood.RX.PacketRate",
-      "filter": {"pipeline.name": "portfwd"},
+      "filter": {"pipeline.name": "portfwd",
+                 "sut.type": "ovs"},
       "title": "{pipeline.name} - OVS v{out.sut.version}"
     }
   ]

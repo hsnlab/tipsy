@@ -96,3 +96,7 @@ def find_class(class_name, variant):
       return cl
   cl = inspect.stack()[1][0].f_globals['%s_%s' % (class_name, variant)]
   return cl
+
+def new(class_name, variant, *args, **kw):
+  klass = find_class(class_name, variant)
+  return klass(*args, **kw)

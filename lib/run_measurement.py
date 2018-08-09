@@ -21,15 +21,7 @@ import json
 import subprocess
 from pathlib import Path, PosixPath
 
-try:
-    import args_from_schema
-    import wait_for_callback
-    import find_mod
-except ImportError:
-    from . import args_from_schema
-    from . import wait_for_callback
-    from . import find_mod
-
+import find_mod
 
 __all__ = ["run"]
 
@@ -66,202 +58,14 @@ class Config(dict):
         self.update(**data)
 
 
-class SUT(object):
-    def __init__(self, conf, **kw):
-        self.conf = conf
-        self.result = {}
-        self.cmd_prefix = ['ssh', self.conf.sut.hostname]
-        self.screen_name = 'tipsy-sut'
-
-    def run_ssh_cmd(self, cmd, *extra_cmd, **kw0):
-        kw = {'check': True}
-        kw.update(**kw0)
-
-        command = self.cmd_prefix + list(extra_cmd) + cmd
-        print(' '.join(command))
-        return subprocess.run(command, **kw)
-
-    def run_async_ssh_cmd(self, cmd):
-        command = self.cmd_prefix + ['-t'] + cmd
-        command = self.get_screen_cmd(command)
-        print(' '.join(command))
-        subprocess.run(command, check=True)
-
-    def get_screen_cmd(self, cmd):
-        return ['screen', '-c', '/dev/null', '-d', '-m',
-                '-L', '-S', self.screen_name] + cmd
-
-    def upload_to_remote(self, src, dst):
-        "scp one file to SUT"
-        dst = '%s:%s' % (self.conf.sut.hostname, dst)
-        cmd = [str(c) for c in ['scp', src, dst]]
-        print(' '.join(cmd))
-        subprocess.run(cmd, check=True)
-
-    def upload_conf_files(self, dst_dir):
-        src_dir = Path().cwd()
-        dst_dir = Path(dst_dir)
-
-        for fname in ['pipeline.json', 'benchmark.json']:
-            self.upload_to_remote(src_dir / fname, dst_dir / fname)
-
-    def start(self, *args):
-        self.run_setup_script()
-        self._start(*args)
-
-    def _start(self, *args):
-        raise NotImplementedError
-
-    def stop(self, *args):
-        r = self.run_ssh_cmd(['curl', '-s', '-o', '-',
-                              'http://localhost:8080/tipsy/result'],
-                             stdout=subprocess.PIPE, stderr=None, check=False)
-        if r.stdout:
-            try:
-                data = json.loads(r.stdout.decode())
-            except Exception as e:
-                data = {'error': str(e)}
-            self.result.update(**data)
-
-        cmd = ['screen', '-S', self.screen_name, '-X', 'stuff', '^C']
-        subprocess.run(cmd, check=True)
-        self.run_teardown_script()
-
-    def run_script(self, script):
-        if Path(script).is_file():
-            subprocess.run([str(script)], check=True)
-
-    def run_setup_script(self):
-        self.run_script(self.conf.sut.setup_script)
-
-    def run_teardown_script(self):
-        self.run_script(self.conf.sut.teardown_script)
-
-    def wait_for_callback(self):
-        cmd = Path(self.conf.sut.tipsy_dir) / 'lib' / 'wait_for_callback.py'
-        self.run_ssh_cmd([str(cmd)], '-t', '-t')
-
-
-class SUT_bess(SUT):
-    def _start(self):
-        self.result['versions'] = {}
-        cmd = [str(Path(self.conf.sut.bess_dir) / 'bin' / 'bessd'), '-t']
-        v = self.run_ssh_cmd(cmd, stdout=subprocess.PIPE)
-        for line in v.stdout.decode('utf-8').split("\n"):
-            if line.startswith(' '):
-                break
-            [var, val] = line.split(' ')
-            self.result['versions'][var] = val
-        self.result['version'] = self.result['versions'].get('bessd', 'n/a')
-
-        remote_dir = Path('/tmp')
-        self.upload_conf_files(remote_dir)
-        cmd = [
-            Path(self.conf.sut.tipsy_dir) / 'bess' / 'bess-runner.py',
-            '-d', self.conf.sut.bess_dir,
-            '-p', remote_dir / 'pipeline.json',
-            '-b', remote_dir / 'benchmark.json',
-        ]
-        self.run_async_ssh_cmd([str(c) for c in cmd])
-        self.wait_for_callback()
-
-
-class SUT_vpp(SUT):
-    def _start(self):
-        remote_dir = Path('/tmp')
-        self.upload_conf_files(remote_dir)
-        cmd = [
-            'python3',
-            Path(self.conf.sut.tipsy_dir) / 'vpp' / 'vpp-runner.py',
-            '-p', remote_dir / 'pipeline.json',
-            '-b', remote_dir / 'benchmark.json'
-        ]
-        self.run_async_ssh_cmd([str(c) for c in cmd])
-        self.wait_for_callback()
-
-        cmd = ['sudo', 'vppctl', 'show', 'version']
-        v = self.run_ssh_cmd(cmd, stdout=subprocess.PIPE)
-        self.result['version'] = v.stdout.decode('utf-8').split("\n")[0]
-        dpdk_cmd = ['sudo', 'vppctl', 'show', 'dpdk', 'version']
-        d = self.run_ssh_cmd(dpdk_cmd, stdout=subprocess.PIPE)
-        fline = d.stdout.decode('utf-8').split("\n")[0]
-        dpdk_version = fline.split('DPDK')[-1].strip()
-        self.result['versions'] = {}
-        self.result['versions']['DPDK'] = dpdk_version
-
-
-class SUT_ovs(SUT):
-    def __init__(self, conf):
-        super().__init__(conf)
-
-    def _start(self):
-        v = self.run_ssh_cmd(['ovs-vsctl', '--version'], stdout=subprocess.PIPE)
-        first_line = v.stdout.decode('utf8').split("\n")[0]
-        self.result['version'] = first_line.split(' ')[-1]
-
-        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'ryu'
-        self.upload_conf_files(remote_ryu_dir)
-
-        cmd = remote_ryu_dir / 'start-ryu'
-        self.run_async_ssh_cmd(['sudo', str(cmd)])
-        self.wait_for_callback()
-
-
-class SUT_lagopus(SUT):
-    def _start(self):
-        v = self.run_ssh_cmd(['lagopus', '--version'], stdout=subprocess.PIPE)
-        first_line = v.stdout.decode('utf8').split("\n")[0]
-        self.result['version'] = first_line.split(' ')[-1]
-
-        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'lagopus'
-        self.upload_conf_files(remote_ryu_dir)
-
-        cmd = remote_ryu_dir / 'start-ryu'
-        self.run_async_ssh_cmd(['sudo', str(cmd)])
-        self.wait_for_callback()
-
-
-class SUT_erfs(SUT):
-    def _start(self):
-        remote_dir = Path(self.conf.sut.tipsy_dir) / 'erfs'
-        self.upload_conf_files(remote_dir)
-
-        cmd = remote_dir / 'start-ryu'
-        self.run_async_ssh_cmd(['sudo', str(cmd)])
-        self.wait_for_callback()
-
-
-class SUT_ofdpa(SUT):
-    def __init__(self, conf):
-        super().__init__(conf)
-
-    def _start(self):
-        remote_cmd = Path(self.conf.sut.tipsy_dir) / 'ofdpa' / 'tipsy.py'
-        self.upload_conf_files('/tmp')
-        self.run_async_ssh_cmd(['sudo', str(remote_cmd)])
-        self.wait_for_callback()
-
-
-class SUT_t4p4s(SUT):
-    def __init__(self, conf):
-        super().__init__(conf)
-
-    def _start(self):
-        self.upload_conf_files('/tmp')
-        remote_cmd = Path(self.conf.sut.tipsy_dir) / 't4p4s' / 'tipsy.py'
-        self.run_async_ssh_cmd([str(remote_cmd)])
-        self.wait_for_callback()
-
-
 def run(defaults=None):
     cwd = Path().cwd()
     conf = Config(cwd / 'benchmark.json')
-    sut = globals()['SUT_%s' % conf.sut.type](conf)
+    sut = find_mod.new('SUT', conf.sut.type, conf)
     sut.start()
 
     tester_type = conf.tester.type.replace('-','_')
-    tester_class = find_mod.find_class('Tester', tester_type)
-    tester = tester_class(conf)
+    tester = find_mod.new('Tester', tester_type, conf)
     tester.run(cwd)
 
     sut.stop()

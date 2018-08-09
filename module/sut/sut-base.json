@@ -4,8 +4,7 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["ovs", "bess", "erfs", "lagopus", "ofdpa", "t4p4s", "vpp"],
-      "default": "ovs"
+      "enum": ["bess", "erfs", "lagopus", "ofdpa", "t4p4s", "vpp"]
     },
     "hostname": {
       "type": "string",

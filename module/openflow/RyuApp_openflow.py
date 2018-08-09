@@ -14,34 +14,22 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-TIPSY: Telco pIPeline benchmarking SYstem
-
-Run as:
-    $ cd path/to/tipsy.py
-    $ ryu-manager --config-dir .
-
-The setup is similar to the left side of the figure in
-http://docs.openvswitch.org/en/latest/howto/userspace-tunneling/
-"""
+from __future__ import print_function
 
 import datetime
-import importlib
 import json
 import os
-import re
 import requests
 import signal
-import subprocess
 import sys
 import time
 
 from ryu import cfg
 from ryu import utils
+from ryu.app.wsgi import CONF as wsgi_conf
 from ryu.app.wsgi import ControllerBase
 from ryu.app.wsgi import Response
 from ryu.app.wsgi import WSGIApplication
-from ryu.app.wsgi import CONF as wsgi_conf
 from ryu.base import app_manager
 from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER
@@ -53,31 +41,17 @@ from ryu.lib import ofctl_utils as ofctl
 from ryu.ofproto import ofproto_v1_3
 from ryu.services.protocols.bgp.utils.evtlet import LoopingCall
 
-import ip
-import sw_conf_vsctl as sw_conf
-
 fdir = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(fdir, '..', 'lib'))
+sys.path.append(os.path.join(fdir, '..', '..', 'lib'))
 import find_mod
 
-pipeline_conf = os.path.join(fdir, 'pipeline.json')
-benchmark_conf = os.path.join(fdir, 'benchmark.json')
-cfg.CONF.register_opts([
-  cfg.StrOpt('pipeline_conf', default=pipeline_conf,
-             help='json formatted configuration file of the pipeline'),
-  cfg.StrOpt('benchmark_conf', default=benchmark_conf,
-             help='configuration of the whole benchmark (in json)'),
-  cfg.StrOpt('webhook_configured', default='http://localhost:8888/configured',
-             help='URL to request when the sw is configured'),
-], group='tipsy')
 CONF = cfg.CONF['tipsy']
 
-
-###########################################################################
-
-
 class ObjectView(object):
-  def __init__(self, **kwargs):
+  def __init__(self, fname=None, logger=None, **kwargs):
+    self.logger = logger
+    if fname:
+      self.load(fname)
     self.__dict__.update({k.replace('-', '_'): v for k, v in kwargs.items()})
 
   def __repr__(self):
@@ -92,18 +66,40 @@ class ObjectView(object):
   def get (self, attr, default=None):
     return self.__dict__.get(attr.replace('-', '_'), default)
 
+  def load (self, fname):
+    def eprint(*args, **kw):
+      if self.logger:
+        self.logger.error(*args, **kw)
+      else:
+        print(*args, file=sys.stderr, **kw)
+    self.logger and self.logger.info("conf_file: %s" % fname)
 
-class Tipsy(app_manager.RyuApp):
+    try:
+      with open(fname, 'r') as f:
+        conv_fn = lambda d: ObjectView(**d)
+        self.__dict__.update(json.load(f, object_hook=conv_fn).__dict__)
+    except IOError as e:
+      eprint('Failed to load cfg file (%s): %s' % (fname, e))
+      raise e
+    except ValueError as e:
+      eprint('Failed to parse cfg file (%s): %s' % (fname, e))
+      raise e
+
+
+class RyuApp(app_manager.RyuApp):
   OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
   _CONTEXTS = { 'wsgi': WSGIApplication }
   _instance = None
 
   def __init__(self, *args, **kwargs):
-    super(Tipsy, self).__init__(*args, **kwargs)
-    Tipsy._instance = self
+    if 'switch_type' in kwargs:
+      self.switch_type = kwargs.pop('switch_type')
+    else:
+      self.switch_type = ['openflow']
+    super(RyuApp, self).__init__(*args, **kwargs)
+    RyuApp._instance = self
     self.logger.debug(" __init__()")
 
-    self.switch_name = 'ovs'
     self.result = {}
     self.lock = False
     self.dp_id = None
@@ -114,8 +110,8 @@ class Tipsy(app_manager.RyuApp):
 
     self.logger.debug("%s, %s" % (args, kwargs))
 
-    self.parse_conf('pl_conf', CONF['pipeline_conf'])
-    self.parse_conf('bm_conf', CONF['benchmark_conf'])
+    self.pl_conf = ObjectView(CONF['pipeline_conf'], logger=self.logger)
+    self.bm_conf = ObjectView(CONF['benchmark_conf'], logger=self.logger)
     # port "names" used to configure the OpenFlow switch
     self.dl_port_name = self.bm_conf.sut.downlink_port
     self.ul_port_name = self.bm_conf.sut.uplink_port
@@ -138,50 +134,32 @@ class Tipsy(app_manager.RyuApp):
     self.change_status('wait')  # Wait datapath to connect
 
   def instantiate_pipeline(self):
-    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+    pl_class = None
+    pl_name = self.pl_conf.name
+    for switch_type in self.switch_type:
+      try:
+        backend = 'SUT_%s' % switch_type
+        pl_class = find_mod.find_class(backend, pl_name)
+        self.logger.info('pipeline: %s_%s', backend, pl_name)
+        break
+      except KeyError as e:
+        pass
 
-    try:
-      backend = 'SUT_%s' % self.switch_name
-      self.logger.warn('backend: %s', backend)
-      pl_class = find_mod.find_class(backend, self.pl_conf.name)
-    except KeyError as e:
-      pl_class = None
-      self.logger.error('keyerror: %s', e)
-    if pl_class:
-      self.pl = pl_class(self, self.pl_conf)
+    if pl_class is None:
+      self.signal_fauilure('Pipeline (%s) not found for %s',
+                           pl_name, self.switch_type)
       return
+    self.pl = pl_class(self, self.pl_conf)
 
+  def signal_fauilure(self, *args):
+    self.logger.critical(*args)
+    self.change_status('failed')
     try:
-      module = importlib.import_module('pipeline.%s' % self.pl_conf.name)
-      pl_class = getattr(module, 'PL')
-      self.pl = pl_class(self, self.pl_conf)
-      return
-    except ImportError as e:
-      self.logger.warn('Failed to import pipeine: %s' % e)
+      requests.get(CONF['webhook_failed'])
+    except requests.ConnectionError:
+      pass
+    hub.spawn_after(1, TipsyController.do_exit)
 
-    try:
-      self.pl = globals()['PL_%s' % self.pl_conf.name](self, self.pl_conf)
-    except (KeyError, NameError) as e:
-      self.logger.error('Failed to instanciate pipeline (%s): %s' %
-                        (self.pl_conf.name, e))
-      raise(e)
-
-  def parse_conf(self, var_name, fname):
-    self.logger.info("conf_file: %s" % fname)
-
-    try:
-      with open(fname, 'r') as f:
-        conv_fn = lambda d: ObjectView(**d)
-        config = json.load(f, object_hook=conv_fn)
-    except IOError as e:
-      self.logger.error('Failed to load cfg file (%s): %s' %
-                        (fname, e))
-      raise(e)
-    except ValueError as e:
-      self.logger.error('Failed to parse cfg file (%s): %s' %
-                        (fname, e))
-      raise(e)
-    setattr(self, var_name, config)
 
   def change_status(self, new_status):
     self.logger.info("status: %s -> %s" % (self.status, new_status))
@@ -207,115 +185,20 @@ class Tipsy(app_manager.RyuApp):
 
     self.lock = False
 
-  def add_port(self, br_name, port_name, iface, core=1):
-    """Add a new port to an ovs bridge.
-    iface can be a PCI address (type => dpdk), or
-    a kernel interface name (type => system)
-    """
-    opt = {}
-    if core != 1:
-      opt['n_rxq'] = core
-    # We could be smarter here, but this will do
-    if iface.find(':') > 0:
-      opt['dpdk-devargs'] = iface
-      sw_conf.add_port(br_name, port_name, type='dpdk', options=opt)
-    else:
-      sw_conf.add_port(br_name, port_name, type='system', name=iface)
-
-  def add_vxlan_tun (self, prefix, host):
-      sw_conf.add_port(self.dp_id,
-                       prefix + '-%s' % host.id,
-                       type='vxlan',
-                       options={'key': 'flow',
-                                'remote_ip': host.ip})
-
-  def initialize_dp_simple(self):
-    # datapath without tunnels
-    sw_conf.del_bridge('br-phy', can_fail=False)
-    sw_conf.set_coremask(self.bm_conf.sut.coremask)
-    br_name = 'br-main'
-    sw_conf.del_bridge(br_name, can_fail=False)
-    sw_conf.add_bridge(br_name, dp_desc=br_name)
-    sw_conf.set_datapath_type(br_name, 'netdev')
-    sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
-    sw_conf.set_fail_mode(br_name, 'secure')
-    core = self.bm_conf.pipeline.core
-    self.add_port(br_name, 'ul_port', self.ul_port_name, core=core)
-    self.add_port(br_name, 'dl_port', self.dl_port_name, core=core)
-
-  def stop_dp_simple(self):
-    sw_conf.del_bridge('br-main')
-
-  def initialize_dp_tunneled(self):
-    sw_conf.set_coremask(self.bm_conf.sut.coremask)
-    core = self.bm_conf.pipeline.core
-    br_name = 'br-main'
-    sw_conf.del_bridge(br_name, can_fail=False)
-    sw_conf.add_bridge(br_name, dp_desc=br_name)
-    sw_conf.set_datapath_type(br_name, 'netdev')
-    sw_conf.set_controller(br_name, 'tcp:127.0.0.1')
-    sw_conf.set_fail_mode(br_name, 'secure')
-    self.add_port(br_name, 'ul_port', self.ul_port_name, core=core)
-
-    br_name = 'br-phy'
-    sw_conf.del_bridge(br_name, can_fail=False)
-    sw_conf.add_bridge(br_name, hwaddr=self.pl_conf.gw.mac, dp_desc=br_name)
-    sw_conf.set_datapath_type(br_name, 'netdev')
-    self.add_port(br_name, 'dl_port', self.dl_port_name, core=core)
-    ip.set_up(br_name, self.pl_conf.gw.ip + '/24')
-
-    ip.add_veth('veth-phy', 'veth-main')
-    ip.set_up('veth-main')
-    ip.set_up('veth-phy')
-    sw_conf.add_port('br-main', 'veth-main', type='system')
-    sw_conf.add_port('br-phy', 'veth-phy', type='system')
-    # Don't use a controller for the following static rules
-    cmd = 'sudo ovs-ofctl --protocol OpenFlow13 add-flow br-phy priority=1,'
-    in_out = [('veth-phy', 'dl_port'),
-              ('dl_port', 'br-phy'),
-              ('br-phy', 'dl_port')]
-    for in_port, out_port in in_out:
-      cmd_tail = 'in_port=%s,actions=output:%s' % (in_port, out_port)
-      if subprocess.call(cmd + cmd_tail, shell=True):
-        self.logger.error('cmd failed: %s' % cmd)
-
-    nets = {}
-    for host in self.pl.get_tunnel_endpoints():
-      net = re.sub(r'[.][0-9]+$', '.0/24', host.ip)
-      nets[str(net)] = True
-    for net in nets.iterkeys():
-      ip.add_route_gw(net, self.pl_conf.gw.default_gw.ip)
-    self.set_arp_table()
-
-  def stop_dp_tunneled(self):
-    sw_conf.del_bridge('br-main')
-    sw_conf.del_bridge('br-phy')
-    ip.del_veth('veth-phy', 'veth-main')
-
   def initialize_datapath(self):
+    """Confingure the switch (as opposed to fill the flow tables with entries)
+    For example, add tunnels, tune performace knobs, etc.
+    """
     self.change_status('initialize_datapath')
 
-    if self.pl.has_tunnels:
-      self.initialize_dp_tunneled()
-    else:
-      self.initialize_dp_simple()
-
   def stop_datapath(self):
-    if self.pl.has_tunnels:
-      self.stop_dp_tunneled()
-    else:
-      self.stop_dp_simple()
-
-  def set_arp_table(self):
-    def_gw = self.pl_conf.gw.default_gw
-    sw_conf.set_arp('br-phy', def_gw.ip, def_gw.mac)
-    self.logger.debug('br-phy: Update the ARP table')
-    hub.spawn_after(60 * 4, self.set_arp_table)
+    pass
 
   @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
   def handle_switch_features(self, ev):
     if self.dp_id and self.dp_id != ev.msg.datapath.id:
-      self.logger.error("This app can control only one switch")
+      self.logger.error("This app can control only one switch (%s, %s)",
+                        self.dp_id, ev.msg.datapath.id)
       raise Exception("This app can control only one switch")
     if self.dp_id is not None:
       self.logger.info("Switch has reconnected, reconfiguring")
@@ -344,11 +227,13 @@ class Tipsy(app_manager.RyuApp):
     ofp = self.dp.ofproto
 
     # Map port names in cfg to actual OF port numbers
+    port_nums = {}
     if self.dl_port_name == self.ul_port_name:
       self.dl_port_name = self.ul_port_name = 'in_port'
     self.ports = {'in_port': ofp.OFPP_IN_PORT}
     for port in ev.msg.body:
       self.ports[port.name] = port.port_no
+      port_nums[port.port_no] = port.name
     for name in sorted(self.ports):
       self.logger.debug('port: %s, %s' % (name, self.ports[name]))
 
@@ -358,7 +243,16 @@ class Tipsy(app_manager.RyuApp):
       ports = ['ul_port', 'dl_port']
     for spec_port in ports:
       port_name = getattr(self, '%s_name' % spec_port)
-      if self.ports.get(port_name):
+      if port_name.isdigit():
+        # port is defined by its port number in the configuration file,
+        # Check if it actually exists.
+        p = int(port_name)
+        self.__dict__[spec_port] = p
+        try:
+          self.logger.info('%s (%s): %s', spec_port, port_nums[p], p)
+        except KeyError:
+          self.logger.critical('%s (%s): not found' % (spec_port, port_name))
+      elif self.ports.get(port_name):
         # kernel interface -> OF returns the interface name as port_name
         port_no = self.ports[port_name]
         self.__dict__[spec_port] = port_no
@@ -392,10 +286,6 @@ class Tipsy(app_manager.RyuApp):
     "Return a goto insturction to table_name"
     parser = self.dp.ofproto_parser
     return parser.OFPInstructionGotoTable(self.pl.tables[table_name])
-
-  def get_tun_port(self, tun_end):
-    "Get SUT port to tun_end"
-    return self.ports['tun-%s' % tun_end]
 
   def mod_flow(self, table=0, priority=None, match=None,
                actions=None, inst=None, out_port=None, out_group=None,
@@ -491,8 +381,6 @@ class Tipsy(app_manager.RyuApp):
                                ofp.OFPG_ALL)
     self.dp.send_msg(clear)
 
-    # Delete tunnels of old base-stations
-    sw_conf.del_old_ports(self.dp_id)
 
   def insert_fakedrop_rules(self):
     if self.pl_conf.get('fakedrop', None) is None:
@@ -504,12 +392,8 @@ class Tipsy(app_manager.RyuApp):
         mod_flow(table_name, 0, goto='drop')
     if not self.pl_conf.fakedrop:
       mod_flow('drop', 0)
-    elif self.pl.has_tunnels:
-      match = {'in_port': self.ul_port}
-      mod_flow('drop', 1, match=match, output=self.ports['veth-main'])
-      mod_flow('drop', 0, output=self.ul_port)
     else:
-      # fakedrop == True and not has_tunnels
+      # fakedrop == True
       mod_flow('drop', match={'in_port': self.ul_port}, output=self.dl_port)
       mod_flow('drop', match={'in_port': self.dl_port}, output=self.ul_port)
 
@@ -520,11 +404,6 @@ class Tipsy(app_manager.RyuApp):
     ofp = self.dp.ofproto
     parser = self.dp.ofproto_parser
     self.clear_switch()
-
-    for bst in self.pl_conf.get('bsts', []):
-      self.add_vxlan_tun('tun', bst)
-    for cpe in self.pl_conf.get('cpe', []):
-      self.add_vxlan_tun('tun', cpe)
 
     self.dp.send_msg(parser.OFPPortDescStatsRequest(self.dp, 0, ofp.OFPP_ANY))
     self.change_status('wait_for_PortDesc')
@@ -597,7 +476,7 @@ class TipsyController(ControllerBase):
 
   @rest_command
   def get_status(self, req, **kw):
-    return Tipsy._instance.get_status()
+    return RyuApp._instance.get_status()
 
   @rest_command
   def get_exit(self, req, **kw):
@@ -606,12 +485,12 @@ class TipsyController(ControllerBase):
 
   @rest_command
   def get_clear(self, req, **kw):
-    Tipsy._instance.clear_switch()
+    RyuApp._instance.clear_switch()
     return "ok"
 
   @rest_command
   def get_result(self, req, **kw):
-    return Tipsy._instance.result
+    return RyuApp._instance.result
 
   @staticmethod
   def do_exit():

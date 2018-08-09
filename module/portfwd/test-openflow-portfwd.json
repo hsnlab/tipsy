@@ -1,0 +1,26 @@
+{
+  "benchmark": [
+    {
+      "scale": "outer",
+      "pipeline": {
+        "name": "portfwd",
+        "core": 1
+      },
+      "sut": {
+        "type": "openflow",
+        "downlink-port": "1",
+        "uplink-port": "2",
+        "setup-script": "/opt/tipsy/module/openflow/setup",
+        "teardown-script": "/opt/tipsy/module/openflow/teardown"
+      }
+    }
+  ],
+  "visualize": [
+    { "type": "table",
+      "x-axis": "sut.type",
+      "y-axis": "out.flood.RX.PacketRate",
+      "filter": {"pipeline.name": "portfwd"},
+      "title": "{pipeline.name}"
+    }
+  ]
+}

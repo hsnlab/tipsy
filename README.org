@@ -335,8 +335,8 @@ The basic workflow is described in more details [[./doc/README.workflow.org][her
 * Miscellaneous
 
 You can make the output a bit more readable by installing
-=ryu/color_log.py=, read the header of =ryu/color_log.py= for how to do
-that.
+=module/openflow/color_log.py=, read the header of
+=module/openflow/color_log.py= for how to do that.
 
 * License
 

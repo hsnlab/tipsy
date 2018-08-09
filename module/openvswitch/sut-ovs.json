@@ -1,0 +1,10 @@
+{
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["ovs"],
+      "description": "ovs: (dpdk-enabled) Open vSwitch.",
+      "default": "ovs"
+    }
+  }
+}

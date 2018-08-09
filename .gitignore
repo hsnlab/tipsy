@@ -1,5 +1,6 @@
 schema/pipeline.json
 schema/plot.json
+schema/sut.json
 schema/tester.json
 *.pyc
 *~

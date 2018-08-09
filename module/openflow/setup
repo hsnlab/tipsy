@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Setup script for test-openflow-portfwd.
+# Assumes the vagrant VM environment.
+
+ssh sut.local sudo ovs-vsctl \
+    --if-exists del-br br
+
+ssh sut.local sudo ovs-vsctl \
+    --if-exists del-br br-main
+
+ssh sut.local sudo ovs-vsctl \
+    add-br br -- \
+    set bridge br datapath_type=netdev -- \
+    set-controller br tcp:127.0.0.1
+
+ssh sut.local sudo ovs-vsctl \
+    add-port br downlink -- \
+    set Interface downlink type=dpdk options:dpdk-devargs=0000:00:08.0
+
+ssh sut.local sudo ovs-vsctl \
+    add-port br uplink -- \
+    set Interface uplink type=dpdk options:dpdk-devargs=0000:00:09.0

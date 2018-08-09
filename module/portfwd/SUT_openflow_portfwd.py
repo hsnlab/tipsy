@@ -15,9 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from pipeline.base import PL_base
+import os
+import sys
 
-class SUT_ovs(PL_base):
+fdir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(fdir, '..', '..', 'lib'))
+import find_mod
+Base = find_mod.find_class('SUT_openflow', 'base')
+
+class SUT_openflow(Base):
   """L2 Port Forwarding
 
   In the upstream direction the pipeline will receive L2 packets from the
@@ -28,7 +34,7 @@ class SUT_ovs(PL_base):
   port and forwarded to the downlink port after an optional MAC rewrite.
   """
   def __init__(self, parent, conf):
-    super(SUT_ovs, self).__init__(parent, conf)
+    super(SUT_openflow, self).__init__(parent, conf)
     self.tables = {
       'tbl'  : 0,
     }

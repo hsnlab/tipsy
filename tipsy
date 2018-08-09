@@ -241,6 +241,14 @@ class TipsyManager(object):
             schema = conf_merge(schema, s, ['description'])
         json_dump(schema, outdir / 'tester.json')
 
+        # The sut schema merges individual schemas into itself.
+        schema = {}
+        for fname in find_mod.glob('sut-*.json'):
+            with open(fname) as f:
+                s = json.load(f)
+            schema = conf_merge(schema, s, ['description'])
+        json_dump(schema, outdir / 'sut.json')
+
         # The plot schema simply collects the plot types and does not
         # allow module writers to extend, redefine schema properties.
         # TODO: refactor to the merger/reference method.

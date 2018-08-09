@@ -17,7 +17,12 @@
 
 from ryu.ofproto import nicira_ext
 
-from pipeline.base import PL_base
+import os
+import sys
+fdir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(fdir, '..', '..', 'lib'))
+import find_mod
+Base = find_mod.find_class('SUT_openflow', 'base')
 
 # http://ryu.readthedocs.io/en/latest/nicira_ext_ref.html
 # http://www.openvswitch.org/support/dist-docs/ovs-ofctl.8.txt
@@ -41,7 +46,7 @@ def action_nat(parser, kw):
   return parser.NXActionNAT(**kw)
 
 
-class SUT_ovs(PL_base):
+class SUT_ovs(Base):
   """SNAT pipeline
   """
   def __init__(self, parent, conf):

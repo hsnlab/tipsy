@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Teardown script for test-openflow-portfwd.
+# Assumes the vagrant VM environment.
+
+ssh sut.local sudo ovs-vsctl del-br br

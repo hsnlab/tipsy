@@ -57,11 +57,9 @@ make install
 mkdir -p /usr/local/etc/openvswitch
 mkdir -p /usr/local/var/run/openvswitch
 
-chmod a+w /opt/tipsy/ryu # FIXME
-
 # install ryu
 git clone --depth=1 https://github.com/osrg/ryu.git /opt/ryu
 cd /opt/ryu
-cp /opt/tipsy/ryu/color_log.py ryu/contrib
+cp /opt/tipsy/module/openflow/color_log.py ryu/contrib
 pip install .
 
