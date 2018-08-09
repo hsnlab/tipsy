@@ -231,7 +231,7 @@ class TipsyManager(object):
         }
         TipsyManager.create_file_from_template(src, dst, replacements)
 
-        # The tester schema merges individula schema into itself.
+        # The tester schema merges individual schemas into itself.
         # This is inconsistent with the pipeline schema, but it makes
         # possible to define 'trex-dir' in the defaults section.
         schema = {}
@@ -328,6 +328,14 @@ class TipsyManager(object):
               %\def\pgfsysdriver{pgfsys-dvipdfm.def}
               \usepackage{pgfplots}
               \pgfplotsset{compat = newest}
+
+              % Use a single count for figures and tables in LaTeX
+              % https://stackoverflow.com/a/3866061
+              \makeatletter
+              \renewcommand*{\thetable}{\arabic{table}}
+              \renewcommand*{\thefigure}{\arabic{figure}}
+              \let\c@table\c@figure
+              \makeatother
             '''))
             f.write("\n")
             for dir in out_dirs:
