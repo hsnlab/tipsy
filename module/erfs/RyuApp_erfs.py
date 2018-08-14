@@ -33,11 +33,12 @@ class RyuApp(RyuAppOpenflow):
   def __init__(self, *args, **kwargs):
     if 'switch_type' not in kwargs:
       kwargs['switch_type'] = ['erfs', 'openflow']
-    super(RyuApp, self).__init__(*args, **kwargs)
     self.core_idx = 0 # next core to allocate in the core_list
     with find.add_path(os.path.dirname(__file__)):
       import sw_conf_erfs as sw_conf
       self.sw_conf = sw_conf
+
+    super(RyuApp, self).__init__(*args, **kwargs)
 
   def add_port(self, br_name, port_name, iface, core=1):
     self.sw_conf.add_port(br_name, port_name, iface, core)

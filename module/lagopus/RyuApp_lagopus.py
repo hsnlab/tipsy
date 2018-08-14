@@ -32,8 +32,9 @@ class RyuApp(RyuAppOpenflow):
   def __init__(self, *args, **kwargs):
     if 'switch_type' not in kwargs:
       kwargs['switch_type'] = ['lagopus', 'openflow']
-    super(RyuApp, self).__init__(*args, **kwargs)
     self.core_idx = 0 # next core to allocate in the core_list
+
+    super(RyuApp, self).__init__(*args, **kwargs)
 
   def get_cores(self, num_cores):
     coremask = self.bm_conf.sut.coremask
