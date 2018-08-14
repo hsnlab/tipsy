@@ -22,12 +22,15 @@ Base = find_mod.find_class('SUT', 'base')
 
 class SUT(Base):
     def __init__(self, conf):
-        super().__init__(conf)
+        super(SUT, self).__init__(conf)
         self.remote_dir = Path(self.conf.sut.tipsy_dir) / 'module' / 'openflow'
+        self.virtualenv = None
 
     def _start(self):
         self.upload_conf_files('/tmp')
 
-        cmd = self.remote_dir / 'start-ryu'
-        self.run_async_ssh_cmd(['sudo', str(cmd)])
+        cmd = ['sudo', str(self.remote_dir / 'start-ryu')]
+        if self.virtualenv:
+            cmd.append(self.virtualenv)
+        self.run_async_ssh_cmd(cmd)
         self.wait_for_callback()

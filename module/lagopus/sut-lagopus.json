@@ -4,6 +4,11 @@
       "type": "string",
       "enum": ["lagopus"],
       "description": "Lagopus: A high-performance software OpenFlow 1.3 switch (http://www.lagopus.org)."
+    },
+    "lagopus-virtualenv": {
+      "type": "string",
+      "default": "/opt/lagopus-virtualenv",
+      "description": "Location of the python virtual environment directory that should be activated before starting the Ryu controller.  (It should contain a lagopus specific version of Ryu: https://github.com/lagopus/ryu-lagopus-ext)"
     }
   }
 }

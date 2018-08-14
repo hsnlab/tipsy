@@ -28,14 +28,17 @@ sudo make install
 cd /opt
 sudo apt-get install \
      python-virtualenv
-sudo virtualenv lagopus-ryu-python
-source lagopus-ryu-python/bin/activate
+sudo virtualenv lagpus-virtualenv
+source lagpus-virtualenv/bin/activate
 
 url=https://github.com/lagopus/ryu-lagopus-ext.git
 target=/opt/ryu-lagopus-ext
-git clone --depth=1 $url $target
+branch=lagopus-general-tunnel-ext
+git clone --branch $branch --depth=1 $url $target
 cd $target
-sudo python ./setup.py install
-sudo pip install msgpack-python
+
+cp ../tipsy/module/openflow/color_log.py ryu/contrib
+pip install .
+#sudo pip install msgpack-python
 
 deactivate

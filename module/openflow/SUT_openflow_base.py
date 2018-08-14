@@ -22,6 +22,10 @@ class SUT_openflow(object):
     self.conf = conf
     self.parent = parent
     self.logger = self.parent.logger
+    # The pipeline has tunnels if it has ports that take care of
+    # adding and removing VXLAN, GRE, etc headers.  OTOH, If flow
+    # actions push and pop these headers (vlan_push, vlan_pop), then
+    # has_tunnels should be False.
     self.has_tunnels = False
     self.tables = {'drop': 0}
 

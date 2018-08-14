@@ -3,7 +3,7 @@
     "type": {
       "type": "string",
       "enum": ["erfs"],
-      "description": ""
+      "description": "erfs: L. Molnar et al., 'Dataplane specialization for high performance OpenFlow software switching,' in ACM SIGCOMM, 2016, pp. 539-552."
     },
     "erfs-dir": {
       "type": "string",

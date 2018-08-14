@@ -22,6 +22,9 @@ import find_mod
 Base = find_mod.find_class('SUT', 'openflow')
 
 class SUT(Base):
+    def __init__(self, conf):
+        super().__init__(conf)
+        self.virtualenv = self.conf.sut.lagopus_virtualenv
 
     def _query_version(self):
         v = self.run_ssh_cmd(['lagopus', '--version'], stdout=subprocess.PIPE)

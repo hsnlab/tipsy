@@ -26,7 +26,7 @@ class SUT_erfs(Base):
 
   def __init__(self, parent, conf):
     super(SUT_erfs, self).__init__(parent, conf)
-    self.has_tunnels = True
+    self.has_tunnels = False
     self.group_idx = 0
     self.tables = {
       'mac_fwd'   : 0,
