@@ -269,6 +269,10 @@ class TipsyManager(object):
                 if not f.name.startswith('.'):
                     # https://bugs.python.org/issue26096
                     config_files.append(str(f.name))
+        for f in ['/etc/tipsy.json', '~/.tipsy.json']:
+            f = Path(f).expanduser()
+            if f.exists():
+                config_files = [str(f)] + config_files
         self.tipsy_conf = conf_load({})
         for config_file in config_files:
             print('Processing config file: %s' % config_file)
