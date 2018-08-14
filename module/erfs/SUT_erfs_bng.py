@@ -18,12 +18,13 @@
 from ryu.lib.packet import in_proto
 from ryu.lib.packet.ether_types import ETH_TYPE_IP
 
-from .mgw import PL as PL_mgw
+import find_mod
+Base = find_mod.find_class('SUT_erfs', 'mgw')
 
-class PL(PL_mgw):
+class SUT_erfs(Base):
 
   def __init__(self, parent, conf):
-    super(PL, self).__init__(parent, conf)
+    super(SUT_erfs, self).__init__(parent, conf)
     self.tables = {
       'mac_fwd'   : 0,
       'arp_select': 1,
@@ -104,11 +105,9 @@ class PL(PL_mgw):
       mod_flow(table_name, match=match, actions=actions, goto=next_table)
 
   def config_switch(self, parser):
-    super(PL, self).config_switch(parser)
+    super(SUT_erfs, self).config_switch(parser)
 
     self.add_fw_rules('ul_fw', self.conf.ul_fw_rules, 'ul_nat')
     self.add_fw_rules('dl_fw', self.conf.dl_fw_rules, 'downlink')
     self.add_ul_nat_rules('ul_nat', 'l3_lookup')
     self.add_dl_nat_rules('dl_nat', 'dl_fw')
-
-

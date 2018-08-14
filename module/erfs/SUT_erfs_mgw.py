@@ -19,12 +19,13 @@ from ryu.lib.packet import in_proto
 from ryu.lib.packet.ether_types import ETH_TYPE_IP, ETH_TYPE_ARP
 from ryu.ofproto import ofproto_v1_3
 
-from ovs.mgw import PL as PL_ovs_mgw
+import find_mod
+Base = find_mod.find_class('SUT_ovs', 'mgw')
 
-class PL(PL_ovs_mgw):
+class SUT_erfs(Base):
 
   def __init__(self, parent, conf):
-    super(PL, self).__init__(parent, conf)
+    super(SUT_erfs, self).__init__(parent, conf)
     self.has_tunnels = True
     self.group_idx = 0
     self.tables = {

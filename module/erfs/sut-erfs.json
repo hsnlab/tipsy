@@ -1,0 +1,14 @@
+{
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["erfs"],
+      "description": ""
+    },
+    "erfs-dir": {
+      "type": "string",
+      "default": "/opt/erfs",
+      "description": "A directory on SUT in which erfs is installed"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # TIPSY: Telco pIPeline benchmarking SYstem
 #
-# Copyright (C) 2018 by its authors (See AUTHORS)
+# Copyright (C) 2017-2018 by its authors (See AUTHORS)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,20 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-import subprocess
-from pathlib import Path
+import find_mod
+BaseLago = find_mod.find_class('SUT_lagopus', 'mgw')
+BaseErfs = find_mod.find_class('SUT_erfs', 'bng')
 
-from sut_base import SUT as Base
+class SUT_lagopus(BaseLago, BaseErfs):
+  pass
 
-class SUT(Base):
-    def _start(self):
-        v = self.run_ssh_cmd(['lagopus', '--version'], stdout=subprocess.PIPE)
-        first_line = v.stdout.decode('utf8').split("\n")[0]
-        self.result['version'] = first_line.split(' ')[-1]
-
-        remote_ryu_dir = Path(self.conf.sut.tipsy_dir) / 'lagopus'
-        self.upload_conf_files(remote_ryu_dir)
-
-        cmd = remote_ryu_dir / 'start-ryu'
-        self.run_async_ssh_cmd(['sudo', str(cmd)])
-        self.wait_for_callback()
+# TODO: this inheritance should be carefully tested

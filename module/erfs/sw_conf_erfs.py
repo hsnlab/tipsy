@@ -34,8 +34,7 @@ def call(cmd):
   ##p.terminate()
 
 def init_sw():
-  # call('config demo_mode 1')
-  # call('config use_counters 1')
+  call('config demo_mode 1')
   pass
 
 def add_bridge(br_number, **kw):

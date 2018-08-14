@@ -4,7 +4,7 @@
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["bess", "erfs", "lagopus", "ofdpa", "t4p4s", "vpp"]
+      "enum": ["bess", "ofdpa", "t4p4s", "vpp"]
     },
     "hostname": {
       "type": "string",
@@ -25,11 +25,6 @@
       "type": "string",
       "default": "/opt/t4p4s16/t4p4s-16",
       "description": "A directory on SUT in which t4p4s is installed"
-    },
-    "erfs-dir": {
-      "type": "string",
-      "default": "/opt/erfs",
-      "description": "A directory on SUT in which erfs is installed"
     },
     "uplink-port": {
       "type": "string",

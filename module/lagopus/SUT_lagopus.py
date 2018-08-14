@@ -15,15 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import subprocess
 from pathlib import Path
 
-from sut_base import SUT as Base
+import find_mod
+Base = find_mod.find_class('SUT', 'openflow')
 
 class SUT(Base):
-    def _start(self):
-        remote_dir = Path(self.conf.sut.tipsy_dir) / 'erfs'
-        self.upload_conf_files(remote_dir)
 
-        cmd = remote_dir / 'start-ryu'
-        self.run_async_ssh_cmd(['sudo', str(cmd)])
-        self.wait_for_callback()
+    def _query_version(self):
+        v = self.run_ssh_cmd(['lagopus', '--version'], stdout=subprocess.PIPE)
+        first_line = v.stdout.decode('utf8').split("\n")[0]
+        self.result['version'] = first_line.split(' ')[-1]

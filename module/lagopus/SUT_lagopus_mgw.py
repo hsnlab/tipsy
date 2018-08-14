@@ -18,9 +18,10 @@
 from ryu.lib.packet import in_proto
 from ryu.lib.packet.ether_types import ETH_TYPE_IP
 
-from erfs.mgw import PL as PL_erfs_mgw
+import find_mod
+Base = find_mod.find_class('SUT_erfs', 'mgw')
 
-class PL(PL_erfs_mgw):
+class SUT_lagopus(Base):
 
   def init_backend(self):
     # Backend specific initialization
