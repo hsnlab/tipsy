@@ -295,10 +295,15 @@ class RyuApp(app_manager.RyuApp):
     return mask
 
   def mod_match_addr(self, match, key):
+    """Convert address from CIDR notation to (addr, netmask) format.
+    match[key] is the address to convert.
+    """
     try:
       val = match[key]
     except:
       return
+    if type(val) != str:
+      return # val cannot be in CIDR format
     m = re.match(r'^([^\/]*)\/([^\/]*)$', val)
     if not m:
       return
