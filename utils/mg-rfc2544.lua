@@ -172,11 +172,12 @@ function master(args)
          finished = true
       end
    end
-   log:info('Result: %s%s', yellow(tostring(a.rate)), white(' [Mbit/s]'))
+   rate = binSearch.lowerLimit
+   log:info('Result: %s%s', yellow(tostring(rate)), white(' [Mbit/s]'))
    if args.ofile then
       file = io.open(args.ofile, "w")
       file:write("limit,tx,rx,unit\n")
-      file:write(tostring(a.rate), ",",
+      file:write(tostring(rate), ",",
                 tostring(tx), ",",
                 tostring(rx), ",Mbit/s\n")
       file:close()
