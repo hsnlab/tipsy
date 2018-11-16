@@ -52,6 +52,8 @@ local log     = require "log"
 local pcap    = require "pcap"
 local timer   = require "timer"
 
+local setRate = require "mg-setRate"
+
 function configure(parser)
    parser:description("Measure RFC2544 like throughput with replaying a PCAP"
                       .. " file for a certain duration.")
@@ -190,7 +192,8 @@ function measure_with_rate(...)
    for i = 1, a.cores do
       mg.startTask("replay_pcap", a.txDev:getTxQueue(i-1), a.file, true)
    end
-   a.txDev:setRate(a.rate)
+
+   setRate:setRate(a.txDev, a.rate)
    mg.setRuntime(a.runtime)
 
    mg.waitForTasks()

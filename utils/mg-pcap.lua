@@ -47,7 +47,9 @@ local pcap    = require "pcap"
 local hist    = require "histogram"
 local ts      = require "timestamping"
 local timer   = require "timer"
-local dpdk       = require "dpdk"
+local dpdk    = require "dpdk"
+
+local setRate = require "mg-setRate"
 
 function configure(parser)
    parser:description("Replay a PCAP file with rate control and measure latencies.")
@@ -84,10 +86,6 @@ function master(args)
       lastRxQue = cores
    end
    device.waitForLinks()
-   if args.rateLimit > 0 then
-      log:info('Set hw rate-limit of %s to %s Mbit/s', txDev, args.rateLimit)
-      txDev:setRate(args.rateLimit)
-   end
    for i = 1, cores do
       mg.startTask("replay_pcap", txDev:getTxQueue(i-1),
                    args.file, args.loop)
@@ -98,6 +96,11 @@ function master(args)
    else
       stats.startStatsTask{txDevices = {txDev}, rxDevices = {rxDev},
                            format="plain"}
+   end
+   if args.rateLimit > 0 then
+      -- setting per que rate limit must come after startStatsTask
+      log:info('Set hw rate-limit of %s to %s Mbit/s', txDev, args.rateLimit)
+      setRate:setRate(txDev, args.rateLimit)
    end
    if args.timestamps then
       mg.startSharedTask("measure_latency", txDev:getTxQueue(cores),
