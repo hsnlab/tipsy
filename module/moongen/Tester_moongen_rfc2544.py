@@ -30,7 +30,8 @@ class Tester(Base):
         ofile = out_dir / 'mg.rfc2544.csv'
         precision = 5
         cmd = ['sudo', self.mg_cmd, self.script, self.txdev, self.rxdev, pcap,
-               '-r', self.runtime, '-p', precision, '-o', ofile]
+               '-r', self.runtime, '-p', precision, '-o', ofile,
+               '--lossTolerance', self.loss_tolerance]
         cmd = [ str(o) for o in cmd ]
         print(' '.join(cmd))
         subprocess.call(cmd)

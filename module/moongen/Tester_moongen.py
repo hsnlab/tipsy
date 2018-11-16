@@ -40,6 +40,7 @@ class Tester(Base):
         self.script = self.tipsy_dir / 'utils' / 'mg-pcap.lua'
         self.runtime = tester.test_time
         self.rate_limit = 0
+        self.loss_tolerance = tester.loss_tolerance
 
     def _run(self, out_dir):
         pcap = out_dir / 'traffic.pcap'

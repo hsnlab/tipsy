@@ -18,6 +18,11 @@
       "description": "length of the measurement [s]",
       "default": 30
     },
+    "loss-tolerance": {
+      "type": "number",
+      "description": "Loss considered acceptable [Mpps] (only for moongen-rfc2544)",
+      "default": 0.2
+    },
     "uplink-port": {
       "type": "string",
       "default": "0000:0c:00.1",
