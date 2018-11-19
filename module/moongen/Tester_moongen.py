@@ -39,7 +39,7 @@ class Tester(Base):
         self.tipsy_dir = Path(__file__).parent.parent.parent
         self.script = self.tipsy_dir / 'utils' / 'mg-pcap.lua'
         self.runtime = tester.test_time
-        self.rate_limit = 0
+        self.rate_limit = tester.rate_limit
         self.loss_tolerance = tester.loss_tolerance
 
     def _run(self, out_dir):

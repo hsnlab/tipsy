@@ -23,6 +23,11 @@
       "description": "Loss considered acceptable [Mpps] (only for moongen-rfc2544)",
       "default": 0.2
     },
+    "rate-limit": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "description": "Config parameter of the hw rate limiter.  It is relevant only when type is 'moongen'.  The default (0) does not set the rate limiter.  Due to the inaccuracies of the limiter, the actual TX rate is different from this parameter.",
+      "default": 0
+    },
     "uplink-port": {
       "type": "string",
       "default": "0000:0c:00.1",
