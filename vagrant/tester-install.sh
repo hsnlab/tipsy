@@ -20,6 +20,7 @@ apt-get install --yes \
     python3-matplotlib \
     libffi-dev \
     libssl-dev \
+    libtbb2 \
     libxml2-dev \
     libxslt1-dev \
     zlib1g-dev \
