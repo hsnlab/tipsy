@@ -36,8 +36,8 @@ class Tester(Base):
         if tester.core != 1:
             self.txdev = "%s:%s" % (self.txdev, tester.core)
         self.mg_cmd = tester.moongen_cmd
-        self.tipsy_dir = Path(__file__).parent.parent.parent
-        self.script = self.tipsy_dir / 'utils' / 'mg-pcap.lua'
+        self.lua_dir = Path(__file__).parent
+        self.script = self.lua_dir / 'mg-pcap.lua'
         self.runtime = tester.test_time
         self.rate_limit = tester.rate_limit
         self.loss_tolerance = tester.loss_tolerance

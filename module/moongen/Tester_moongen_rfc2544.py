@@ -23,7 +23,7 @@ from Tester_moongen import Tester as Base
 class Tester(Base):
     def __init__(self, conf):
         super().__init__(conf)
-        self.script = self.tipsy_dir / 'utils' / 'mg-rfc2544.lua'
+        self.script = self.lua_dir / 'mg-rfc2544.lua'
 
     def _run(self, out_dir):
         pcap = out_dir / 'traffic.pcap'
