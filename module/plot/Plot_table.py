@@ -27,24 +27,15 @@ class Plot(Plot_base):
           \usepackage{pgfplotstable}
           \usepackage{colortbl}
         """) + "\n"
-        self.column_types = {}
 
-    def set_column_types(self, vals):
-        print(vals)
-        for col, val in enumerate(vals):
-            if val == 'nan':
-                continue
-            try:
-                float(val)
-            except ValueError:
-                self.column_types[col] = 'string'
+    def format_matplotlib(self, series, title):
+        pass
 
     def format_latex(self, series, title):
         f = {'title': title, 'plot_args': '', 'addplot': ''}
 
         names = [self.conf.x_axis] + [s[0] for s in series.items()]
-        names = [str2tex(n) for n in names]
-        f['header'] = ' & '.join(names)
+        table = [names]
 
         x_vals = []
         for s in series.items():
@@ -52,40 +43,45 @@ class Plot(Plot_base):
         x_vals = sorted(set(x_vals))
 
         sdict = [{k: v for k, v in points} for points in series.values()]
-        if len(x_vals) != 1:
-            for x in x_vals:
-                vals = [str(x)]
-                for s in sdict:
-                    vals.append(str(s.get(x, 'nan')))
-                self.set_column_types(vals)
-                f['addplot'] += ' & '.join(vals) + "\\\\ \n    "
-        else:
-            f['plot_args'] = 'column type=l,'
-            f['header'] = 'variable & value'
-            x = x_vals[0]
-            line = "%s & %s\\\\ \n    "
-            f['addplot'] += line % (self.conf.x_axis, x)
-            self.set_column_types([self.conf.x_axis, x])
-            for var in ensure_list(self.conf.y_axis):
-                val = series[var][0][1]
-                self.set_column_types([var, val])
-                f['addplot'] += line % (str2tex(var), val)
+        for x in x_vals:
+            vals = [str(x)]
+            for s in sdict:
+                vals.append(str(s.get(x, 'nan')))
+            table.append(vals)
 
-        plot_args = []
-        for col, type in self.column_types.items():
-            s = '/pgfplots/table/display columns/%s/.style={string type}' % col
-            plot_args.append(s)
-        if plot_args:
-            f['plot_args'] += ','.join(plot_args) + ','
+        if len(table) < len(table[0]):
+            # more columns than rows -> transpose
+            table = list(zip(*table))
+        if len(x_vals) == 1:
+            table = [['variable', 'value']] + table
+        header, table = table[0], table[1:]
+
+        column_types = {}
+        for colnum, col in enumerate(zip(*table)):
+            for val in col:
+                if val == 'nan':
+                    continue
+                try:
+                    float(val)
+                except ValueError:
+                    column_types[colnum] = 'string type, column type=l,'
+
+        for colnum, name in enumerate(header):
+            col_type = column_types.get(colnum, "")
+            s = ",\n    columns/%d/.style={%s column name={%s}}"
+            f['plot_args'] += s % (colnum, col_type, str2tex(name))
+
+        for row in table:
+            row = [str2tex(cell) for cell in row]
+            f['addplot'] += ' & '.join(row) + "\\\\\n    "
 
         text = inspect.cleandoc(r"""
           \begin{{table}}
             \tiny
             \centering
             \caption{{{title}}}
-            \pgfplotstabletypeset[col sep=&,row sep=\\,{plot_args}
+            \pgfplotstabletypeset[col sep=&,row sep=\\,header=false {plot_args},
               every even row/.style={{before row={{\rowcolor[gray]{{0.9}}}}}}]{{
-              {header} \\
               {addplot}}}
           \end{{table}}
           """
