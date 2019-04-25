@@ -49,6 +49,22 @@ class ObjectView(dict):
         except KeyError:
             return default
 
+    @staticmethod
+    def _to_dict(obj):
+        if type(obj) == list:
+            return [ ObjectView._to_dict(x) for x in obj ]
+        if type(obj) == ObjectView:
+            return { k: ObjectView._to_dict(v) for k, v in obj.items() }
+        return obj
+
+    @staticmethod
+    def _from_dict(obj):
+        if type(obj) == list:
+            return [ ObjectView._from_dict(x) for x in obj ]
+        if type(obj) == dict:
+            d = {k: ObjectView._from_dict(v) for k, v in obj.items()}
+            return ObjectView(**d)
+        return obj
 
 def json_load(file):
     with file.open('r') as f:
@@ -94,6 +110,26 @@ def filter_data(conf, data):
     print("Can't import monoquery, using a subset of the query language")
     return [obj for obj in data if match(conf.filter, obj)]
 
+def mongo_pipeline(pipeline, data):
+    data = list(data)
+    if not pipeline:
+        return data
+    import pymongo              # apt-get install python3-pymongo
+    client = pymongo.MongoClient()
+    db = client.tipsy
+    col = db.plot
+    col.delete_many({})
+    col.insert_many( ObjectView._to_dict(data) )
+    pipeline = ObjectView._to_dict(pipeline)
+
+    ret = col.aggregate(pipeline)
+    col.delete_many({})
+    data = []
+    for item in ret:
+        del item["_id"]
+        data.append(item)
+    return ObjectView._from_dict(data)
+
 def run_in_cwd():
     cwd = Path().cwd()
     conf = json_load(cwd / 'plot.json')
@@ -102,6 +138,8 @@ def run_in_cwd():
         print(res)
         data += json_load(res)
     data = filter_data(conf, data)
+    data = mongo_pipeline(conf.aggregate, data)
+    #print('mongo', json.dumps(data, indent=2, sort_keys=True))
 
     plt_class = find_mod.find_class('Plot', conf.type)
     plt_obj = plt_class(conf)

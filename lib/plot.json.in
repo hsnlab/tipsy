@@ -45,6 +45,11 @@
       "default" : {},
       "description": "Filter values to plot by this mongodb query expression.  If mongoquery is not installed, then only a subset of the query language can be used.  See: https://pypi.python.org/pypi/mongoquery/"
     },
+    "aggregate": {
+      "type": "array",
+      "default" : [],
+      "description": "Pipeline definition for pymongo.  Requires running mongodb server."
+    },
     "title": {
       "type": "string",
       "default": "",
