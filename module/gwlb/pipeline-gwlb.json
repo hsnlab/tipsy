@@ -1,0 +1,46 @@
+{
+  "title": "Configuration of a Could access-gateway/load-balancer pipeline",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "enum": ["gwlb"],
+      "description":
+      "name of the pipeline, must be set to gwlb"
+    },
+    "fakedrop": {
+      "type": "boolean",
+      "description":
+      "whether to actually drop unmatched packets (False) or send them immediately to the output port (True) for correct rate measurements",
+      "default": true
+    },
+    "implementation-type": {
+      "type": "string",
+      "enum": ["universal", "metadata", "goto"],
+      "description": "Type of the internal implementation of the pipeline.",
+      "default": "universal"
+    },
+    "service-num": {
+      "$ref": "definitions.json#/positive-integer",
+      "default": 3,
+      "description": "Number of services"
+    },
+    "backend-num": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "default": 2,
+      "description": "number of backends per service"
+    },
+    "fluct-port": {
+      "$ref": "definitions.json#/non-negative-integer",
+      "description": "number of port change events per sec",
+      "default": 0
+    },
+    "core": {
+      "$ref": "definitions.json#/positive-integer",
+      "description": "number of CPU cores/workers running the pipeline",
+      "default": 1
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false
+}

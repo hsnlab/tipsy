@@ -1,0 +1,179 @@
+{
+  "benchmark": [
+    {
+      "id": "flood",
+      "scale": "outer",
+      "pipeline": {
+        "name": "gwlb",
+        "service-num": 20,
+        "backend-num": 8,
+        "fakedrop": false,
+        "fluct-port": 0,
+        "implementation-type": ["universal", "metadata", "goto"]
+      },
+      "tester": {
+        "type": "moongen"
+      }
+    },
+    {
+      "id": "combined",
+      "scale": "outer",
+      "pipeline": {
+        "name": "gwlb",
+        "service-num": 20,
+        "backend-num": 8,
+        "fakedrop": true,
+        "fluct-port": [0, 10, 50, 100],
+        "implementation-type": ["universal", "metadata", "goto"]
+      },
+      "tester": {
+        "type": "moongen-combined",
+        "loss-tolerance": 0.01
+      }
+    },
+    {
+      "id": "rate-limit",
+      "scale": "outer",
+      "pipeline": {
+        "name": "gwlb",
+        "service-num": 20,
+        "backend-num": 8,
+        "fakedrop": true,
+        "fluct-port": 0,
+        "implementation-type": ["universal", "metadata", "goto"]
+      },
+      "tester": {
+        "type": "moongen",
+        "rate-limit": [3688, 3689, 3690, 3691, 3692, 3693,
+                       3694, 3695, 3696, 3697, 3698, 3699]
+      }
+    }
+  ],
+  "visualize": [
+    {
+      "type": "simple",
+      "x-axis": "pipeline.fluct-port",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "filter": {"id": "combined"},
+      "group-by": "pipeline.implementation-type",
+      "title": "{sut.type}:{pipeline.name}"
+    },
+    {
+      "type": "table",
+      "x-axis": "pipeline.fluct-port",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "filter": {"id": "combined"},
+      "group-by": "pipeline.implementation-type",
+      "title": "{sut.type}:{pipeline.name}"
+    },
+    {
+      "type": "simple",
+      "x-axis": "pipeline.fluct-port",
+      "y-axis": "out.latency.3rd_Quartiles",
+      "filter": {"id": "combined"},
+      "group-by": "pipeline.implementation-type",
+      "title": "{sut.type}:{pipeline.name}"
+    },
+    {
+      "type": "table",
+      "x-axis": "pipeline.fluct-port",
+      "y-axis": "out.latency.3rd_Quartiles",
+      "filter": {"id": "combined"},
+      "group-by": "pipeline.implementation-type",
+      "title": "{sut.type}:{pipeline.name}"
+    },
+    {
+      "type": "table",
+      "x-axis": "pipeline.implementation-type",
+      "y-axis": [
+        "out.throughput.TX.PacketRate",
+        "out.throughput.RX.PacketRate",
+        "out.latency.3rd_Quartiles"
+      ],
+      "filter": {"pipeline.fluct-port": 0,
+                 "id": "flood"},
+      "title": "{sut.type}:{pipeline.name}"
+    },
+    {
+      "x-axis": "tester.rate-limit",
+      "y-axis": "out.throughput.TX.PacketRate",
+      "group-by": "pipeline.implementation-type",
+      "filter": {"id": "rate-limit"}
+    },
+    {
+      "x-axis": "out.throughput.TX.PacketRate",
+      "group-by": "pipeline.implementation-type",
+      "y-axis": "out.throughput.RX.PacketRate",
+      "filter": {"id": "rate-limit"}
+    },
+    {
+      "x-axis": "out.throughput.TX.PacketRate",
+      "group-by": "pipeline.implementation-type",
+      "y-axis": "out.latency.3rd_Quartiles",
+      "filter": {"id": "rate-limit"}
+    },
+    {
+      "x-axis": "tester.rate-limit",
+      "y-axis": "out.latency.3rd_Quartiles",
+      "group-by": "pipeline.implementation-type",
+      "filter": {"id": "rate-limit"}
+    },
+    {
+      "x-axis": "tester.rate-limit",
+      "y-axis": "out.latency.3rd_Quartiles",
+      "group-by": "pipeline.implementation-type",
+      "filter": {"id": "rate-limit",
+                 "tester.rate-limit": {"$lt": 3696}
+                },
+      "title": "zoomed (1)"
+    },
+    {
+      "x-axis": "tester.rate-limit",
+      "y-axis": "out.latency.3rd_Quartiles",
+      "group-by": "pipeline.implementation-type",
+      "filter": {"id": "rate-limit",
+                 "tester.rate-limit": {"$gt": 3695}
+                },
+      "title": "zoomed (2)"
+    },
+    {
+      "type": "table",
+      "filter": {"id": "rate-limit",
+                 "pipeline.implementation-type": "universal"},
+      "group-by": "pipeline.implementation-type",
+      "x-axis": "tester.rate-limit",
+      "y-axis": [
+        "out.throughput.TX.PacketRate",
+        "out.throughput.RX.PacketRate",
+        "out.latency.3rd_Quartiles"
+      ],
+      "title": "pipeline.implementation-type: {pipeline.implementation-type}"
+    },
+    {
+      "type": "table",
+      "filter": {"id": "rate-limit",
+                 "pipeline.implementation-type": "metadata"},
+      "group-by": "pipeline.implementation-type",
+      "x-axis": "tester.rate-limit",
+      "y-axis": [
+        "out.throughput.TX.PacketRate",
+        "out.throughput.RX.PacketRate",
+        "out.latency.3rd_Quartiles"
+      ],
+      "title": "pipeline.implementation-type: {pipeline.implementation-type}"
+    },
+    {
+      "type": "table",
+      "filter": {"id": "rate-limit",
+                 "pipeline.implementation-type": "goto"},
+      "group-by": "pipeline.implementation-type",
+      "x-axis": "tester.rate-limit",
+      "y-axis": [
+        "out.throughput.TX.PacketRate",
+        "out.throughput.RX.PacketRate",
+        "out.latency.3rd_Quartiles"
+      ],
+      "title": "pipeline.implementation-type: {pipeline.implementation-type}"
+    }
+  ]
+}

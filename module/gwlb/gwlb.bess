@@ -1,0 +1,170 @@
+# -*- mode: python; -*-
+
+# TIPSY: Telco pIPeline benchmarking SYstem
+#
+# Copyright (C) 2018 by its authors (See AUTHORS)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+import json
+import socket
+import struct
+import sys
+
+def aton(ip):
+  return socket.inet_aton(ip)
+
+def coremask_to_corelist(coremask):
+  cpum = int(coremask, 16)
+  return [i for i in range(32) if (cpum >> i) & 1 == 1]
+
+class ObjectView(object):
+  def __init__(self, **kwargs):
+    tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
+    self.__dict__.update(**tmp)
+
+  def __repr__(self):
+    return self.__dict__.__repr__()
+
+def conv_fn(d): return ObjectView(**d)
+
+pl_conf_file = $pl_config!'./gwlb.json'
+bm_conf_file = $bm_config!'./benchmark.json'
+with open(pl_conf_file, 'r') as f:
+  conf = json.load(f, object_hook=conv_fn)
+with open(bm_conf_file, 'r') as f:
+  bm_conf = json.load(f, object_hook=conv_fn)
+
+bess_dlport = int(bm_conf.sut.downlink_port)
+bess_ulport = int(bm_conf.sut.uplink_port)
+bess_workers = int(conf.core)
+corelist = coremask_to_corelist(bm_conf.sut.coremask)
+
+portDL = PMDPort(port_id=bess_dlport,
+                 num_inc_q=bess_workers,
+                 num_out_q=bess_workers)
+
+if bess_dlport == bess_ulport:
+  portUL = portDL
+else:
+  portUL = PMDPort(port_id=bess_ulport,
+                    num_inc_q=bess_workers,
+                    num_out_q=bess_workers)
+
+for wid in range(bess_workers):
+  try:
+    bess.add_worker(wid, corelist[wid])
+  except IndexError:
+    sys.exit('ERROR: Insufficient number of cores available.')
+
+  in_u = QueueInc(name="ul_inport_%d" % wid, port=portUL.name, qid=wid)
+  out_u = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
+  buf_u = Buffer(name='out_buf_u_%d' % wid)
+
+  in_d = QueueInc(name="dl_inport_%d" % wid, port=portDL.name, qid=wid)
+  out_d = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
+  buf_d = Buffer(name='out_buf_d_%d' % wid)
+  if conf.fakedrop:
+    drop_u = buf_u
+    drop_d = buf_d
+  else:
+    drop_u = Sink()
+    drop_d = Sink()
+
+  # upstream traffic: downlink port -> uplink port
+  itype = bm_conf.pipeline.implementation_type
+
+  # ----------------------------------------------------------------------
+  if itype == 'universal':
+    tbl_one = WildcardMatch(
+      name='tbl_one_%d' % wid,
+      fields=[
+        {'offset': 12, 'num_bytes': 2},  # ethertype
+        {'offset': 23, 'num_bytes': 1},  # IP proto
+        {'offset': 26, 'num_bytes': 4},  # src IP
+        {'offset': 30, 'num_bytes': 4},  # dst IP
+        {'offset': 36, 'num_bytes': 2},  # dst port
+      ])
+    tbl_one.set_default_gate(gate=0)
+    tbl_one:0 -> drop_u
+    tbl_one:1 -> out_u
+    for s in conf.service:
+      for b in s.backend:
+        src_ip_mask = 0xffffffff ^ (1 << 32 - b.prefix_len) - 1
+        src_ip_mask = struct.pack("!I", src_ip_mask)
+        tbl_one.add(
+          values=[
+            {'value_bin': struct.pack("!H", 0x0800)}, # ethertype == IP
+            {'value_bin': chr(17)}, # UDP
+            {'value_bin': aton(b.ip_src)},
+            {'value_bin': aton(s.ip_dst)},
+            {'value_bin': struct.pack("!H", int(s.udp_dst))},
+          ],
+          masks=[
+            {'value_int': 0xffff},
+            {'value_int': 0xff},
+            {'value_bin': src_ip_mask},
+            {'value_int': 0xffFFffFF},
+            {'value_int': 0xffff},
+          ],
+          gate=1)
+
+  # ----------------------------------------------------------------------
+  elif itype == 'goto':
+    tbl_one = ExactMatch(
+      name='tbl_one_%d' % wid,
+      fields=[
+        {'offset': 12, 'num_bytes': 2},  # ethertype
+        {'offset': 23, 'num_bytes': 1},  # IP proto
+        {'offset': 30, 'num_bytes': 4},  # dst IP
+        {'offset': 36, 'num_bytes': 2},  # dst port
+      ])
+    tbl_one.set_default_gate(gate=0)
+    tbl_one:0 -> drop_u
+    for s_idx, s in enumerate(conf.service, 1):
+      tbl_one.add(
+        fields=[
+          {'value_bin': struct.pack("!H", 0x0800)}, # ethertype == IP
+          {'value_bin': chr(17)}, # UDP
+          {'value_bin': aton(s.ip_dst)},
+          {'value_bin': struct.pack("!H", int(s.udp_dst))},
+        ],
+        gate=s_idx)
+      tbl_two = WildcardMatch(
+          name='tbl_two_w%d_s%d' % (wid, s_idx),
+          fields=[{'offset': 26, 'num_bytes': 4}])  # src IP
+      tbl_two.set_default_gate(gate=0)
+      for b in s.backend:
+        src_ip_mask = 0xffffffff ^ (1 << 32 - b.prefix_len) - 1
+        src_ip_mask = struct.pack("!I", src_ip_mask)
+        tbl_two.add(
+          values=[{'value_bin': aton(b.ip_src)}],
+          masks=[{'value_bin': src_ip_mask}],
+          gate=1)
+      tbl_one:s_idx -> tbl_two
+      tbl_two:1 -> out_u
+      tbl_two:0 -> drop_u
+
+  # ----------------------------------------------------------------------
+  else:
+    raise ValueError('unknown implementation_type: %s' % itype)
+
+  in_d -> tbl_one
+  in_u -> drop_d
+
+  bess.attach_task(in_u.name, wid=wid)
+  bess.attach_task(in_d.name, wid=wid)
+
+bess.track_module(m='', enable=False, bits=False, direction='out', gate=-1)
+bess.track_module(m='', enable=False, bits=True, direction='out', gate=-1)
