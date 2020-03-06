@@ -211,8 +211,8 @@ uttl_d -> dl_ws
 for wid in range(bess_workers):
   buf_u = Buffer(name='out_buf_u_%d' % wid)
   buf_d = Buffer(name='out_buf_d_%d' % wid)
-  ul_output = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
-  dl_output = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
+  ul_output = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
+  dl_output = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
   ul_ws:wid -> buf_u -> ul_output
   dl_ws:wid -> buf_d -> dl_output
 
