@@ -157,8 +157,9 @@ the TIPSY code.
 * Installation and usage
 
 ** Installation
+*** Install external software
 TIPSY depends on external software components. To run TIPSY, it is
-necessary to install the following:
+necessary to install the following software:
 
 On SUT:
 - sudo,
@@ -174,6 +175,7 @@ On Tester:
 - pdflatex,
 - scapy.
 
+*** Set PATH
 TIPSY does not require explicit installation but the =tipsy= executable
 must always be available and executable; the easiest setup is to add the
 TIPSY main directory to the PATH.
@@ -182,6 +184,27 @@ TIPSY main directory to the PATH.
 git clone https://github.com/hsnlab/tipsy
 cd tipsy
 export PATH=$PWD:$PATH
+#+END_SRC
+
+*** Patch MoonGen
+Apply the following patch to timestamping.lua of MoonGen, otherwise
+this program cannot set the correct packet sizes, and might not be
+able to read back timestamps from received packets.
+
+#+BEGIN_SRC patch
+diff --git a/lua/timestamping.lua b/lua/timestamping.lua
+index bd6c81f..ee68513 100644
+--- a/lua/timestamping.lua
++++ b/lua/timestamping.lua
+@@ -87,7 +87,7 @@ function timestamper:measureLatency(pktSize, packetModifier, maxWait)
+ 			-- change timestamped UDP port as each packet may be on a different port
+ 			self.rxQueue:enableTimestamps(buf:getUdpPacket().udp:getDstPort())
+ 		end
+-		buf:getUdpPtpPacket():setLength(pktSize)
++		-- buf:getUdpPtpPacket():setLength(pktSize)
+ 		self.txBufs:offloadUdpChecksums()
+ 		if self.rxQueue.dev.reconfigureUdpTimestampFilter and not skipReconfigure then
+ 			-- i40e driver fdir filters are broken
 #+END_SRC
 
 ** Main TIPSY benchmark configuration
