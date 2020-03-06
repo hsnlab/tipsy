@@ -80,9 +80,9 @@ else:
 for wid in range(bess_workers):
   wid2 = bess_workers + wid
   dl_input = QueueInc(name="dl_inport_%d" % wid, port=portDL.name, qid=wid)
-  dl_output = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
+  dl_output = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
   ul_input = QueueInc(name="ul_inport_%d" % wid, port=portUL.name, qid=wid)
-  ul_output = QueueOut(name="dl_outport_%d" % wid, port=portDL.name, qid=wid)
+  ul_output = QueueOut(name="ul_outport_%d" % wid, port=portUL.name, qid=wid)
 
   buf_u = Buffer(name='out_buf_u_%d' % wid)
   buf_d = Buffer(name='out_buf_d_%d' % wid)
