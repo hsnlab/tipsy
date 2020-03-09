@@ -181,5 +181,5 @@ for wid in range(bess_workers):
 
 try:
     bess.track_gate(False, '', '', bits=True)
-except AttributeException:
+except AttributeError:
     bess.track_module('', False, bits=True)

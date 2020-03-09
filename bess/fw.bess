@@ -99,5 +99,5 @@ in_d -> module(rules=dl_rules + extra_rules) -> out_d
 
 try:
     bess.track_gate(False, '', '', bits=True)
-except AttributeException:
+except AttributeError:
     bess.track_module('', False, bits=True)
