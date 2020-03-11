@@ -192,7 +192,7 @@ buf2 -> ip_lookup
 
 for i, srv in enumerate(conf.srvs, start=1):
   ip = re.sub(r'\.[^.]+$', '.0', srv.ip)
-  ip_lookup.add(prefix=ip, prefix_len=24, gate=srv.nhop)
+  ip_lookup.add(prefix=ip, prefix_len=24, gate=srv.nhop + 1)
 
 for i, nhop in enumerate(conf.nhops, start=1):
   update_s_mac = Update(name='u_nhop%d_smac' % i,
