@@ -47,5 +47,9 @@
     "title": "hierarchical property name (e.g., mg.throughput.RX.Mbit)",
     "type": "string",
     "pattern": "^[-_a-zA-Z0-9.]*$"
+  },
+  "mongo-expression": {
+    "title": "A mongo expression",
+    "type": "object"
   }
 }

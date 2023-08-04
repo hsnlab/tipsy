@@ -20,6 +20,7 @@ import inspect
 import math
 
 from plot_base import Plot as Base
+from plot import eval_expr
 
 
 def ensure_list(object_or_list):
@@ -114,8 +115,11 @@ class Plot(Base):
         if len(y_axis) == 1:
             self.ylabel = y_axis[0]
 
+
         series = collections.defaultdict(list)
         for row in raw_data:
+            if self.conf.get('y_pipeline', None):
+                row = eval_expr(self.conf.y_pipeline, row)
             x = row[self.conf.x_axis]
             groups = ensure_list(self.conf.group_by)
             for var_name in y_axis:

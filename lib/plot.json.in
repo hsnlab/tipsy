@@ -28,6 +28,10 @@
       "$ref": "definitions.json#/hierarchical-property-name",
       "description": "variable of the z-axis (in case of a contour plot)"
     },
+    "y-pipeline": {
+      "$ref": "definitions.json#/mongo-expression",
+      "description": "a mongo pipeline which the y data is sent through"
+    },
     "group-by": {
       "anyOf": [
         { "type": "string",

@@ -100,6 +100,55 @@ def match(query, obj):
             return False
     return True
 
+def eval_expr_subtract(args, data):
+    if not isinstance(args, list):
+        raise Exception(f"invalid args for subtract expression")
+    return eval_expr(args[0], data) - eval_expr(args[1], data)
+
+def eval_expr_divide(args, data):
+    if not isinstance(args, list):
+        raise Exception(f"invalid args for divide expression")
+    return eval_expr(args[0], data) / eval_expr(args[1], data)
+
+def eval_expr_setField(args, data):
+    arg_field = eval_expr(args['field'], data)
+    arg_input = eval_expr(args['input'], data)
+    arg_value = eval_expr(args['value'], data)
+    if arg_input != '$$ROOT':
+        raise Exception('setField error: input must be $$ROOT')
+    if arg_value == '$$REMOVE':
+        del data[arg_field]
+    else:
+        data[arg_field] = arg_value
+        print(f'data[{arg_field}] <= {arg_value}')
+    return data
+
+def eval_expr(expr, data):
+    if isinstance(expr, str):
+        if expr.startswith('$$'):
+            return expr
+        if expr.startswith('$'):
+            expr = expr[1:]
+        else:
+            return expr
+        try:
+            return float(data[expr])
+        except ValueError:
+            return data[expr]
+        except KeyError:
+            return float("nan")
+        raise Exception(f"cannot evaulate expression: {expr}")
+    if isinstance(expr, dict):
+        if len(expr) != 1:
+            raise Exception(f"Unknown expression: {expr}")
+        op, args = list(expr.items())[0]
+        if not op.startswith('$'):
+            raise Exception(f"Unknown expression: {expr}")
+        e = globals().get(f'eval_expr_{op[1:]}')
+        if e is None:
+            raise NotImplementedError(op)
+        return e(args, data)
+
 def filter_data(conf, data):
     if not conf.filter:
         return data
