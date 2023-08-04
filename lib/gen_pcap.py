@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # TIPSY: Telco pIPeline benchmarking SYstem
 #

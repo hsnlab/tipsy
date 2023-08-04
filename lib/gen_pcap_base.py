@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from itertools import izip, chain, repeat
+from itertools import chain, repeat
 import random
 import traceback
 
@@ -27,7 +27,7 @@ def byte_seq(template, seq):
 # https://stackoverflow.com/a/312644
 def grouper(n, iterable, padvalue=None):
     "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
-    return izip(*[chain(iterable, repeat(padvalue, n-1))]*n)
+    return zip(*[chain(iterable, repeat(padvalue, n-1))]*n)
 
 
 class PicklablePacket(object):
