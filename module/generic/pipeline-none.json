@@ -1,0 +1,13 @@
+{
+  "title": "Configuration of an empty pipeline",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "enum": ["none"],
+      "description": "name of the pipeline, must be set to none"
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false
+}

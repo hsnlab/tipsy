@@ -1,0 +1,9 @@
+{
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["none"],
+      "description": "none: skip configuring SUT."
+    }
+  }
+}

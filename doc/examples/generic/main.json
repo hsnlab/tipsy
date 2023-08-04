@@ -1,0 +1,61 @@
+{  "benchmark": [
+    {
+      "scale": "joint",
+      "tester": {
+        "type": "generic",
+        "environ": {
+          "i": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "script": "echo {\\\"y\\\": $(($(shuf -i1-3 -n1) + $i - 2))} > $PWD/result.json"
+      }
+    }
+  ],
+  "default": {
+    "pipeline": {
+      "name": "none"
+    },
+    "scale": "outer",
+    "sut": {
+      "type": "none"
+    },
+    "tester": {
+      "type": "generic"
+    },
+    "traffic": {
+    }
+  },
+  "visualize": [
+    {
+      "type": "simple",
+      "x-axis": "tester.environ.i",
+      "y-axis": ["out.y", "tester.environ.i"],
+      "title": "y as a function of i"
+    },
+    {
+      "type": "simple",
+      "y-pipeline": {
+        "$setField": {
+          "field": "diff-from-linear-reggression",
+          "input": "$$ROOT",
+          "value": {"$subtract": ["$out.y", "$tester.environ.i"]}
+        }
+      },
+      "x-axis": "tester.environ.i",
+      "y-axis": "diff-from-linear-reggression",
+      "title": "using a y-pipeline"
+    },
+    {
+      "type": "simple",
+      "y-pipeline": {
+        "$setField": {
+          "field": "normalized",
+          "input": "$$ROOT",
+          "value": {"$divide": ["$out.y", "$tester.environ.i"]}
+        }
+      },
+      "x-axis": "tester.environ.i",
+      "y-axis": "normalized",
+      "title": "using another y-pipeline"
+    }
+  ]
+}
