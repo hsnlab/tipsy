@@ -2,7 +2,7 @@
 
 # TIPSY: Telco pIPeline benchmarking SYstem
 #
-# Copyright (C) 2018 by its authors (See AUTHORS)
+# Copyright (C) 2018-2023 by its authors (See AUTHORS)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,15 +26,16 @@ except ImportError:
     mongoquery = None
 
 import find_mod
+import mongo_pipeline
 
 
 class ObjectView(dict):
     def __init__(self, fname=None, **kwargs):
-        tmp = {k.replace('_', '-'): v for k, v in kwargs.items()}
+        tmp = {k.replace('-', '_'): v for k, v in kwargs.items()}
         self.update(**tmp)
 
     def __getitem__(self, x):
-        x = x.replace('_', '-')
+        x = x.replace('-', '_')
         if '.' in x:
             [head, tail] = x.split('.', 1)
             return super().__getitem__(head)[tail]
@@ -120,7 +121,6 @@ def eval_expr_setField(args, data):
         del data[arg_field]
     else:
         data[arg_field] = arg_value
-        print(f'data[{arg_field}] <= {arg_value}')
     return data
 
 def eval_expr(expr, data):
@@ -159,8 +159,17 @@ def filter_data(conf, data):
     print("Can't import monoquery, using a subset of the query language")
     return [obj for obj in data if match(conf.filter, obj)]
 
-def mongo_pipeline(pipeline, data):
-    data = list(data)
+def eval_pipeline(pipeline, data):
+    try:
+        ret = mongo_pipeline.eval_python_pipeline(pipeline, data)
+    except Exception as e:
+        print(f'python pipeline failed: {e}')
+        print(f'trying to evaluate with the real mongodb backend')
+        pipeline = ObjectView._to_dict(pipeline)
+        data = ObjectView._to_dict(data)
+        ret = mongo_pipeline.eval_mongo_pipeline(pipeline, data)
+    return ObjectView._from_dict(ret)
+
     if not pipeline:
         return data
     import pymongo              # apt-get install python3-pymongo
@@ -186,9 +195,8 @@ def run_in_cwd():
     for res in sorted((cwd.parent.parent/'measurements').glob('*.json')):
         print(res)
         data += json_load(res)
+    data = eval_pipeline(conf.aggregate, data)
     data = filter_data(conf, data)
-    data = mongo_pipeline(conf.aggregate, data)
-    #print('mongo', json.dumps(data, indent=2, sort_keys=True))
 
     plt_class = find_mod.find_class('Plot', conf.type)
     plt_obj = plt_class(conf)
