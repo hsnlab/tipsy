@@ -59,12 +59,14 @@ def set_field(fields, data, value, env):
 
 def eval_expr_addFields(args, data, env):
     res = []
+    sub_env = copy.deepcopy(env)
     for item in data:
+        sub_env.update({'ROOT': item})
         for field, field_expr in args.items():
             set_field(field.split('.'),
                       item,
-                      eval_expr(field_expr, item, env),
-                      env)
+                      eval_expr(field_expr, item, sub_env),
+                      sub_env)
         res.append(item)
     return res
 
@@ -128,18 +130,20 @@ def eval_expr_ifNull(args, data, env):
 
 def eval_expr_map(args, data, env):
     arg_in = args['in']
+    arg_input = eval_expr(args['input'], data, env)
 
-    ret = []
-    for item in data:
+    res = []
+    for item in arg_input:
         arg_as = eval_expr(args['as'], item, env)
         sub_env = copy.deepcopy(env)
-        sub_env.update({arg_as: item, 'ROOT': item})
-        arg_input = eval_expr(args['input'], item, sub_env)
-
+        sub_env.update({arg_as: item, 'CURRENT': item})
         new_value = eval_expr(arg_in, item, sub_env)
-        new_item = set_field(args['input'].split('.'), item, new_value, env)
-        ret.append(new_item)
-    return ret
+        res.append(new_value)
+    return res
+
+def eval_expr_objectToArray(args, data, env):
+    obj = eval_expr(args, data, env)
+    return [{"k": k, "v": v} for k, v in obj.items()]
 
 def eval_expr_project(args, data, env):
     result = []
@@ -212,6 +216,19 @@ def eval_expr_subtract(args, data, env):
         return a - b
     except TypeError:
         return float("nan")
+
+def eval_expr_unwind(args, data, env):
+    res = []
+    if not args.startswith('$'):
+        raise Exception(f'unwind: path should be prefixed with a $: {args}')
+    path = args[1:]
+    for item in data:
+        array = get_field(path.split('.'), item, env)
+        for value in array:
+            new_item = copy.deepcopy(item)
+            new_item = set_field(path.split('.'), new_item, value, env)
+            res.append(new_item)
+    return res
 
 
 def eval_expr(expr, data, env=None):
