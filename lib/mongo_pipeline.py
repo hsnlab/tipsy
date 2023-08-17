@@ -23,6 +23,13 @@
 
 import copy
 import json
+import bson
+
+class MongoEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bson.objectid.ObjectId):
+            return f'ObjectId({obj._ObjectId__id.hex()})'
+        return json.JSONEncoder.default(self, obj)
 
 def del_field(fields, data):
     if fields == []:
@@ -300,6 +307,6 @@ if __name__ == "__main__":
     else:
         ret  = eval_python_pipeline(expr, obj)
     if args.compact:
-        print(ret)
+        print(json.dumps(ret, sort_keys=True, cls=MongoEncoder))
     else:
-        print(json.dumps(ret, sort_keys=True, indent=2))
+        print(json.dumps(ret, sort_keys=True, indent=2, cls=MongoEncoder))
