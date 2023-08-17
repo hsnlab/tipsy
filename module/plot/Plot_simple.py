@@ -70,12 +70,19 @@ class Plot(Base):
         # are misaligned in the legend.
         ordered_series = sorted(series.items(), key=is_empty)
 
+        error_bar = ""
+        if self.conf.get("error_bar", None):
+            error_bar = r'+ [error bars/.cd,y dir=both,y explicit]'
+
         addplot = ""
         for name, points in ordered_series:
             addplot += "\n"
-            addplot += r"    \addplot coordinates {" + "\n"
+            addplot += f"    \\addplot{error_bar} coordinates {{\n"
             for p in points:
-                addplot += "      (%s, %s)\n" % p
+                addplot += f"      ({p[0]}, {p[1]})"
+                if error_bar and len(p) > 2:
+                    addplot += f" +- ({p[2]}, {p[2]})"
+                addplot += "\n"
             addplot += "    };\n"
             addplot += r'    \addlegendentry{%s}' % str2tex(name)
             addplot += "\n"
@@ -112,6 +119,8 @@ class Plot(Base):
 
     def plot(self, raw_data):
         y_axis = ensure_list(self.conf.y_axis)
+        error_bar = ensure_list(self.conf.get("error_bar", []))
+
         if len(y_axis) == 1:
             self.ylabel = y_axis[0]
 
@@ -122,11 +131,14 @@ class Plot(Base):
                 row = eval_expr(self.conf.y_pipeline, row)
             x = row[self.conf.x_axis]
             groups = ensure_list(self.conf.group_by)
-            for var_name in y_axis:
+            for idx, var_name in enumerate(y_axis):
                 y = row.get(var_name, None)
                 if y is None:
                     y = "nan"
-                y = float(y)
+                try:
+                    y = float(y)
+                except ValueError:
+                    pass
                 if len(y_axis) == 1 and len(groups) > 0:
                     key = []
                 else:
@@ -135,13 +147,22 @@ class Plot(Base):
                     group_val = row.get(group, 'na')
                     key.append('%s' % group_val)
                 key = '/'.join(key)
-                series[key].append((x, y))
+                e = None
+                if error_bar:
+                    e = row.get(error_bar[idx], None)
+                    if e is not None:
+                        e = float(e)
+                if e:
+                    series[key].append((x, y, e))
+                else:
+                    series[key].append((x, y))
             title = self.conf.title.format(**row)
 
         for k, points in series.items():
             series[k] = sorted(points)
 
         series = collections.OrderedDict(sorted(series.items()))
+
         if series:
             self.format_matplotlib(series, title)
             self.format_latex(series, title)

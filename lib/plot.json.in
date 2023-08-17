@@ -28,6 +28,17 @@
       "$ref": "definitions.json#/hierarchical-property-name",
       "description": "variable of the z-axis (in case of a contour plot)"
     },
+    "error-bar": {
+      "anyOf": [
+        { "type": "string",
+          "$ref": "definitions.json#/hierarchical-property-name"
+        },
+        { "type": "array",
+          "items": {"$ref": "definitions.json#/hierarchical-property-name"}
+        }
+      ],
+      "description": "variable or a list of variables for the error-bar"
+    },
     "y-pipeline": {
       "$ref": "definitions.json#/mongo-expression",
       "description": "a mongo pipeline which the y data is sent through"
