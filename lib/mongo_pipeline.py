@@ -70,6 +70,48 @@ def get_new_env(old_env, item):
     env.update({'CURRENT': item})
     return env
 
+# ---------------------------------------------------------------------------
+
+def match_gt(query, obj):
+    return obj > query
+
+def match_in(query, obj):
+    for sub_query in query:
+        if match(sub_query, obj):
+            return True
+    return False
+
+def match_lt(query, obj):
+    return obj < query
+
+def match_not(query, obj):
+    return not match(query, obj)
+
+def match(query, obj):
+    if query is None:
+        return obj is None
+    if type(query) in [int, float, str]:
+        return query == obj
+    for var, sub_query in query.items():
+        if var.startswith('$'):
+            m = globals().get('match_%s' % var[1:])
+            if m is None:
+                raise NotImplementedError(var)
+            if not m(sub_query, obj):
+                return False
+            else:
+                continue
+        try:
+            val = obj[var]
+        except KeyError:
+            val = None
+        if not match(sub_query, val):
+            return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+
 def eval_expr_addFields(args, data, env):
     res = []
     for item in data:
@@ -179,6 +221,28 @@ def eval_expr_map(args, data, env):
         sub_env.update({arg_as: item, 'CURRENT': item})
         new_value = eval_expr(arg_in, item, sub_env)
         res.append(new_value)
+    return res
+
+def eval_expr_match(args, data, env):
+    res = []
+    for item in data:
+        if match(args, item):
+            res.append(item)
+    return res
+
+def eval_expr_multiply(args, data, env):
+    if not isinstance(args, list):
+        raise Exception(f"invalid args for subtract expression")
+
+    res = 1
+    for item in args:
+        a = eval_expr(item, data, env)
+        if a is None:
+            return None
+        try:
+            res = res * a
+        except TypeError:
+            return float("nan")
     return res
 
 def eval_expr_objectToArray(args, data, env):
