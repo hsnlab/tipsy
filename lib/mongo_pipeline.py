@@ -64,11 +64,16 @@ def set_field(fields, data, value, env):
                                     env)
     return data
 
+def get_new_env(old_env, item):
+    env = {'ROOT': item}
+    env.update(old_env or {})
+    env.update({'CURRENT': item})
+    return env
+
 def eval_expr_addFields(args, data, env):
     res = []
-    sub_env = copy.deepcopy(env)
     for item in data:
-        sub_env.update({'ROOT': item})
+        sub_env = get_new_env(env, item)
         for field, field_expr in args.items():
             set_field(field.split('.'),
                       item,
@@ -89,18 +94,46 @@ def eval_expr_arrayToObject(args, data, env):
             raise Exception(f'arrayToObject: unknown item format: {item}')
     return obj
 
+def eval_expr_avg(args, data, env):
+    values = []
+    for item in data:
+        value = eval_expr(args, item, env)
+        if isinstance(value, (int, float)):
+            values.append(value)
+    if values:
+        return sum(values)/len(values)
+    else:
+        float("nan")
+
 def eval_expr_concat(args, data, env):
     return ''.join([eval_expr(item, data, env) for item in args])
 
+def eval_expr_eq(args, data, env):
+    a = eval_expr(args[0], data, env)
+    b = eval_expr(args[1], data, env)
+    return a == b
+
+def eval_expr_filter(args, data, env):
+    arg_cond = args['cond']
+    arg_input = eval_expr(args['input'], data, env)
+
+    res = []
+    for item in arg_input:
+        arg_as = eval_expr(args['as'], item, env)
+        sub_env = copy.deepcopy(env)
+        sub_env.update({arg_as: item, 'CURRENT': item})
+        match = eval_expr(arg_cond, item, sub_env)
+        if match:
+            res.append(item)
+    return res
+
 def eval_expr_first(args, data, env):
-    #print(args)
-    #print(data)
-    data = eval_expr(args, data, env)
     if data is None:
         return None
     if isinstance(data, list):
-        return data[0]
-    raise Exception(f'$first error: invalid type: {data}')
+        return eval_expr(args, data[0], env)
+    else:
+        return eval_expr(args, data, env)[0]
 
 def eval_expr_divide(args, data, env):
     if not isinstance(args, list):
@@ -155,19 +188,20 @@ def eval_expr_objectToArray(args, data, env):
 def eval_expr_project(args, data, env):
     result = []
     for item in data:
+        sub_env = get_new_env(env, item)
         new_item = {}
         spec = {'_id': 1}
         spec.update(args)
         for field, field_expr in spec.items():
             if ((isinstance(field_expr, int) and field_expr != 0)
                 or field_expr == True):
-                new_value = get_field(field.split('.'), item, env)
+                new_value = get_field(field.split('.'), item, sub_env)
             elif ((isinstance(field_expr, int) and field_expr == 0)
                   or field_expr == False):
                 new_value = del_field(field.split('.'), item)
             else:
-                new_value = eval_expr(field_expr, item, env)
-            set_field(field.split('.'), new_item, new_value, env)
+                new_value = eval_expr(field_expr, item, sub_env)
+            set_field(field.split('.'), new_item, new_value, sub_env)
         result.append(new_item)
     return result
 
@@ -205,11 +239,24 @@ def eval_expr_setField(args, data, env):
 
 def eval_expr_sort(args, data, env):
     res = data
-    for field, order in args.items():
+    for field, order in sorted(args.items(), reverse=True):
         res = sorted(res,
                      key=lambda x: get_field(field.split('.'), x, env),
                      reverse=(order == -1))
     return res
+
+def eval_expr_stdDevPop(args, data, env):
+    mean = eval_expr_avg(args, data, env)
+
+    values = []
+    for item in data:
+        value = eval_expr(args, item, env)
+        if isinstance(value, (int, float)):
+            values.append((value - mean)**2)
+    if values:
+        return (sum(values)/len(values))**0.5
+    else:
+        None
 
 def eval_expr_subtract(args, data, env):
     if not isinstance(args, list):
