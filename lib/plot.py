@@ -82,6 +82,8 @@ def match_not(query, obj):
     return not match(query, obj)
 
 def match(query, obj):
+    if query is None:
+        return obj is None
     if type(query) in [int, float, str]:
         return query == obj
     for var, sub_query in query.items():
@@ -96,7 +98,7 @@ def match(query, obj):
         try:
             val = obj[var]
         except KeyError:
-            return False
+            val = None
         if not match(sub_query, val):
             return False
     return True
