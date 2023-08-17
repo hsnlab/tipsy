@@ -380,13 +380,13 @@ class TipsyManager(object):
 
     def do_config(self):
         self.init_tipsyconfig(self.args.configs)
-        self.tipsy_conf.gen_configs()
 
         self.write_makefile(Path.cwd(), 'main-makefile.in')
         if args.plots:
             self.config_plots()
             print('\nTo start the visualization, run: make plots')
         else:
+            self.tipsy_conf.gen_configs()
             self.config_measurements()
             self.config_plots()
             print('\nTo start the measurements, run: make')
