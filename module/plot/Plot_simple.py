@@ -117,6 +117,17 @@ class Plot(Base):
             f.write(text)
             f.write("\n")
 
+    def format_latex_empty(self, title):
+        text = inspect.cleandoc(f"""
+          \\begin{{figure}}
+             \\centering
+               (empty)
+             \\caption{{{title}}}
+           \\end{{figure}}
+           """)
+        with open('fig.tex', 'w') as f:
+            f.write(text)
+
     def plot(self, raw_data):
         y_axis = ensure_list(self.conf.y_axis)
         error_bar = ensure_list(self.conf.get("error_bar", []))
@@ -166,5 +177,7 @@ class Plot(Base):
         if series:
             self.format_matplotlib(series, title)
             self.format_latex(series, title)
+        else:
+            self.format_latex_empty(self.conf.title)
 
         return series
