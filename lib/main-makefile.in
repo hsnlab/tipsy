@@ -1,7 +1,7 @@
 tipsy=@tipsy@
-m_dir := $(sort $(wildcard measurements/[0-9][0-9][0-9]))
+m_dir := $(sort $(wildcard measurements/[0-9][0-9][0-9]*))
 results := $(foreach dir,$(m_dir),$(dir)/results.json)
-p_dir := $(sort $(wildcard plots/[0-9][0-9][0-9]))
+p_dir := $(sort $(wildcard plots/[0-9][0-9][0-9]*))
 plots := $(foreach dir,$(p_dir),$(dir)/out.json)
 
 .PHONY: all plots

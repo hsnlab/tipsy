@@ -23,6 +23,7 @@ import glob
 import inspect
 import itertools
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -327,14 +328,19 @@ class TipsyManager(object):
             print('(You can use the --force argument: tipsy config --help)')
             exit()
 
+    def get_idx_format_str(self, items):
+        n = max(3, math.ceil(math.log(len(items), 10)))
+        return f'%0{n}d'
+
     def config_plots(self):
         self.create_dir(self.plot_dir)
         save = self.json_validate_and_dump
         v_confs = self.tipsy_conf.get('visualize', [])
+        format_str = self.get_idx_format_str(v_confs)
         out_dirs = []
         for i, config in enumerate(v_confs, start=1):
             print('*', end='', flush=True)
-            id = '%03d' % i
+            id = format_str % i
             out_dirs.append(id)
             out_dir = Path(self.plot_dir, id)
             out_dir.mkdir()
@@ -366,9 +372,10 @@ class TipsyManager(object):
     def config_measurements(self):
         self.create_dir(self.meas_dir)
         save = self.json_validate_and_dump
+        format_str = self.get_idx_format_str(self.tipsy_conf.configs)
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
             print('.', end='', flush=True)
-            out_dir = Path(self.meas_dir, '%03d' % i)
+            out_dir = Path(self.meas_dir, format_str % i)
             out_dir.mkdir()
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
             save(config['traffic'], out_dir / self.fname_pcap_in, 'traffic')
