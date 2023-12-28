@@ -197,8 +197,8 @@ def run_in_cwd():
     for res in sorted((cwd.parent.parent/'measurements').glob('*.json')):
         print(res)
         data += json_load(res)
-    data = eval_pipeline(conf.aggregate, data)
     data = filter_data(conf, data)
+    data = eval_pipeline(conf.aggregate, data)
 
     plt_class = find_mod.find_class('Plot', conf.type)
     plt_obj = plt_class(conf)
