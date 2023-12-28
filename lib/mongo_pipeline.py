@@ -180,8 +180,11 @@ def eval_expr_first(args, data, env):
 def eval_expr_divide(args, data, env):
     if not isinstance(args, list):
         raise Exception(f"invalid args for divide expression")
-    return (eval_expr(args[0], data, env) /
-            eval_expr(args[1], data, env))
+    a = eval_expr(args[0], data, env)
+    b = eval_expr(args[1], data, env)
+    if a is None or b is None:
+        return None
+    return a / b
 
 def eval_expr_group(args, data, env):
     if '_id' not in args.keys():
