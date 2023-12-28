@@ -28,6 +28,22 @@
       "$ref": "definitions.json#/hierarchical-property-name",
       "description": "variable of the z-axis (in case of a contour plot)"
     },
+    "xmin": {
+      "type": "number",
+      "description": "Limit displayed portion of the axis"
+    },
+    "xmax": {
+      "type": "number",
+      "description": "Limit displayed portion of the axis"
+    },
+    "ymin": {
+      "type": "number",
+      "description": "Limit displayed portion of the axis"
+    },
+    "ymax": {
+      "type": "number",
+      "description": "Limit displayed portion of the axis"
+    },
     "error-bar": {
       "anyOf": [
         { "type": "string",

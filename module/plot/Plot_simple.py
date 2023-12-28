@@ -97,6 +97,12 @@ class Plot(Base):
             f['ylabel_opt'] = 'ylabel=%s,' % str2tex(self.ylabel)
         else:
             f['ylabel_opt'] = ""
+        f['other_opts'] = ''
+        sep = "\n      "
+        for prop in ['xmin', 'xmax', 'ymin', 'ymax']:
+            if self.conf.get(prop, None) is not None:
+                f['other_opts'] += f"{sep}{prop}={self.conf.get(prop, 0)}"
+                sep = ",\n      "
         text = inspect.cleandoc(r"""
           \begin{{figure}}
             \centering
@@ -104,7 +110,7 @@ class Plot(Base):
             \begin{{{axis_type}}}[
                 xlabel={xlabel}, {ylabel_opt}
                 legend pos=outer north east,
-                legend cell align=left,
+                legend cell align=left, {other_opts},
             ]
             {addplot}
             \end{{{axis_type}}}
