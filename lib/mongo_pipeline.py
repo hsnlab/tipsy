@@ -150,6 +150,13 @@ def eval_expr_avg(args, data, env):
 def eval_expr_concat(args, data, env):
     return ''.join([eval_expr(item, data, env) for item in args])
 
+def eval_expr_cond(args, data, env):
+    if_expr = eval_expr(args['if'], data, env)
+    if if_expr:
+        return eval_expr(args['then'], data, env)
+    else:
+        return eval_expr(args['else'], data, env)
+
 def eval_expr_eq(args, data, env):
     a = eval_expr(args[0], data, env)
     b = eval_expr(args[1], data, env)
