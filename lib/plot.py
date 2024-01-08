@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import copy
 import json
 from pathlib import Path
 
@@ -49,6 +50,11 @@ class ObjectView(dict):
             return self[key]
         except KeyError:
             return default
+
+    def deepcopy(self):
+        d = ObjectView._to_dict(self)
+        d = copy.deepcopy(d)
+        return ObjectView._from_dict(d)
 
     @staticmethod
     def _to_dict(obj):

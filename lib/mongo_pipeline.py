@@ -352,8 +352,14 @@ def eval_expr_unwind(args, data, env):
     path = args[1:]
     for item in data:
         array = get_field(path.split('.'), item, env)
+        if not isinstance(array, list):
+            res.append(item)
+            continue
         for value in array:
-            new_item = copy.deepcopy(item)
+            if getattr(item, "deepcopy"):
+                new_item = item.deepcopy()
+            else:
+                new_item = copy.deepcopy(item)
             new_item = set_field(path.split('.'), new_item, value, env)
             res.append(new_item)
     return res
