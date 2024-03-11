@@ -44,7 +44,7 @@ following.
 
 3. Edit the main TIPSY configuration file according to your needs
    (e.g.: adjust pipeline parameters or SUT config).  For details check the
-   [[./doc/README.config.org][TIPSY configuration guide]].
+   [[./README.config.org][TIPSY configuration guide]].
 
    It is a good practice to split your configuration file to multiple
    files. This way you can reuse e.g. Tester and SUT configuration among
