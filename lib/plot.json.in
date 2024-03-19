@@ -55,6 +55,11 @@
       ],
       "description": "variable or a list of variables for the error-bar"
     },
+    "datafile": {
+      "type": "string",
+      "default": "",
+      "description": "A filename containing one datapoint per line.  Coordinates sperated by whitespace.  It may contain variable references, e.g., '../../measure/{id}/latency-budget.data'.  Used when plot-type is 'datafile'."
+    },
     "y-pipeline": {
       "$ref": "definitions.json#/mongo-expression",
       "description": "a mongo pipeline which the y data is sent through"
