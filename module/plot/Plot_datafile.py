@@ -1,6 +1,6 @@
 # TIPSY: Telco pIPeline benchmarking SYstem
 #
-# Copyright (C) 2018 by its authors (See AUTHORS)
+# Copyright (C) 2024 by its authors (See AUTHORS)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@ def str2tex(s):
 
 class Plot(Plot_simple):
     def plot(self, raw_data):
-        print(f'nemethf ===================================')
         y_axis = ensure_list(self.conf.y_axis)
 
         if len(y_axis) == 1:
@@ -63,7 +62,7 @@ class Plot(Plot_simple):
         series = collections.OrderedDict(sorted(series.items()))
 
         if series:
-            #self.format_matplotlib(series, title)
+            self.format_matplotlib(series, title)
             self.format_latex(series, title)
         else:
             self.format_latex_empty(self.conf.title)
