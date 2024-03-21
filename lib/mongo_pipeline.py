@@ -2,7 +2,7 @@
 
 # TIPSY: Telco pIPeline benchmarking SYstem
 #
-# Copyright (C) 2018-2023 by its authors (See AUTHORS)
+# Copyright (C) 2018-2024 by its authors (See AUTHORS)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -162,6 +162,12 @@ def eval_expr_eq(args, data, env):
     b = eval_expr(args[1], data, env)
     return a == b
 
+def eval_expr_facet(args, data, env):
+    res = {}
+    for field, field_expr in args.items():
+        res[field] = eval_python_pipeline(field_expr, data)
+    return [res]
+
 def eval_expr_filter(args, data, env):
     arg_cond = args['cond']
     arg_input = eval_expr(args['input'], data, env)
@@ -192,6 +198,11 @@ def eval_expr_divide(args, data, env):
     if a is None or b is None:
         return None
     return a / b
+
+def eval_expr_getField(args, data, env):
+    field_name = eval_expr(args['field'], data, env)
+    input_obj = eval_expr(args['input'], data, env)
+    return input_obj.get(field_name)
 
 def eval_expr_group(args, data, env):
     if '_id' not in args.keys():
@@ -233,6 +244,13 @@ def eval_expr_map(args, data, env):
         res.append(new_value)
     return res
 
+def eval_expr_max(args, data, env):
+    max_val = None
+    for item in data:
+        cur_val = eval_expr(args, item, env)
+        max_val = max(cur_val, max_val or cur_val)
+    return max_val
+
 def eval_expr_match(args, data, env):
     res = []
     for item in data:
@@ -242,7 +260,7 @@ def eval_expr_match(args, data, env):
 
 def eval_expr_multiply(args, data, env):
     if not isinstance(args, list):
-        raise Exception(f"invalid args for subtract expression")
+        raise Exception(f"invalid args for multiple expression")
 
     res = 1
     for item in args:
@@ -356,7 +374,7 @@ def eval_expr_unwind(args, data, env):
             res.append(item)
             continue
         for value in array:
-            if getattr(item, "deepcopy"):
+            if getattr(item, "deepcopy", None):
                 new_item = item.deepcopy()
             else:
                 new_item = copy.deepcopy(item)
@@ -406,7 +424,8 @@ def eval_python_pipeline(expr, data):
     return ret
 
 def eval_mongo_pipeline(pipeline, data):
-    import pymongo
+    import pymongo # apt install python3-pymongo
+    # docker run --rm --name  some-mongo -p 127.0.0.1:27017:27017 -d mongo:latest
 
     client = pymongo.MongoClient()
     db = client.tipsy
