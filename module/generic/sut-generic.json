@@ -1,0 +1,26 @@
+{
+  "title": "TIPSY SUT description",
+  "type": "object",
+  "properties": {
+      "type": {
+      "type": "string",
+      "enum": [ "generic" ],
+      "description": "A generic SUT that runs a single configurable command to setup the SUT. (When type==generic)"
+    },
+    "environ": {
+      "type": "object",
+      "description": "Object whose properties are set as environment variables (When type==generic)",
+      "default": {
+        "tipsy": 1
+      }
+    },
+    "script": {
+      "type": "string",
+      "description": "Script to execute in a shell.  The string is subject to variable substitution, so environment variables can be specified in the command line. (When type==generic)",
+      "default": ""
+    },
+    "default": {}
+  },
+  "required": [],
+  "additionalProperties": false
+}

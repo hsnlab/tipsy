@@ -107,10 +107,11 @@ class TipsyConfig(dict):
                 benchmark = TipsyConfig()
             conf_merge(benchmark, b)
 
-            # This is a unfortunate special case
-            if benchmark.get('tester', {}).get('environ'):
-                benchmark['tester']['environ'] = \
-                    self._scale_outer(benchmark['tester']['environ'])
+            # FIXME: These are some unfortunate special cases
+            for section in ('tester', 'sut'):
+                if benchmark.get(section, {}).get('environ'):
+                    benchmark[section]['environ'] = \
+                        self._scale_outer(benchmark[section]['environ'])
 
             scale = getattr(self, '_scale_%s' % benchmark.get('scale', 'none'))
             segments = [x for x in benchmark.keys() if x != 'scale']
