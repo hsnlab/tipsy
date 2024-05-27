@@ -32,20 +32,25 @@ def ensure_list(object_or_list):
 def str2tex(s):
     return s.replace('_', '$\_$')
 
+def convert_to_float(data_in):
+    try:
+        return float(data_in)
+    except ValueError:
+        return float('nan')
 
 class Plot(Plot_simple):
     def plot(self, raw_data):
         y_axis = ensure_list(self.conf.y_axis)
+        x_axis = ensure_list(self.conf.x_axis)
+        error_bar = ensure_list(self.conf.get("error_bar", []))
 
         if len(y_axis) == 1:
             self.ylabel = y_axis[0]
-
 
         series = collections.defaultdict(list)
         for row in raw_data:
             groups = ensure_list(self.conf.group_by)
             datafile = self.conf.datafile.format(**row)
-            print(f'datafile:{datafile}')
             key = []
             for group in groups:
                 group_val = row.get(group, 'na')
@@ -53,7 +58,18 @@ class Plot(Plot_simple):
             key = '/'.join(key)
             with open(datafile) as f:
                 for line in f:
-                    series[key].append(tuple([float(i) for i in line.split()]))
+                    line_data = [convert_to_float(i) for i in line.split()]
+                    y_val = line_data[ row.get(y_axis[0], 0) ]
+                    x_val = line_data[ row.get(x_axis[0], 1) ]
+                    e = None
+                    if error_bar:
+                        e = row.get(error_bar[0], None)
+                        if e is not None:
+                            e = float(e)
+                    if e:
+                        series[key].append((x_val, y_val, e))
+                    else:
+                        series[key].append((x_val, y_val))
             title = self.conf.title.format(**row)
 
         for k, points in series.items():

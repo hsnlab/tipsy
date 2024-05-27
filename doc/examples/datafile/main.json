@@ -1,0 +1,41 @@
+{  "benchmark": [
+    {
+      "scale": "joint",
+      "tester": {
+        "type": "generic",
+        "environ": {
+          "i": [1, 2, 3, 4]
+        },
+          "script": "../../script.sh $i"
+      }
+    }
+  ],
+  "default": {
+    "pipeline": {
+      "name": "none"
+    },
+    "scale": "outer",
+    "sut": {
+      "type": "none"
+    },
+    "tester": {
+      "type": "generic"
+    },
+    "traffic": {
+    }
+  },
+  "visualize": [
+    {
+      "type": "datafile",
+      "x-axis": "X-COL",
+      "y-axis": "Y-COL",
+      "error-bar": "ERROR-COL",
+      "datafile": "../../measurements/{out.test-id}/datafile.data",
+      "title": "Example",
+      "aggregate": [ { "$addFields": {
+                       "X-COL": 0,
+                       "Y-COL": 1,
+                       "ERROR-COL": 2 }}]
+    }
+  ]
+}
