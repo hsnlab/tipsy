@@ -217,11 +217,12 @@ def eval_expr_group(args, data, env):
     res = []
     for k, v in groups.items():
         item = {}
+        sub_env = get_new_env(env, v)
         for field, expr in args.items():
             if field == '_id':
                 item['_id'] = json.loads(k)
             else:
-                item[field] = eval_expr(expr, v, env)
+                item[field] = eval_expr(expr, v, sub_env)
         res.append(item)
     return res
 
