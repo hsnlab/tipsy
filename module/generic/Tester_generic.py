@@ -35,7 +35,7 @@ class Tester(Base):
     def _run(self, out_dir):
         self.out_dir = out_dir
         cmd = self.script
-        subprocess.call(cmd, shell=True, cwd=out_dir, env=self.env)
+        subprocess.run(cmd, shell=True, check=True, cwd=out_dir, env=self.env)
 
     def collect_results(self):
         try:
