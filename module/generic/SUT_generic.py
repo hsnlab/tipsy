@@ -34,11 +34,11 @@ class SUT(Base):
 
     def _start(self):
         cmd = self.script
-        subprocess.call(cmd, shell=True, env=self.env)
+        subprocess.run(cmd, shell=True, check=True, env=self.env)
 
     def stop(self):
         self.run_teardown_script()
 
     def run_script(self, script):
         if Path(script).is_file():
-            subprocess.call(str(script), shell=True, env=self.env)
+            subprocess.run(str(script), shell=True, check=True, env=self.env)
