@@ -38,3 +38,7 @@ class SUT(Base):
 
     def stop(self):
         self.run_teardown_script()
+
+    def run_script(self, script):
+        if Path(script).is_file():
+            subprocess.call(str(script), shell=True, env=self.env)
