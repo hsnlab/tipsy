@@ -364,6 +364,10 @@ def eval_expr_subtract(args, data, env):
     except TypeError:
         return float("nan")
 
+def eval_expr_toString(args, data, env):
+    # This works for number->string, others were not checked.
+    return str(eval_expr(args, data, env))
+
 def eval_expr_unwind(args, data, env):
     res = []
     if not args.startswith('$'):
