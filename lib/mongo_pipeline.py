@@ -351,6 +351,16 @@ def eval_expr_stdDevPop(args, data, env):
     else:
         None
 
+def eval_expr_substr(args, data, env):
+    string = eval_expr(args[0], data, env)
+    start  = eval_expr(args[1], data, env)
+    length = eval_expr(args[2], data, env)
+    if start < 0:
+        return ""
+    if length < 0:
+        length = None
+    return string[start:length]
+
 def eval_expr_subtract(args, data, env):
     if not isinstance(args, list):
         raise Exception(f"invalid args for subtract expression")
@@ -363,6 +373,9 @@ def eval_expr_subtract(args, data, env):
         return a - b
     except TypeError:
         return float("nan")
+
+def eval_expr_toInt(args, data, env):
+    return int(eval_expr(args, data, env))
 
 def eval_expr_toString(args, data, env):
     # This works for number->string, others were not checked.
