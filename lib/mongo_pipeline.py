@@ -202,7 +202,7 @@ def eval_expr_divide(args, data, env):
 def eval_expr_getField(args, data, env):
     field_name = eval_expr(args['field'], data, env)
     input_obj = eval_expr(args['input'], data, env)
-    return input_obj.get(field_name)
+    return input_obj.get(field_name, None)
 
 def eval_expr_group(args, data, env):
     if '_id' not in args.keys():
