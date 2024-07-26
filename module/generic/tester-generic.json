@@ -16,6 +16,11 @@
         "tipsy": 1
       }
     },
+    "results": {
+      "type": "string",
+      "description": "Colon separated list of json-formatted files containing the test results.  Tispy combines the contents of these files under the \"out\" key of results.json",
+      "default": "result.json"
+    },
     "script": {
       "type": "string",
       "description": "Script to execute in a shell.  The string is subject to variable substitution, so environment variables can be specified in the command line. (When type==generic)",

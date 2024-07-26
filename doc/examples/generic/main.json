@@ -6,7 +6,12 @@
         "environ": {
           "i": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         },
+        "results": "result.json:result-sut.json",
         "script": "echo {\\\"y\\\": $(($(shuf -i1-3 -n1) + $i - 2))} > $PWD/result.json"
+      },
+      "sut": {
+        "type": "generic",
+        "script": "echo {\\\"sut\\\": \\\"generic-sut\\\"} > $PWD/result-sut.json"
       }
     }
   ],
@@ -29,13 +34,13 @@
       "type": "simple",
       "x-axis": "tester.environ.i",
       "y-axis": ["out.y", "tester.environ.i"],
-      "title": "y as a function of i"
+      "title": "y as a function of i ({out.sut})"
     },
     {
       "type": "simple",
       "y-pipeline": {
         "$setField": {
-          "field": "diff-from-linear-reggression",
+          "field": "diff_from_linear_reggression",
           "input": "$$ROOT",
           "value": {"$subtract": ["$out.y", "$tester.environ.i"]}
         }

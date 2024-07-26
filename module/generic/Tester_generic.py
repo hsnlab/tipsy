@@ -38,9 +38,14 @@ class Tester(Base):
         subprocess.run(cmd, shell=True, check=True, cwd=out_dir, env=self.env)
 
     def collect_results(self):
-        try:
-            with open(Path(self.out_dir)/'result.json') as f:
-                res = json.load(f)
-        except FileNotFoundError:
-            res = {'error': f'not found: {self.out_dir}/result.json'}
+        res_files = self.conf.tester.get('results', 'result.json')
+        res = {}
+        for filename in res_files.split(':'):
+            filepath = Path(self.out_dir)/filename
+            try:
+                with open(filepath) as f:
+                    res.update(json.load(f))
+            except FileNotFoundError:
+                res = {'error': f'not found: {filepath}'}
+                break
         self.result.update(res)
