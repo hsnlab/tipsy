@@ -45,6 +45,7 @@ import json
 import jsonschema  # apt install python3-jsonschema
 import re
 from copy import deepcopy
+from functools import lru_cache
 from os import path
 
 from . import find_mod
@@ -140,22 +141,39 @@ def extend_with_property_array (validator_class):
   return jsonschema.validators.extend(
     validator_class, {"properties": allow_property_array})
 
-def validate_data (data, schema=None, schema_name=None, extension='default'):
-  if schema_name:
-    fname = path.join(schema_dir, schema_name + '.json')
-    if not path.exists(fname):
-      fname = find_mod.find_file(schema_name + '.json')
-      if not fname:
-        raise Exception('Cannot file schema file for %s' % schema_name)
-    with open(fname) as f:
-      schema = json.load(f)
+@lru_cache
+def get_schema(schema_name=None):
+  fname = path.join(schema_dir, schema_name + '.json')
+  if not path.exists(fname):
+    fname = find_mod.find_file(schema_name + '.json')
+    if not fname:
+      raise Exception('Cannot file schema file for %s' % schema_name)
+  with open(fname) as f:
+    schema = json.load(f)
+  return schema
 
+@lru_cache
+def get_validator_from_schema_name(schema_name, extension):
+  schema = get_schema(schema_name)
   if extension is not None:
     fn = globals()['extend_with_%s' % extension]
     validator = fn(jsonschema.Draft4Validator)
   else:
     validator = jsonschema.Draft4Validator
   resolver = ResolverWithPlugins('file://' + schema_dir + '/', schema)
+  return validator, resolver
+
+def validate_data (data, schema=None, schema_name=None, extension='default'):
+  if schema_name:
+    schema = get_schema(schema_name)
+    validator, resolver = get_validator_from_schema_name(schema_name, extension)
+  else:
+    if extension is not None:
+      fn = globals()['extend_with_%s' % extension]
+      validator = fn(jsonschema.Draft4Validator)
+    else:
+      validator = jsonschema.Draft4Validator
+    resolver = ResolverWithPlugins('file://' + schema_dir + '/', schema)
   try:
     validator(schema, resolver=resolver).validate(data)
   except jsonschema.exceptions.ValidationError as e:
