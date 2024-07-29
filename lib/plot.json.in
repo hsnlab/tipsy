@@ -55,6 +55,10 @@
       ],
       "description": "variable or a list of variables for the error-bar"
     },
+    "sort-column": {
+      "type": "string",
+      "description": "name of the column to sort tables by"
+    },
     "datafile": {
       "type": "string",
       "default": "",

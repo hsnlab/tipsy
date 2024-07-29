@@ -28,6 +28,12 @@ class Plot(Plot_base):
           \usepackage{colortbl}
         """) + "\n"
 
+    def sort_by_column(self, table, header, column_name=None):
+        if column_name is None:
+            return table
+        column_idx = header.index(column_name)
+        return sorted(table, key=lambda x: x[column_idx])
+
     def format_matplotlib(self, series, title):
         pass
 
@@ -71,7 +77,8 @@ class Plot(Plot_base):
             s = ",\n    columns/%d/.style={%s column name={%s}}"
             f['plot_args'] += s % (colnum, col_type, str2tex(name))
 
-        for row in table:
+        sort_column = self.conf.get('sort_column', None)
+        for row in self.sort_by_column(table, header, sort_column):
             row = [str2tex(cell) for cell in row]
             f['addplot'] += ' & '.join(row) + "\\\\\n    "
 
