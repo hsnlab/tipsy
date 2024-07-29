@@ -99,7 +99,11 @@ class TipsyConfig(dict):
         return copy.deepcopy(dict(self))
 
     def gen_configs(self):
+        def print_progess(current, total):
+            print(f"  \rValidating configs    : {current}/{total}",
+                  end='', flush=True)
         self.configs = []
+        configs = []
         for b in self.get('benchmark', []):
             try:
                 benchmark = TipsyConfig(copy.deepcopy(self.default))
@@ -119,9 +123,14 @@ class TipsyConfig(dict):
             for segment in segments:
                 confs[segment] = scale(getattr(benchmark, segment))
             confs = self._scale_outer(confs)
-            for conf in confs:
-                validate.validate_data(conf, schema_name='benchmark')
-                self.configs.append(conf)
+            configs += confs
+        len_confs = len(configs)
+        for i, conf in enumerate(configs):
+            print_progess(i, len_confs)
+            validate.validate_data(conf, schema_name='benchmark')
+            self.configs.append(conf)
+        print_progess(len_confs, len_confs)
+        print('')
 
         # Oder should not matter, but we need to reboot the SUT if
         # sut.type changes, so it makes sense to minimize the number
@@ -334,19 +343,25 @@ class TipsyManager(object):
         return f'%0{n}d'
 
     def config_plots(self):
+        def print_progess(current, total):
+            print(f"  \rGenerating plots      : {current}/{total}",
+                  end='', flush=True)
         self.create_dir(self.plot_dir)
         save = self.json_validate_and_dump
         v_confs = self.tipsy_conf.get('visualize', [])
         format_str = self.get_idx_format_str(v_confs)
         out_dirs = []
+        len_confs = len(v_confs)
         for i, config in enumerate(v_confs, start=1):
-            print('*', end='', flush=True)
+            print_progess(i, len_confs)
             id = format_str % i
             out_dirs.append(id)
             out_dir = Path(self.plot_dir, id)
             out_dir.mkdir()
             save(config, out_dir / 'plot.json', 'plot')
             self.write_makefile(out_dir, 'plot-makefile.in')
+        print_progess(len_confs, len_confs)
+        print()
         with Path(self.plot_dir, 'fig.tex').open('w') as f:
             f.write(inspect.cleandoc(r'''
               \documentclass{article}
@@ -371,17 +386,23 @@ class TipsyManager(object):
             f.write("\\end{document}\n")
 
     def config_measurements(self):
+        def print_progess(current, total):
+            print(f"  \rGenerating configs    : {current}/{total}",
+                  end='', flush=True)
         self.create_dir(self.meas_dir)
         save = self.json_validate_and_dump
         format_str = self.get_idx_format_str(self.tipsy_conf.configs)
+        len_confs = len(self.tipsy_conf.configs)
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
-            print('.', end='', flush=True)
+            print_progess(i, len_confs)
             out_dir = Path(self.meas_dir, format_str % i)
             out_dir.mkdir()
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
             save(config['traffic'], out_dir / self.fname_pcap_in, 'traffic')
             save(config, out_dir / self.fname_bm, 'benchmark')
             self.write_makefile(out_dir, 'per-dir-makefile.in')
+        print_progess(len_confs, len_confs)
+        print('')
 
     def do_list_module_tests(self):
         print("\n".join(find_mod.glob('test-*.json')))
