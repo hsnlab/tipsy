@@ -112,6 +112,20 @@ def match(query, obj):
 
 # ---------------------------------------------------------------------------
 
+def eval_expr_add(args, data, env):
+    if not isinstance(args, list):
+        raise Exception(f"invalid args for add expression")
+
+    if len(args) == 0:
+        return None
+    s = 0
+    for a in args:
+        try:
+            s += eval_expr(a, data, env)
+        except TypeError:
+            return float("nan")
+    return s
+
 def eval_expr_addFields(args, data, env):
     res = []
     for item in data:
