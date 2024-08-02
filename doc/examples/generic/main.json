@@ -61,6 +61,17 @@
       "x-axis": "tester.environ.i",
       "y-axis": "normalized",
       "title": "using another y-pipeline"
+    },
+    {
+      "title": "y-pipeline is usesless: aggregate can achive the same (and more)",
+      "type": "simple",
+      "x-axis": "tester.environ.i",
+      "y-axis": "normalized",
+      "aggregate": [{
+          "$addFields": {
+            "normalized": {"$divide": ["$out.y", "$tester.environ.i"]}
+          }
+      }]
     }
   ]
 }

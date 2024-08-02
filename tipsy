@@ -20,6 +20,7 @@
 import argparse
 import copy
 import glob
+import hashlib
 import inspect
 import itertools
 import json
@@ -31,6 +32,7 @@ import sys
 from pathlib import Path, PosixPath
 
 from lib import find_mod
+from lib import tester_base
 from lib import validate
 
 
@@ -50,6 +52,9 @@ target is either a filename, a PosixPath, or a file-like object.
             dump_to_file(obj, outfile)
     else:
         dump_to_file(obj, target)
+
+def json_dumps(obj):
+    return json.dumps(obj, indent=4, sort_keys=True) + "\n"
 
 
 def conf_merge(dst, src, props_to_concat=None, property=None):
@@ -335,7 +340,8 @@ class TipsyManager(object):
             os.mkdir(dir)
         except FileExistsError as e:
             print(e)
-            print('(You can use the --force argument: tipsy config --help)')
+            print('(You can use the --force or the --keep argument:'
+                  ' tipsy config --help)')
             exit()
 
     def get_idx_format_str(self, items):
@@ -346,8 +352,8 @@ class TipsyManager(object):
         def print_progess(current, total):
             print(f"  \rGenerating plots      : {current}/{total}",
                   end='', flush=True)
+        self.old_dir_init(self.plot_dir, 'plot.json')
         self.create_dir(self.plot_dir)
-        save = self.json_validate_and_dump
         v_confs = self.tipsy_conf.get('visualize', [])
         format_str = self.get_idx_format_str(v_confs)
         out_dirs = []
@@ -357,11 +363,19 @@ class TipsyManager(object):
             id = format_str % i
             out_dirs.append(id)
             out_dir = Path(self.plot_dir, id)
+            out_file = out_dir / 'plot.json'
+            try:
+                # Validation sets the default values as well.
+                validate.validate_data(config, schema_name='plot')
+            except Exception as e:
+                sys.exit("Failed validating %s:\n%s" % (out_file, e))
+            if self.old_dir_unchanged(config, out_dir, id, plot=True):
+                continue
             out_dir.mkdir()
-            save(config, out_dir / 'plot.json', 'plot')
+            json_dump(config, out_file)
             self.write_makefile(out_dir, 'plot-makefile.in')
-        print_progess(len_confs, len_confs)
         print()
+        self.old_dir_rm()
         with Path(self.plot_dir, 'fig.tex').open('w') as f:
             f.write(inspect.cleandoc(r'''
               \documentclass{article}
@@ -385,10 +399,86 @@ class TipsyManager(object):
                 f.write("  \\input{%s/fig.tex}\n" % dir)
             f.write("\\end{document}\n")
 
+    def old_dir_init(self, new_dir, fname):
+        """
+        Temporary keep results in 'old_dir'
+        It is used to avoid re-running measurements/plots unnecessarily.
+        """
+        self.old_dir = Path(new_dir + '_old')
+        self.old_dir_hashes = {}
+        self.old_dir_reused = 0
+        self.old_dir_version_mismatch = 0
+        tester = tester_base.Tester(None)
+        self.old_dir_current_version = tester.result['tipsy-version']
+        if self.args.keep and os.path.exists(new_dir):
+            if self.old_dir.exists():
+                shutil.rmtree(self.old_dir)
+            os.rename(new_dir, self.old_dir)
+        hash_file = self.old_dir / 'config_hash.json'
+        if hash_file.exists():
+            with hash_file.open() as f:
+                self.old_dir_hashes = json.load(f)
+        else:
+            for config_file in self.old_dir.glob('*/'+ fname):
+                with config_file.open() as f:
+                    str_config = f.read()
+                    h = hashlib.md5(str_config.encode()).digest()
+                    self.old_dir_hashes[h] = config_file.parent
+
+        # for k, v in self.old_dir_hashes.items():
+        #     print(f'hash: {k}, {v}')
+
+    def old_dir_rm(self):
+        if not self.args.keep:
+            return
+        print(f'{"old dirs reused":22}: {self.old_dir_reused}')
+        if self.old_dir_version_mismatch:
+            vm = self.old_dir_version_mismatch
+            print(f'{"  VERSION MISMATCH":22}: {vm}')
+
+        if os.path.exists(self.old_dir):
+            shutil.rmtree(self.old_dir)
+
+    def old_dir_unchanged(self, config, out_dir, test_id, plot=False):
+        """
+        Return True if old_dir contains results for config.
+        Also copy the results into out_dir.
+        """
+        str_config = json_dumps(config)
+        h = hashlib.md5(str_config.encode()).digest()
+        #print(f'old : {h} {out_dir}')
+        old_dir = self.old_dir_hashes.get(h)
+        if not old_dir:
+            return False
+
+        if plot==False:
+            # Check tipsy-version
+            res_file = Path(old_dir) / 'results.json'
+            result = {}
+            if res_file.exists():
+                with res_file.open() as f:
+                    result = json.load(f)
+                old_version = result.get('out', {}).get('tipsy-version')
+                if old_version != self.old_dir_current_version:
+                    self.old_dir_version_mismatch += 1
+
+            # Update test-id
+            if result and result.get('out', {}).get('test-id') != test_id:
+                result['out'] = result.get('out', {})
+                result['out']['test-id'] = test_id
+                json_dump(result, res_file)
+
+        old_dir.rename(out_dir)
+        #print(f'Reusing old results for {out_dir}')
+        self.old_dir_reused += 1
+        return True
+
+
     def config_measurements(self):
         def print_progess(current, total):
             print(f"  \rGenerating configs    : {current}/{total}",
                   end='', flush=True)
+        self.old_dir_init(self.meas_dir, self.fname_bm)
         self.create_dir(self.meas_dir)
         save = self.json_validate_and_dump
         format_str = self.get_idx_format_str(self.tipsy_conf.configs)
@@ -396,6 +486,8 @@ class TipsyManager(object):
         for i, config in enumerate(self.tipsy_conf.configs, start=1):
             print_progess(i, len_confs)
             out_dir = Path(self.meas_dir, format_str % i)
+            if self.old_dir_unchanged(config, out_dir, format_str % i):
+                continue
             out_dir.mkdir()
             save(config['pipeline'], out_dir / self.fname_pl_in, 'pipeline')
             save(config['traffic'], out_dir / self.fname_pcap_in, 'traffic')
@@ -403,6 +495,7 @@ class TipsyManager(object):
             self.write_makefile(out_dir, 'per-dir-makefile.in')
         print_progess(len_confs, len_confs)
         print('')
+        self.old_dir_rm()
 
     def do_list_module_tests(self):
         print("\n".join(find_mod.glob('test-*.json')))
@@ -460,6 +553,10 @@ if __name__ == '__main__':
     config.add_argument('--plots', '-p',
                         default=False, action="store_true",
                         help='Generate config files only for visualization')
+    config.add_argument('--keep', '-k',
+                        default=False, action="store_true",
+                        help='Keep existing measurements/plots'
+                        ' if config has not changed')
     extr = subparsers.add_parser('extract',
                                  help='Extract a subtree from a json file')
     vali = subparsers.add_parser('validate', help='Validate configurations')
