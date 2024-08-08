@@ -138,6 +138,11 @@ def eval_expr_addFields(args, data, env):
         res.append(item)
     return res
 
+def eval_expr_arrayElemAt(args, data, env):
+    array = eval_expr(args[0], data, env)
+    idx = eval_expr(args[1], data, env)
+    return array[idx]
+
 def eval_expr_arrayToObject(args, data, env):
     array = eval_expr(args, data, env)
     obj = {}
@@ -351,6 +356,11 @@ def eval_expr_sort(args, data, env):
                      key=lambda x: get_field(field.split('.'), x, env),
                      reverse=(order == -1))
     return res
+
+def eval_expr_split(args, data, env):
+    string = eval_expr(args[0], data, env)
+    delimiter = eval_expr(args[1], data, env)
+    return string.split(delimiter)
 
 def eval_expr_stdDevPop(args, data, env):
     mean = eval_expr_avg(args, data, env)
