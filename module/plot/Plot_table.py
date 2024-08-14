@@ -28,7 +28,7 @@ class Plot(Plot_base):
           \usepackage{colortbl}
         """) + "\n"
 
-    def sort_by_column(self, table, header, column_name=None):
+    def sort_by_column(self, table, column_name=None):
         if column_name is None:
             return table
         header, table = table[0], table[1:]
