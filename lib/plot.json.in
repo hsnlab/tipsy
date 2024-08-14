@@ -59,6 +59,11 @@
       "type": "string",
       "description": "name of the column to sort tables by"
     },
+    "auto-transpose-table": {
+      "type": "boolean",
+      "description": "Transpose table if it has more columns than rows.",
+      "default": true
+    },
     "datafile": {
       "type": "string",
       "default": "",

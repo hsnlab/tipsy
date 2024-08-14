@@ -59,7 +59,8 @@ class Plot(Plot_base):
         sort_column = self.conf.get('sort_column', None)
         table = self.sort_by_column(table, sort_column)
 
-        if len(table) < len(table[0]):
+        if (self.conf.get('auto_transpose_table', True)
+            and len(table) < len(table[0])):
             # more columns than rows -> transpose
             table = list(zip(*table))
         if len(x_vals) == 1:
