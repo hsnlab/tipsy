@@ -137,3 +137,16 @@ Settings for the System-Under-Test (SUT).
 
 The default section provides an interface to apply benchmark
 parameters for every benchmark.
+
+* The =visualize= section
+
+The visualize section can be used to configure plots of the captured data.
+- =type=: The type of the plot. (=simple=, =table=, =contour=, =USL=)
+- =x-axis=: The JSON Path in dot notation to the field in the result.json that is used on the x-axis
+- =y-axis=: The JSON Path in dot notation to the field in the result.json that is used on the y-axis
+- =z-axis=: The JSON Path in dot notation to the field in the result.json that is used on the z-axis
+- =group-by=: The JSON Path in dot notation to the field by which the data is grouped
+- =filter=: A mongoquery to filter the results before collecting the data for x-,y- and z-axis 
+- =title=: The tite for the plot
+- =axis-type=: One of the axis types defined by matplotlib
+- =aggregate=: Mongo aggregation pipeline for more complex data filtering
