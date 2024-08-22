@@ -150,3 +150,5 @@ The visualize section can be used to configure plots of the captured data.
 - =title=: The tite for the plot
 - =axis-type=: One of the axis types defined by matplotlib
 - =aggregate=: Mongo aggregation pipeline for more complex data filtering
+
+The [[./examples][example directory]] contains samples for the visualize section too.
