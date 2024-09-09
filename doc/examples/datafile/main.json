@@ -32,6 +32,7 @@
       "error-bar": "ERROR-COL",
       "datafile": "../../measurements/{out.test-id}/datafile.data",
       "title": "Example",
+      "group-by": "out.id",
       "aggregate": [ { "$addFields": {
                        "X-COL": 0,
                        "Y-COL": 1,
