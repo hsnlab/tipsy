@@ -1,0 +1,11 @@
+#!/bin/bash
+
+mode=$1
+i=$2
+
+if [ "$mode" == alpha ]; then
+   y=$(shuf -i1-10 -n1)
+else
+   y=$(shuf -i11-20 -n1)
+fi
+printf '{"y": %s}' $y

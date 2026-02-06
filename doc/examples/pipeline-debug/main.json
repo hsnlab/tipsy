@@ -1,0 +1,81 @@
+{  "benchmark":
+   [
+     {
+       "tester": {
+         "type": "generic",
+         "environ": {
+           "mode": ["alpha", "beta"],
+           "i": [1, 2, 3, 4, 5]
+         },
+         "script": "../../measure $mode $i > $PWD/result.json"
+       }
+     }
+   ],
+   "default": {
+     "pipeline": {
+       "name": "none"
+     },
+     "scale": "outer",
+     "sut": {
+       "type": "none"
+     },
+     "tester": {
+       "type": "generic"
+     },
+     "traffic": {
+     }
+   },
+   "visualize": [
+     {
+       "type": "table",
+       "x-axis": "tester.environ.i",
+       "y-axis": ["out.y"],
+       "title": "Raw results",
+       "group-by": "tester.environ.mode"
+     },
+     {
+       "type": "table",
+       "x-axis": "mode",
+       "y-axis": ["stddev", "avg"],
+       "title": "A simple pipeline",
+       "aggregate": [
+         {
+          "$group": {
+            "_id": {
+              "mode": "$tester.environ.mode"
+            },
+            "mode": {"$first": "$tester.environ.mode"},
+            "avg": {"$avg": "$out.y"},
+            "stddev": {"$stdDevPop": "$out.y"}
+          }
+         }
+       ]
+     },
+     {
+       "type": "table",
+       "x-axis": "mode",
+       "y-axis": ["stddev", "avg"],
+       "title": "A simple pipeline with debugging statements",
+       "aggregate": [
+         { "$debug": "debug.step-1.json" },
+         {
+          "$group": {
+            "_id": {
+              "mode": "$tester.environ.mode"
+            },
+            "mode": {"$first": "$tester.environ.mode"},
+            "avg": {
+              "$debug": {
+                "infile": "debug-step-2-in.json",
+                "outfile": "debug-step-2-out.json",
+                "expr": {"$avg": "$out.y"}
+              }
+            },
+            "stddev": {"$stdDevPop": "$out.y"}
+          }
+         },
+         { "$debug": "debug.step-3.json" }
+       ]
+     }
+   ]
+}

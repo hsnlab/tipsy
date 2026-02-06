@@ -176,6 +176,26 @@ def eval_expr_cond(args, data, env):
     else:
         return eval_expr(args['else'], data, env)
 
+def eval_expr_debug(args, data, env):
+    def json_dump(filename, data):
+        if not filename:
+            return
+        with open(filename, 'a') as f:
+            json.dump(data, f, indent=2)
+            f.write('\n')
+
+    if isinstance(args, str):
+        infile = args
+        outfile = None
+        ret = data
+    else:
+        infile = args.get('infile', None)
+        outfile = args.get('outfile', None)
+        ret = eval_expr(args['expr'], data, env)
+    json_dump(infile, data)
+    json_dump(outfile, ret)
+    return ret
+
 def eval_expr_eq(args, data, env):
     a = eval_expr(args[0], data, env)
     b = eval_expr(args[1], data, env)
