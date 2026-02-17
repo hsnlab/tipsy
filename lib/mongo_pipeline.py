@@ -138,6 +138,12 @@ def eval_expr_addFields(args, data, env):
         res.append(item)
     return res
 
+def eval_expr_and(args, data, env):
+    for sub_expr in args:
+        if not eval_expr(sub_expr, data, env):
+            return False
+    return True
+
 def eval_expr_arrayElemAt(args, data, env):
     array = eval_expr(args[0], data, env)
     idx = eval_expr(args[1], data, env)
