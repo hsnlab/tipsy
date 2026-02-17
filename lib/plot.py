@@ -43,7 +43,10 @@ class ObjectView(dict):
         return super().__getitem__(x)
 
     def __getattr__(self, x):
-        return self.__getitem__(x)
+        try:
+            return self.__getitem__(x)
+        except KeyError:
+            raise AttributeError(x)
 
     def get(self, key, default):
         try:
