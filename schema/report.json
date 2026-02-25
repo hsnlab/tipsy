@@ -1,0 +1,25 @@
+{
+  "title": "Definition of the final pdf report",
+  "desciption": "asdf",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["article", "presentation"],
+      "default": "article",
+      "description": "presentation: one page - one result, article: one page -- many results)"
+    },
+    "title": {
+      "type": "string",
+      "default": "",
+      "description": "generate a title (page) if this is not empty."
+    },
+    "author": {
+      "type": "string",
+      "default": "",
+      "description": "Author of the report"
+    }
+  },
+  "required": ["type"],
+  "additionalProperties": false
+}

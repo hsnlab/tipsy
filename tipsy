@@ -355,6 +355,7 @@ class TipsyManager(object):
         self.old_dir_init(self.plot_dir, 'plot.json')
         self.create_dir(self.plot_dir)
         v_confs = self.tipsy_conf.get('visualize', [])
+        r_confs = self.tipsy_conf.get('report', {})
         format_str = self.get_idx_format_str(v_confs)
         out_dirs = []
         len_confs = len(v_confs)
@@ -364,6 +365,7 @@ class TipsyManager(object):
             out_dirs.append(id)
             out_dir = Path(self.plot_dir, id)
             out_file = out_dir / 'plot.json'
+            config['report-type'] = r_confs.get('type', 'article')
             try:
                 # Validation sets the default values as well.
                 validate.validate_data(config, schema_name='plot')
@@ -377,7 +379,33 @@ class TipsyManager(object):
         print()
         self.old_dir_rm()
         with Path(self.plot_dir, 'fig.tex').open('w') as f:
-            f.write(inspect.cleandoc(r'''
+            f.write(self.get_preamble())
+            f.write("\n")
+            for dir in out_dirs:
+                f.write("  \\input{%s/preamble.tex}\n" % dir)
+            f.write("\\begin{document}\n")
+            if title := r_confs.get('title'):
+                author = r_confs.get('author', '')
+                f.write(f' \\title{{{title}}}\n')
+                f.write(f' \\author{{{author}}}\n')
+                f.write(f' \\date{{\\today}}\n')
+                f.write(f' \\maketitle\n')
+            for dir in out_dirs:
+                f.write("  \\input{%s/fig.tex}\n" % dir)
+            f.write("\\end{document}\n")
+
+    def get_preamble(self):
+        doc_type = self.tipsy_conf.get('report', {}).get('type', 'article')
+        if doc_type == 'presentation':
+            return inspect.cleandoc(r'''
+              \documentclass[aspectratio=169]{beamer}
+              %\def\pgfsysdriver{pgfsys-dvipdfm.def}
+              \usepackage{pgfplots}
+              \pgfplotsset{compat = newest}
+            ''')
+        else:
+            # article
+            return inspect.cleandoc(r'''
               \documentclass{article}
               %\def\pgfsysdriver{pgfsys-dvipdfm.def}
               \usepackage{pgfplots}
@@ -390,14 +418,7 @@ class TipsyManager(object):
               \renewcommand*{\thefigure}{\arabic{figure}}
               \let\c@table\c@figure
               \makeatother
-            '''))
-            f.write("\n")
-            for dir in out_dirs:
-                f.write("  \\input{%s/preamble.tex}\n" % dir)
-            f.write("\\begin{document}\n")
-            for dir in out_dirs:
-                f.write("  \\input{%s/fig.tex}\n" % dir)
-            f.write("\\end{document}\n")
+            ''')
 
     def old_dir_init(self, new_dir, fname):
         """

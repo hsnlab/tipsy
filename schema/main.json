@@ -15,6 +15,10 @@
       "type": "array",
       "items": { "$ref": "plot.json#/" },
       "default": []
+    },
+    "report": {
+      "$ref": "report.json#/",
+      "default": {}
     }
   },
   "required": [],

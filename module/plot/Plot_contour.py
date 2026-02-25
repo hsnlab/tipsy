@@ -36,9 +36,7 @@ class Plot(Plot_simple):
             'addplot': addplot,
             'axis': self.get_latex_axis_type()
         }
-        text = inspect.cleandoc(r"""
-          \begin{{figure}}
-            \centering
+        tikz_source = inspect.cleandoc(r"""
             \begin{{tikzpicture}}
             \begin{{{axis}}}[
                 view={{0}}{{90}},
@@ -52,10 +50,9 @@ class Plot(Plot_simple):
               }};
               \end{{{axis}}}
             \end{{tikzpicture}}
-            \caption{{{title}}}
-          \end{{figure}}
           """
         ).format(**f)
+        text = self.format_latex_plot(title, tikz_source)
         with open('fig.tex', 'w') as f:
             f.write(text)
             f.write("\n")

@@ -30,13 +30,36 @@ def ensure_list(object_or_list):
         return [object_or_list]
 
 def str2tex(s):
-    return s.replace('_', '$\_$')
+    return s.replace('_', r'$\_$')
 
 
 class Plot(Base):
     def __init__(self, conf):
         super().__init__(conf)
         self.ylabel = None
+
+    def format_latex_plot(self, title, tikz_source):
+        f = {
+            'title': title,
+            'tikz_source': tikz_source,
+        }
+        if self.conf.get('report-type', 'article') == 'article':
+            return inspect.cleandoc(r"""
+              \begin{{figure}}
+                \centering
+                {tikz_source}
+                \caption{{{title}}}
+              \end{{figure}}
+            """.format(**f))
+        else:
+            return inspect.cleandoc(r"""
+              \begin{{frame}}{{{title}}}
+                  \centering
+                  \resizebox{{!}}{{0.85\textheight}}{{
+                     {tikz_source}
+                  }}
+              \end{{frame}}
+            """.format(**f))
 
     def format_matplotlib(self, series, title):
         import matplotlib as mpl # "Generating graphs w/o a running X server"
@@ -103,9 +126,7 @@ class Plot(Base):
             if self.conf.get(prop, None) is not None:
                 f['other_opts'] += f"{sep}{prop}={self.conf.get(prop, 0)}"
                 sep = ",\n      "
-        text = inspect.cleandoc(r"""
-          \begin{{figure}}
-            \centering
+        tikz_src = inspect.cleandoc(r"""
             \begin{{tikzpicture}}
             \begin{{{axis_type}}}[
                 xlabel={xlabel}, {ylabel_opt}
@@ -115,22 +136,17 @@ class Plot(Base):
             {addplot}
             \end{{{axis_type}}}
             \end{{tikzpicture}}
-            \caption{{{title}}}
-          \end{{figure}}
-          """
-        ).format(**f)
+        """).format(**f)
+        text = self.format_latex_plot(title, tikz_src)
         with open('fig.tex', 'w') as f:
             f.write(text)
             f.write("\n")
 
     def format_latex_empty(self, title):
         text = inspect.cleandoc(f"""
-          \\begin{{figure}}
-             \\centering
                (empty)
-             \\caption{{{title}}}
-           \\end{{figure}}
-           """)
+        """)
+        text = self.format_latex_plot(title, text)
         with open('fig.tex', 'w') as f:
             f.write(text)
 

@@ -105,6 +105,12 @@
       "enum": ["normal", "semilogx", "semilogy", "loglog"],
       "default": "normal",
       "description": "Type of the axis.  See 'The Axis Environment' in pgfplots.pdf"
+    },
+    "report-type": {
+      "type": "string",
+      "enum": ["article", "presentation"],
+      "default": "article",
+      "description": " "
     }
   },
   "required": ["x-axis", "y-axis"],
