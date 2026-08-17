@@ -282,9 +282,30 @@ class TipsyManager(object):
         replacements['plot-types'] = '", "'.join(sorted(pl))
         TipsyManager.create_file_from_template(src, dst, replacements)
 
+    def gen_json_from_jinja(self):
+        templates = []
+        for f in sorted(Path.cwd().glob('*.json.j2')):
+            if f.name.startswith('.'):
+                continue
+            templates.append(f)
+        if not templates:
+            return
+
+        from jinja2 import Environment, FileSystemLoader
+        for template_file in templates:
+            base = os.path.basename(template_file)
+            outfile = os.path.splitext(template_file)[0]
+            dirname = os.path.dirname(template_file)
+            print(f'Processing template   : {base}')
+            env = Environment(loader=FileSystemLoader(dirname))
+            template = env.get_template(base)
+            with open(outfile, 'w') as f:
+                f.write(template.render())
 
     def init_tipsyconfig(self, config_files=None):
         def conf_load(d): return TipsyConfig(**d)
+
+        self.gen_json_from_jinja()
         if not config_files:
             config_files = []
             for f in sorted(Path.cwd().glob('*.json')):
