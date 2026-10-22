@@ -388,6 +388,17 @@ def eval_expr_split(args, data, env):
     delimiter = eval_expr(args[1], data, env)
     return string.split(delimiter)
 
+def eval_expr_sqrt(args, data, env):
+    if isinstance(args, list):
+        args = args[0]
+    a = eval_expr(args, data, env)
+    if a is None:
+        return None
+    try:
+        return a**0.5
+    except TypeError:
+        return float("nan")
+
 def eval_expr_stdDevPop(args, data, env):
     mean = eval_expr_avg(args, data, env)
 
@@ -423,6 +434,20 @@ def eval_expr_subtract(args, data, env):
         return a - b
     except TypeError:
         return float("nan")
+
+def eval_expr_sum(args, data, env):
+    # Like mongodb, non-numeric values are ignored.
+    if isinstance(data, list):
+        # accumulator in a $group stage
+        values = [eval_expr(args, item, env) for item in data]
+    elif isinstance(args, list):
+        values = [eval_expr(a, data, env) for a in args]
+    else:
+        values = eval_expr(args, data, env)
+        if not isinstance(values, list):
+            values = [values]
+    return sum(v for v in values
+               if isinstance(v, (int, float)) and not isinstance(v, bool))
 
 def eval_expr_toInt(args, data, env):
     return int(eval_expr(args, data, env))
