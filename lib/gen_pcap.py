@@ -396,4 +396,8 @@ def parse_args(defaults=None):
 
 
 if __name__ == "__main__":
+    # Python 3.14 changed the default start method on Linux to
+    # "forkserver", which must pickle the worker objects; they hold open
+    # files (args.conf), so keep the traditional "fork" method.
+    multiprocessing.set_start_method('fork')
     gen_pcap()
